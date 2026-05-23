@@ -2,19 +2,6 @@ const Behavior = require("../models/Behavior");
 const Student = require("../models/Student");
 const Schedule = require("../models/Schedule");
 
-
-
-const timeToMinutes = (timeStr) => {
-  const [hours, minutes] = timeStr.split(":").map(Number);
-  return hours * 60 + minutes;
-};
-
-const getActiveClass = async (teacherId, classroomId) => {
-  const days = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-  const dayName = days[new Date().getDay()];
-  const now = new Date();
-  const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
-
   const schedules = await Schedule.find({
     teacher: teacherId,
     classroom: classroomId,
@@ -26,34 +13,32 @@ const getActiveClass = async (teacherId, classroomId) => {
     const end = timeToMinutes(sch.endTime);
     return currentTimeInMinutes >= start && currentTimeInMinutes <= end;
   });
-};
-
 
 exports.recordBulkBehavior = async (req, res) => {
   try {
-    const { classroomId, behaviorRecords } = req.body; 
+    const { scheduleId, behaviorRecords } = req.body; 
 
-    const activeClass = await getActiveClass(req.user.id, classroomId);
+    const currentSchedule = await Schedule.findById(scheduleId);
     
-    if (!activeClass) {
+    if (!currentSchedule || currentSchedule.teacher.toString() !== req.user.id) {
       return res.status(403).json({ 
-        message: "لا يمكنك تسجيل ملاحظات سلوكية الآن؛ لست في موعد حصتك الرسمية بهذا الفصل" 
+        message: "عفواً، هذه الحصة غير مسجلة باسمك ولا يمكنك تقييم طلابها." 
       });
     }
 
     const validRecords = behaviorRecords.filter(r => r.type && r.note && r.note.trim().length > 0);
 
     if (validRecords.length === 0) {
-      return res.status(400).json({ message: "يجب اختيار نوع السلوك وكتابة ملاحظة لكل طالب يتم تقييمه" });
+      return res.status(400).json({ message: "يجب اختيار نوع السلوك وكتابة ملاحظة لكل طالب يتم تقييمه." });
     }
 
     const bulkData = validRecords.map(record => ({
       student: record.studentId,
       teacher: req.user.id,
-      subject: activeClass.subject,
+      subject: currentSchedule.subject, 
       type: record.type,
       note: record.note,
-      date: new Date()
+      date: new Date() 
     }));
 
     await Behavior.insertMany(bulkData);
@@ -114,23 +99,13 @@ exports.getStudentBehavior = async (req, res) => {
   }
 };
 
-
 exports.deleteBehavior = async (req, res) => {
   try {
-    const behavior = await Behavior.findById(req.params.id).populate("student");
+    const behavior = await Behavior.findById(req.params.id);
     if (!behavior) return res.status(404).json({ message: "سجل السلوك غير موجود" });
 
-    if (req.user.role === 'teacher') {
-      if (behavior.teacher.toString() !== req.user.id) {
+    if (req.user.role === 'teacher' && behavior.teacher.toString() !== req.user.id) {
         return res.status(403).json({ message: "لا يمكنك حذف تقييم سلوكي كتبه معلم آخر" });
-      }
-
-      const activeClass = await getActiveClass(req.user.id, behavior.student.classroom);
-      if (!activeClass) {
-        return res.status(403).json({ 
-          message: "لا يمكنك حذف ملاحظة سلوكية الآن؛ لست في موعد حصتك الرسمية بهذا الفصل" 
-        });
-      }
     }
 
     await behavior.deleteOne();

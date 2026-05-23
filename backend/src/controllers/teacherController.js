@@ -100,8 +100,6 @@ exports.getTeacherDashboard = async (req, res) => {
       return currentTime >= start && currentTime <= end;
     });
 
-    
-
     // 3. جلب إحصائيات الغياب والواجبات
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
