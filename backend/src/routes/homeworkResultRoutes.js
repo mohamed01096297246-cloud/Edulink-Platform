@@ -2,20 +2,38 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  gradeBulkHomework, 
+  gradeBulkHomework,
+
   getParentHomeworkDashboard,
-  updateSingleGrade, 
-  deleteSingleGrade  
+
+  updateSingleGrade,
+
+  deleteSingleGrade,
 } = require("../controllers/homeworkResultController");
 
 const { protect, authorize } = require("../middleware/authMiddleware");
 
-router.post("/grade/:homeworkId", protect, authorize("teacher"), gradeBulkHomework);
+router.post(
+  "/grade/:homeworkId",
+  protect,
+  authorize("teacher"),
+  gradeBulkHomework,
+);
 
-router.get("/dashboard/:studentId", protect, authorize("parent", "admin"), getParentHomeworkDashboard);
+router.get(
+  "/dashboard/:studentId",
+  protect,
+  authorize("parent", "admin"),
+  getParentHomeworkDashboard,
+);
 
 router.put("/:id", protect, authorize("teacher", "admin"), updateSingleGrade);
 
-router.delete("/:id", protect, authorize("teacher", "admin"), deleteSingleGrade);
+router.delete(
+  "/:id",
+  protect,
+  authorize("teacher", "admin"),
+  deleteSingleGrade,
+);
 
 module.exports = router;

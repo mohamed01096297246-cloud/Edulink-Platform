@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  /* تدرج لوني هادئ واحترافي يتماشى مع واجهات التطبيقات الحديثة */
+  background-color: #3991ea;
+  background-:
+    radial-gradient(at 0% 0%, rgba(167, 202, 248, 0.5) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(75, 99, 176, 0.5) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(75, 132, 208, 0.5) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(43, 61, 119, 0.5) 0px, transparent 50%);
+  background-attachment: fixed;
+  min-height: 100-vh;
+}
+
+/* إضافة لمسة زجاجية اختيارية لكل البطاقات في المشروع */
+.glass-card {
+  background: rgba(49, 49, 49, 0.8);
+
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}

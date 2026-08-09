@@ -1,49 +1,65 @@
+const Student = require("../models/Student");
+const Attendance = require("../models/Attendance");
+const Behavior = require("../models/Behavior");
+const HomeworkResult = require("../models/HomeworkResult");
+const Result = require("../models/Result");
+const User = require("../models/User");
+
 exports.getParentDashboard = async (req, res) => {
   try {
-    const students = await Student.find({ parent: req.user.id }).populate("classroom", "name grade");
+    const parentUser = await User.findById(req.user.id);
+    const linkedIds = parentUser?.linkedStudents || [];
+    const students = await Student.find({
+      $or: [{ parent: req.user.id }, { _id: { $in: linkedIds } }],
+    }).populate("classroom", "name grade");
 
     if (!students || students.length === 0) {
-      return res.status(404).json({ message: "لم يتم العثور على طلاب مرتبطين بهذا الحساب" });
+      return res.status(200).json({
+        parentName: req.user.firstName,
+        children: [],
+      });
     }
 
-    const childrenData = await Promise.all(students.map(async (student) => {
-      
-      const attendance = await Attendance.find({ student: student._id });
-      const present = attendance.filter(a => a.status === "present").length;
-      const absent = attendance.filter(a => a.status === "absent").length;
+    const childrenData = await Promise.all(
+      students.map(async (student) => {
+        const attendance = await Attendance.find({ student: student._id });
+        const present = attendance.filter((a) => a.status === "present").length;
+        const absent = attendance.filter((a) => a.status === "absent").length;
 
-      const behaviors = await Behavior.find({ student: student._id })
-        .populate("teacher", "firstName lastName")
-        .sort({ createdAt: -1 });
+        const behaviors = await Behavior.find({ student: student._id })
+          .populate("teacher", "firstName lastName")
+          .sort({ createdAt: -1 });
 
-      const homeworkResults = await HomeworkResult.find({ student: student._id })
-        .populate("homework", "title subject")
-        .sort({ createdAt: -1 });
+        const homeworkResults = await HomeworkResult.find({
+          student: student._id,
+        })
+          .populate("homework", "title subject")
+          .sort({ createdAt: -1 });
 
-      const examResults = await Result.find({ student: student._id })
-        .populate("exam", "title subject totalMarks")
-        .sort({ createdAt: -1 });
+        const examResults = await Result.find({ student: student._id })
+          .populate("exam", "title subject totalMarks")
+          .sort({ createdAt: -1 });
 
-      return {
-        studentInfo: {
-          id: student._id,
-          fullName: `${student.firstName} ${student.lastName}`,
-          classroom: student.classroom ? student.classroom.name : "غير محدد",
-          grade: student.classroom ? student.classroom.grade : ""
-        },
-        attendance: { present, absent, totalDays: attendance.length },
-        behaviors,
-        homeworkResults,
-        examResults
-      };
-    }));
-
-    res.json({
+        return {
+          studentInfo: {
+            id: student._id,
+            fullName: `${student.firstName} ${student.lastName}`,
+            classroom: student.classroom ? student.classroom.name : "غير محدد",
+            classroomId: student.classroom ? student.classroom._id : null,
+            grade: student.classroom ? student.classroom.grade : "",
+          },
+          attendance: { present, absent, totalDays: attendance.length },
+          behaviors,
+          homeworkResults,
+          examResults,
+        };
+      }),
+    );
+    res.status(200).json({
       parentName: req.user.firstName,
-      children: childrenData
+      children: childrenData,
     });
-
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: "Internal server error: " + err.message });
   }
 };

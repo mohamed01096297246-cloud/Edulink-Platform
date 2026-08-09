@@ -1,7 +1,8 @@
 const Attendance = require("../models/Attendance");
 const Schedule = require("../models/Schedule");
 const Student = require("../models/Student");
-const sendCredentialsEmail = require("../utils/emailService.js"); 
+const mongoose = require("mongoose");
+const sendCredentialsEmail = require("../utils/emailService.js");
 
 const timeToMinutes = (timeStr) => {
   const [hours, minutes] = timeStr.split(":").map(Number);
@@ -17,7 +18,7 @@ const getActiveClass = async (teacherId, classroomId) => {
   const schedules = await Schedule.find({
     teacher: teacherId,
     classroom: classroomId,
-    day: dayName
+    day: dayName,
   });
 
   return schedules.find((sch) => {
@@ -29,90 +30,105 @@ const getActiveClass = async (teacherId, classroomId) => {
 
 exports.recordBulkAttendance = async (req, res) => {
   try {
-    const { classroomId, records } = req.body; 
-    const activeClass = await getActiveClass(req.user.id, classroomId);
-
-    if (!activeClass) {
-      return res.status(403).json({ message: "انتهى وقت الحصة أو لم يبدأ بعد، لا يمكنك تسجيل الحضور الآن." });
+    const { scheduleId, records, selectedDate } = req.body;
+    if (!selectedDate || !scheduleId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "sorry, both the schedule ID and the selected date are required to record attendance.",
+      });
     }
 
-    const normalizedDate = new Date();
-    normalizedDate.setHours(0, 0, 0, 0);
+    if (!records || records.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "no attendance records provided. Please provide at least one record to save.",
+      });
+    }
 
+    const validScheduleId = new mongoose.Types.ObjectId(scheduleId);
+
+    const targetSchedule = await Schedule.findById(validScheduleId);
+    if (!targetSchedule) {
+      return res.status(404).json({
+        success: false,
+        message: "sorry, the selected schedule is not found.",
+      });
+    }
+
+    const [year, month, day] = selectedDate.split("-").map(Number);
+    const pureDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+
+    const existingAttendance = await Attendance.findOne({
+      schedule: validScheduleId,
+      date: pureDate,
+    });
+
+    if (existingAttendance) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "sorry, attendance for this schedule has already been recorded for this date and cannot be recorded again.",
+      });
+    }
 
     const bulkOps = records.map((record) => ({
-      updateOne: {
-        filter: { 
-          student: record.student, 
-          schedule: activeClass._id, 
-          date: normalizedDate 
+      insertOne: {
+        document: {
+          student: new mongoose.Types.ObjectId(record.student),
+          schedule: validScheduleId,
+          subject: targetSchedule.subject,
+          date: pureDate,
+          status: record.status,
+          recordedBy: new mongoose.Types.ObjectId(req.user.id),
         },
-        update: { 
-          $set: { 
-            status: record.status, 
-            recordedBy: req.user.id 
-          } 
-        },
-        upsert: true 
-      }
+      },
     }));
 
     await Attendance.bulkWrite(bulkOps);
 
-    const absents = records.filter(r => r.status === "absent");
-    
-    if (absents.length > 0) {
-      const absentIds = absents.map(a => a.student);
-      const studentsToNotify = await Student.find({ _id: { $in: absentIds } }).populate("parent");
-      
-      studentsToNotify.forEach(async (studentData) => {
-        if (studentData.parent && studentData.parent.email) {
-          try {
-            await sendCredentialsEmail( 
-              studentData.parent.email,
-              "تنبيه غياب طالب",
-              `نحيطكم علماً بغياب الطالب: ${studentData.firstName} عن حصة اليوم.`
-            );
-          } catch (e) {
-            console.log("خطأ في إرسال إيميل الغياب:", e.message);
-          }
-        }
-      });
-    }
-
-    res.status(201).json({ 
-      success: true, 
-      message: `تم تسجيل كشف الغياب لعدد (${records.length}) طالب بنجاح.` 
+    return res.status(201).json({
+      success: true,
+      message: "Attendance records saved successfully.",
     });
-
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Attendance Bulk Error:", err);
+    return res.status(500).json({
+      success: false,
+      message:
+        "An internal error occurred while saving attendance records: " +
+        err.message,
+    });
   }
 };
-
 exports.getStudentAttendance = async (req, res) => {
   try {
     const { studentId } = req.params;
 
     const student = await Student.findById(studentId);
-    if (!student) return res.status(404).json({ message: "الطالب غير موجود" });
+    if (!student) return res.status(404).json({ message: "student not found" });
 
-    if (req.user.role === 'parent' && student.parent.toString() !== req.user.id) {
-      return res.status(403).json({ 
-        message: "عفواً، لا يمكنك استعراض سجل غياب طالب ليس من أبنائك." 
+    if (
+      req.user.role === "parent" &&
+      student.parent.toString() !== req.user.id
+    ) {
+      return res.status(403).json({
+        message:
+          "sorry, you cannot view the attendance record of a student who is not your child.",
       });
     }
-
     const data = await Attendance.find({ student: studentId })
+      .populate("subject", "name")
       .populate({
         path: "schedule",
-        populate: { path: "subject", select: "name" }
+        populate: { path: "subject", select: "name" },
       })
       .sort({ date: -1 });
 
     res.json({
       success: true,
-      data
+      data,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -121,54 +137,54 @@ exports.getStudentAttendance = async (req, res) => {
 exports.getAllAttendance = async (req, res) => {
   try {
     let filter = {};
-    
-    if (req.user.role === 'teacher') {
+
+    if (req.user.role === "teacher") {
       filter = { recordedBy: req.user.id };
     }
 
     const data = await Attendance.find(filter)
-      .populate("student", "firstName lastName") 
+      .populate("student", "firstName lastName")
       .populate({
         path: "schedule",
-        populate: { path: "subject", select: "name" } 
+        populate: { path: "subject", select: "name" },
       })
       .populate({
         path: "schedule",
-        populate: { 
-          path: "classroom", 
+        populate: {
+          path: "classroom",
           select: "name grade",
-          populate: { path: "grade", select: "name academicYear" } 
-        }
+          populate: { path: "grade", select: "name academicYear" },
+        },
       })
       .sort({ createdAt: -1 });
 
     res.json({
       success: true,
       count: data.length,
-      data
+      data,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
-
 exports.getAttendanceById = async (req, res) => {
   try {
     const attendance = await Attendance.findById(req.params.id)
       .populate("student", "firstName lastName")
-     .populate({
+      .populate({
         path: "schedule",
         populate: [
           { path: "subject", select: "name" },
-          { 
-            path: "classroom", 
+          {
+            path: "classroom",
             select: "name grade",
-            populate: { path: "grade", select: "name academicYear" } 
-          }
-        ]
+            populate: { path: "grade", select: "name academicYear" },
+          },
+        ],
       });
 
-    if (!attendance) return res.status(404).json({ message: "سجل الحضور غير موجود" });
+    if (!attendance)
+      return res.status(404).json({ message: "Attendance record not found" });
 
     res.json({ success: true, data: attendance });
   } catch (err) {
@@ -179,17 +195,55 @@ exports.getAttendanceById = async (req, res) => {
 exports.updateAttendance = async (req, res) => {
   try {
     const record = await Attendance.findById(req.params.id).populate("student");
-    if (!record) return res.status(404).json({ message: "السجل غير موجود" });
+    if (!record)
+      return res.status(404).json({ message: "Attendance record not found" });
 
-    const activeClass = await getActiveClass(req.user.id, record.student.classroom);
+    const activeClass = await getActiveClass(
+      req.user.id,
+      record.student.classroom,
+    );
 
     if (!activeClass) {
-      return res.status(403).json({ message: "عفواً، لا يمكنك تعديل الغياب بعد انتهاء وقت الحصة الرسمي." });
+      return res.status(403).json({
+        message:
+          "sorry, you cannot modify attendance after the official class time has ended.",
+      });
     }
 
-    const updated = await Attendance.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json({ message: "تم التعديل بنجاح", updated });
+    const updated = await Attendance.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true },
+    );
+    res.json({ message: "Attendance updated successfully", updated });
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+};
+exports.checkExistingAttendance = async (req, res) => {
+  try {
+    const { classroomId, date } = req.query; 
+
+    if (!classroomId || !date) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Required parameters are missing." });
+    }
+
+    const [year, month, day] = date.split("-").map(Number);
+    const pureDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+
+    const records = await Attendance.find({
+      schedule: new mongoose.Types.ObjectId(classroomId),
+      date: pureDate,
+    }).populate("student", "firstName lastName");
+
+    return res.json({
+      success: true,
+      exists: records.length > 0,
+      records: records,
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
 };

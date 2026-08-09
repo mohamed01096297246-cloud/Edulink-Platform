@@ -4,43 +4,48 @@ const examSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, "عنوان الامتحان مطلوب (مثال: امتحانات نصف العام)"],
-      trim: true
+      required: [true, "Exam title is required (e.g., Midterm Exams)"],
+      trim: true,
+    },
+    examType: {
+      type: String,
+      required: [true, "Exam type is required (e.g., midterm, final)"],
+      enum: ["midterm", "final"],
+      default: "final",
     },
     academicYear: {
       type: String,
-      required: [true, "السنة الدراسية مطلوبة (مثال: 2025/2026)"],
-      trim: true
+      required: [true, "  academicYear required (e.g., 2025/2026)"],
+      trim: true,
     },
     grade: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Grade",
-      required: [true, "المستوى الدراسي مطلوب)"]
+      required: [true, "Grade is required"],
     },
-    
     timetable: [
       {
         subject: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Subject",
-          required: true
+          required: true,
         },
         date: {
           type: Date,
-          required: true
+          required: true,
         },
         startTime: {
           type: String,
-          required: true
+          required: true,
         },
         endTime: {
           type: String,
-          required: true
-        }
-      }
-    ]
+          required: true,
+        },
+      },
+    ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Exam", examSchema);

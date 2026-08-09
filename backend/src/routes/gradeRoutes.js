@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
 
-const { 
-  createGrade, 
-  getAllGrades, 
-  updateGrade, 
-  deleteGrade 
+const {
+  createGrade,
+  getAllGrades,
+  updateGrade,
+  deleteGrade,
 } = require("../controllers/gradeController");
 
 const { protect, authorize } = require("../middleware/authMiddleware");

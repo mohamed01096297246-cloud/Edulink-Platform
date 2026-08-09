@@ -3,12 +3,39 @@ const router = express.Router();
 const behaviorController = require("../controllers/behaviorController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
-router.post("/", protect, authorize("teacher"), behaviorController.recordBulkBehavior);
+router.get(
+  "/check",
+  protect,
+  authorize("teacher"),
+  behaviorController.checkExistingBehavior,
+);
 
-router.get("/", protect, authorize("teacher", "admin"), behaviorController.getAllBehavior);
+router.post(
+  "/bulk",
+  protect,
+  authorize("teacher"),
+  behaviorController.recordBulkBehavior,
+);
 
-router.get("/student/:studentId", protect, authorize("teacher", "admin", "parent"), behaviorController.getStudentBehavior);
+router.get(
+  "/",
+  protect,
+  authorize("teacher", "admin"),
+  behaviorController.getAllBehavior,
+);
 
-router.delete("/:id", protect, authorize("admin","teacher"), behaviorController.deleteBehavior);
+router.get(
+  "/student/:studentId",
+  protect,
+  authorize("teacher", "admin", "parent"),
+  behaviorController.getStudentBehavior,
+);
+
+router.delete(
+  "/:id",
+  protect,
+  authorize("admin", "teacher"),
+  behaviorController.deleteBehavior,
+);
 
 module.exports = router;

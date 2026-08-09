@@ -67,7 +67,7 @@ exports.isSuperAdmin = (req, res, next) => {
     next(); 
   } else {
     return res.status(403).json({ 
-      message: "عفواً، هذه الصلاحية للمدير الرئيسي (Super Admin) فقط ولا يحق لك تنفيذها." 
+      message: "عفواً، هذه الصلاحية للمدير الرئيسي فقط ولا يحق لك تنفيذها." 
     });
   }
 };

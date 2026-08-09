@@ -17,9 +17,14 @@ const behaviorSchema = new mongoose.Schema(
       ref: "Subject",
       required: true,
     },
+    classroom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Classroom",
+      required: true,
+    },
     date: {
       type: Date,
-      default: Date.now,
+      required: true,
     },
     type: {
       type: String,
@@ -28,11 +33,16 @@ const behaviorSchema = new mongoose.Schema(
     },
     note: {
       type: String,
-      required: true,
       trim: true,
-    }
+      required: true,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
+);
+
+behaviorSchema.index(
+  { student: 1, subject: 1, classroom: 1, date: 1 },
+  { unique: true },
 );
 
 module.exports = mongoose.model("Behavior", behaviorSchema);

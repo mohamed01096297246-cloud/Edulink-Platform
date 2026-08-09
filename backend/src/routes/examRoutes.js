@@ -8,6 +8,8 @@ const { protect, authorize } = require("../middleware/authMiddleware");
 
 router.post("/", protect, authorize("admin"), examController.createExamSchedule);
 
+router.get("/teacher-exams", protect, authorize("teacher"), examController.getTeacherExams);
+
 router.get("/", protect, authorize("admin", "teacher"), examController.getAllExams);
 
 router.put("/:id", protect, authorize("admin"), examController.updateExamSchedule);

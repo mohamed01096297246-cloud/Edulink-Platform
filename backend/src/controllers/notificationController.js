@@ -7,7 +7,7 @@ exports.createNotification = async (req, res) => {
 
     if (target === "parent" && !parentId) {
       return res.status(400).json({
-        message: "parentId is required when target is parent"
+        message: "parentId is required when target is parent",
       });
     }
 
@@ -16,9 +16,8 @@ exports.createNotification = async (req, res) => {
       message,
       target: target || "all",
       parent: target === "parent" ? parentId : null,
-      createdBy: req.user._id
+      createdBy: req.user._id,
     });
-
 
     if (target === "all" || !target) {
       const parents = await User.find({ role: "parent" });
@@ -40,9 +39,8 @@ exports.createNotification = async (req, res) => {
 
     res.status(201).json({
       message: "Notification created successfully",
-      notification
+      notification,
     });
-
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -51,16 +49,23 @@ exports.createNotification = async (req, res) => {
 exports.getParentNotifications = async (req, res) => {
   try {
     const notifications = await Notification.find({
-      $or: [
-        { target: "all" },
-        { target: "parent", parent: req.user._id }
-      ]
+      $or: [{ target: "all" }, { target: "parent", parent: req.user._id }],
     })
       .sort({ createdAt: -1 })
       .populate("createdBy", "name role");
 
     res.json(notifications);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+exports.getAllNotifications = async (req, res) => {
+  try {
+    const notifications = await Notification.find()
+      .sort({ createdAt: -1 })
+      .populate("createdBy", "name role");
 
+    res.json(notifications);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -73,18 +78,17 @@ exports.updateNotification = async (req, res) => {
     const notification = await Notification.findByIdAndUpdate(
       notificationId,
       { title, message },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!notification) {
-      return res.status(404).json({ message: "الإشعار غير موجود" });
+      return res.status(404).json({ message: "Notification not found" });
     }
 
     res.json({
-      message: "تم تحديث الإشعار بنجاح",
-      notification
+      message: "Notification updated successfully",
+      notification,
     });
-
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -96,11 +100,10 @@ exports.deleteNotification = async (req, res) => {
     const notification = await Notification.findByIdAndDelete(notificationId);
 
     if (!notification) {
-      return res.status(404).json({ message: "الإشعار غير موجود بالفعل" });
+      return res.status(404).json({ message: "Notification not found" });
     }
 
-    res.json({ message: "تم حذف الإشعار بنجاح" });
-
+    res.json({ message: "Notification deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
