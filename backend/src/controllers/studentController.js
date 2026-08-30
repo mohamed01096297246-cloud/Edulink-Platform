@@ -4,9 +4,11 @@ const {
   generatePassword,
 } = require("../utils/generateCredentials");
 const { sendCredentialsEmail } = require("../utils/emailService");
+const { friendlyDuplicateKeyMessage } = require("../utils/formatDbError");
 const User = require("../models/User");
 const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
+const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
 
 exports.createStudent = async (req, res) => {
   const session = await mongoose.startSession();
@@ -27,8 +29,16 @@ exports.createStudent = async (req, res) => {
       parentPhone,
     } = req.body;
 
+    const school = creationSchool(req);
+    if (!school) {
+      throw new Error(
+        "sorry, no school context found for this account. Please contact support.",
+      );
+    }
+
     const availableClassroom = await Classroom.findOne({
       grade: grade,
+      school,
       $expr: { $lt: ["$currentStudents", "$capacity"] },
     }).session(session);
 
@@ -54,6 +64,11 @@ exports.createStudent = async (req, res) => {
     }).session(session);
 
     if (existingParent) {
+      if (existingParent.school.toString() !== school.toString()) {
+        throw new Error(
+          "sorry, a parent with this national ID is already registered at a different school and cannot be linked here.",
+        );
+      }
       finalParentId = existingParent._id;
     } else {
       if (!parentPhone) {
@@ -62,8 +77,21 @@ exports.createStudent = async (req, res) => {
         );
       }
 
-      const fullName = `${parentFirstName || firstName} ${parentLastName || lastName}`;
-      generatedUser = generateUsername(fullName);
+      // Username is derived from the phone number (see generateCredentials.js),
+      // and phoneNumber is unique across every account (parent/teacher/admin) —
+      // so a phone already in use anywhere would otherwise fail as a raw
+      // duplicate-key error at the insert below. Check it up front instead,
+      // with a message that actually explains what happened.
+      const phoneInUse = await User.findOne({
+        phoneNumber: parentPhone,
+      }).session(session);
+      if (phoneInUse) {
+        throw new Error(
+          "عذرًا، رقم هاتف ولي الأمر هذا مسجّل بالفعل بحساب آخر. تأكد من الرقم أو تحقق من الرقم القومي المدخل إذا كان هذا هو نفس ولي الأمر.",
+        );
+      }
+
+      generatedUser = generateUsername(parentPhone);
       generatedPass = generatePassword();
 
       const newParentResult = await User.create(
@@ -75,6 +103,7 @@ exports.createStudent = async (req, res) => {
             phoneNumber: parentPhone,
             email: parentEmail,
             role: "parent",
+            school,
             username: generatedUser,
             password: generatedPass,
             active: true,
@@ -97,6 +126,7 @@ exports.createStudent = async (req, res) => {
           grade,
           parent: finalParentId,
           classroom: availableClassroom._id,
+          school,
         },
       ],
       { session },
@@ -147,7 +177,9 @@ exports.createStudent = async (req, res) => {
       await session.abortTransaction();
     }
     session.endSession();
-    res.status(400).json({ error: err.message });
+    res
+      .status(400)
+      .json({ error: friendlyDuplicateKeyMessage(err) || err.message });
   }
 };
 
@@ -160,13 +192,14 @@ exports.updateStudent = async (req, res) => {
     }
 
     const student = await Student.findById(studentId);
-    if (!student) {
+    if (!student || !sameSchool(req, student)) {
       return res.status(404).json({ message: "Student not found" });
     }
 
     if (req.body.grade && req.body.grade !== student.grade.toString()) {
       const availableClassroom = await Classroom.findOne({
         grade: req.body.grade,
+        school: student.school,
         $expr: { $lt: ["$currentStudents", "$capacity"] },
       });
 
@@ -192,7 +225,11 @@ exports.updateStudent = async (req, res) => {
 
     if (req.body.parent && req.body.parent !== student.parent.toString()) {
       const parentUser = await User.findById(req.body.parent);
-      if (!parentUser || parentUser.role !== "parent") {
+      if (
+        !parentUser ||
+        parentUser.role !== "parent" ||
+        parentUser.school?.toString() !== student.school.toString()
+      ) {
         return res.status(400).json({ message: "Invalid parent ID" });
       }
       await User.findByIdAndUpdate(student.parent, {
@@ -202,6 +239,10 @@ exports.updateStudent = async (req, res) => {
         $addToSet: { linkedStudents: student._id },
       });
     }
+
+    // `school` is never editable from the client — a student can't be
+    // silently moved to a different tenant via this endpoint.
+    delete req.body.school;
 
     const updatedStudent = await Student.findByIdAndUpdate(
       studentId,
@@ -227,21 +268,6 @@ exports.deleteStudent = async (req, res) => {
   session.startTransaction();
 
   try {
-    const currentUser = req.user;
-    if (
-      !currentUser ||
-      currentUser.role !== "admin" ||
-      currentUser.username?.toLowerCase() !== "admin_master"
-    ) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(403).json({
-        success: false,
-        message:
-          "sorry, only the Master Admin has permission to delete students.",
-      });
-    }
-
     const studentId = req.params.id;
     if (!mongoose.Types.ObjectId.isValid(studentId)) {
       await session.abortTransaction();
@@ -250,7 +276,7 @@ exports.deleteStudent = async (req, res) => {
     }
 
     const student = await Student.findById(studentId).session(session);
-    if (!student) {
+    if (!student || !sameSchool(req, student)) {
       await session.abortTransaction();
       session.endSession();
       return res.status(404).json({ message: "Student not found" });
@@ -296,10 +322,16 @@ exports.deleteStudent = async (req, res) => {
 
 exports.getStudents = async (req, res) => {
   try {
-    let students = [];
     const { classroomId } = req.query;
-    let filter = {};
-    if (classroomId) filter.classroom = classroomId;
+    let filter = scopeFilter(req, classroomId ? { classroom: classroomId } : {});
+
+    if (!filter) {
+      return res.status(400).json({
+        message: "Please specify a school (?school=id) to list its students.",
+      });
+    }
+
+    let students = [];
 
     if (req.user.role === "admin") {
       students = await Student.find(filter)
@@ -339,7 +371,7 @@ exports.getStudent = async (req, res) => {
       .populate("grade", "name academicYear")
       .populate("classroom", "name");
 
-    if (!student) {
+    if (!student || !sameSchool(req, student)) {
       return res.status(404).json({ message: "Student not found" });
     }
 
@@ -375,6 +407,26 @@ exports.getStudentsByParent = async (req, res) => {
     if (req.user.role === "parent" && req.user._id.toString() !== parentId) {
       return res.status(403).json({ message: "Access denied" });
     }
+
+    // Same policy as getStudent: teachers don't get student profiles
+    // through any route, and an admin/teacher passing an arbitrary
+    // parentId here previously had no school check at all — any admin
+    // could read any parent's children across every school on the
+    // platform. Verify the parent actually belongs to the caller's school
+    // before returning anything.
+    if (req.user.role === "teacher") {
+      return res.status(403).json({
+        message:
+          "sorry, teachers do not have permission to view student profiles directly.",
+      });
+    }
+    if (req.user.role === "admin") {
+      const parentUser = await User.findOne({ _id: parentId, role: "parent" });
+      if (!parentUser || !sameSchool(req, parentUser)) {
+        return res.status(404).json({ message: "Parent not found" });
+      }
+    }
+
     const students = await Student.find({ parent: parentId })
       .populate("grade", "name academicYear")
       .populate("classroom", "name");

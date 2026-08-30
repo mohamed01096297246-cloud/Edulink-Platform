@@ -48,6 +48,12 @@ parent: {
   required: true
 },
 
+    school: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "School",
+      required: true,
+    },
+
     active: {
       type: Boolean,
       default: true,

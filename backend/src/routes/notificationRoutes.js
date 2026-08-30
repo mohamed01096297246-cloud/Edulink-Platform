@@ -9,11 +9,11 @@ const {
   deleteNotification,
 } = require("../controllers/notificationController");
 
-const { protect, authorize } = require("../middleware/authMiddleware");
+const { protect, authorize, requireUserFeature } = require("../middleware/authMiddleware");
 
 router.post("/", protect, authorize("admin"), createNotification);
 
-router.get("/parent", protect, authorize("parent"), getParentNotifications);
+router.get("/parent", protect, authorize("parent"), requireUserFeature("notifications"), getParentNotifications);
 
 router.get("/", protect, authorize("admin"), getAllNotifications);
 

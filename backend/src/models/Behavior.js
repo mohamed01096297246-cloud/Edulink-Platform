@@ -36,6 +36,11 @@ const behaviorSchema = new mongoose.Schema(
       trim: true,
       required: true,
     },
+    school: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "School",
+      required: true,
+    },
   },
   { timestamps: true },
 );

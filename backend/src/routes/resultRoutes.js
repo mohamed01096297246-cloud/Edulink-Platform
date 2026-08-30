@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const resultController = require("../controllers/resultController");
-const { protect, authorize } = require("../middleware/authMiddleware");
+const { protect, authorize, requireUserFeature } = require("../middleware/authMiddleware");
 
 
 router.get(
@@ -28,12 +28,14 @@ router.post(
   "/single",
   protect,
   authorize("teacher", "admin"),
+  requireUserFeature("examGrades"),
   resultController.addGrade,
 );
 router.post(
   "/add",
   protect,
   authorize("teacher"),
+  requireUserFeature("examGrades"),
   resultController.addBulkGrades,
 );
 router.put(
@@ -52,6 +54,7 @@ router.get(
   "/report/:studentId/:examId",
   protect,
   authorize("parent", "admin"),
+  requireUserFeature("grades"),
   resultController.getReportCard,
 );
 

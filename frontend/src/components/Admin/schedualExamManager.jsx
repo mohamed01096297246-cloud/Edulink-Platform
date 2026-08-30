@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import API from "../../api/axios";
 import {
   Plus,
   Edit,
@@ -42,10 +42,6 @@ const ExamManagement = () => {
     timetable: [{ subject: "", date: "", startTime: "", endTime: "" }],
   });
 
-  const token = localStorage.getItem("token");
-  const config = { headers: { Authorization: `Bearer ${token}` } };
-  const BASE_URL = "http://localhost:5000/api";
-
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -57,9 +53,9 @@ const ExamManagement = () => {
     setLoading(true);
     try {
       const [examsRes, gradesRes, subjectsRes] = await Promise.all([
-        axios.get(`${BASE_URL}/exams`, config),
-        axios.get(`${BASE_URL}/grades`, config),
-        axios.get(`${BASE_URL}/subjects`, config),
+        API.get("/exams"),
+        API.get("/grades"),
+        API.get("/subjects"),
       ]);
 
       setExams(
@@ -75,7 +71,7 @@ const ExamManagement = () => {
           (Array.isArray(subjectsRes.data) ? subjectsRes.data : []),
       );
     } catch (err) {
-      showToast("Failed to load academic data", "error");
+      showToast("فشل تحميل البيانات الدراسية", "error");
     } finally {
       setLoading(false);
     }
@@ -120,7 +116,7 @@ const ExamManagement = () => {
     );
     if (hasEmptyFields) {
       showToast(
-        "Please fill in all timetable fields (Subject, Date, and Times)",
+        "من فضلك املأ كل حقول الجدول (المادة، التاريخ، والأوقات)",
         "error",
       );
       return;
@@ -128,16 +124,16 @@ const ExamManagement = () => {
     setActionLoading(true);
     try {
       if (editingExamId) {
-        await axios.put(`${BASE_URL}/exams/${editingExamId}`, formData, config);
-        showToast("Exam schedule updated successfully", "success");
+        await API.put(`/exams/${editingExamId}`, formData);
+        showToast("تم تحديث جدول الامتحان بنجاح", "success");
       } else {
-        await axios.post(`${BASE_URL}/exams`, formData, config);
-        showToast("New exam schedule published", "success");
+        await API.post("/exams", formData);
+        showToast("تم نشر جدول الامتحان الجديد", "success");
       }
       setShowModal(false);
       fetchData();
     } catch (err) {
-      showToast(err.response?.data?.message || "Operation failed", "error");
+      showToast(err.response?.data?.message || "فشلت العملية", "error");
     } finally {
       setActionLoading(false);
     }
@@ -146,12 +142,12 @@ const ExamManagement = () => {
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
-      await axios.delete(`${BASE_URL}/exams/${deleteId}`, config);
-      showToast("Schedule removed successfully", "success");
+      await API.delete(`/exams/${deleteId}`);
+      showToast("تم حذف الجدول بنجاح", "success");
       fetchData();
       setDeleteId(null);
     } catch (err) {
-      showToast("Delete failed", "error");
+      showToast("فشل الحذف", "error");
       setDeleteId(null);
     }
   };
@@ -189,26 +185,26 @@ const ExamManagement = () => {
       case "midterm":
         return (
           <span className="text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-100 px-2.5 py-0.5 rounded-md flex items-center gap-1">
-            <Tag size={10} /> Midterm
+            <Tag size={10} /> نصف العام
           </span>
         );
       case "final":
         return (
           <span className="text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-2.5 py-0.5 rounded-md flex items-center gap-1">
-            <Tag size={10} /> Final
+            <Tag size={10} /> نهاية العام
           </span>
         );
       default:
         return (
           <span className="text-[10px] font-black text-slate-600 bg-slate-50 border border-slate-100 px-2.5 py-0.5 rounded-md flex items-center gap-1">
-            <Tag size={10} /> Official
+            <Tag size={10} /> رسمي
           </span>
         );
     }
   };
 
   return (
-    <div className="p-6 bg-slate-50 min-h-screen text-left" dir="ltr">
+    <div className="p-6 bg-slate-50 min-h-screen text-right" dir="rtl">
       {toast.show && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[60] animate-in slide-in-from-top-5 duration-300">
           <div
@@ -232,11 +228,10 @@ const ExamManagement = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
             <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-              <CalendarDays className="text-indigo-600" size={32} /> Exam
-              Schedules
+              <CalendarDays className="text-indigo-600" size={32} /> جداول الامتحانات
             </h1>
             <p className="text-slate-500 mt-1">
-              Manage and publish academic examination timetables
+              إدارة ونشر مواعيد الامتحانات الدراسية
             </p>
           </div>
 
@@ -244,14 +239,14 @@ const ExamManagement = () => {
             <div className="relative flex items-center min-w-[200px]">
               <Filter
                 size={16}
-                className="absolute left-4 text-slate-400 pointer-events-none"
+                className="absolute right-4 text-slate-400 pointer-events-none"
               />
               <select
-                className="form-input !py-3.5 !pl-11 !text-sm cursor-pointer shadow-sm bg-white"
+                className="form-input !py-3.5 !pr-11 !text-sm cursor-pointer shadow-sm bg-white"
                 value={selectedFilterGrade}
                 onChange={(e) => setSelectedFilterGrade(e.target.value)}
               >
-                <option value="">All Grades (No Filter)</option>
+                <option value="">كل المراحل (بدون فلتر)</option>
                 {grades.map((g) => (
                   <option key={g._id} value={g._id}>
                     {g.name}
@@ -264,7 +259,7 @@ const ExamManagement = () => {
               onClick={() => openModal()}
               className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all whitespace-nowrap"
             >
-              <Plus size={20} /> Create New Schedule
+              <Plus size={20} /> إنشاء جدول جديد
             </button>
           </div>
         </div>
@@ -277,14 +272,14 @@ const ExamManagement = () => {
                 size={48}
               />
               <p className="mt-4 text-slate-400 font-bold tracking-widest">
-                LOADING SCHEDULES...
+                جارٍ تحميل الجداول...
               </p>
             </div>
           ) : filteredExams.length === 0 ? (
             <div className="col-span-full bg-white p-20 rounded-[3rem] text-center border-2 border-dashed border-slate-200">
               <AlertCircle className="mx-auto text-slate-200 mb-4" size={64} />
               <p className="text-slate-400 font-black uppercase tracking-widest">
-                No exam schedules found for this selection
+                لا يوجد جداول امتحانات مطابقة لهذا الاختيار
               </p>
             </div>
           ) : (
@@ -297,7 +292,7 @@ const ExamManagement = () => {
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-tighter">
-                        {exam.grade?.name || "Global"}
+                        {exam.grade?.name || "عام"}
                       </span>
                       {renderExamTypeBadge(exam.examType)}
                     </div>
@@ -343,7 +338,7 @@ const ExamManagement = () => {
                   ))}
                   {exam.timetable.length > 3 && (
                     <p className="text-[10px] text-center font-bold text-slate-300">
-                      +{exam.timetable.length - 3} more subjects
+                      +{exam.timetable.length - 3} مواد أخرى
                     </p>
                   )}
                 </div>
@@ -359,10 +354,10 @@ const ExamManagement = () => {
             <div className="p-8 border-b flex justify-between items-center bg-slate-50/50">
               <div>
                 <h2 className="text-2xl font-black text-slate-800">
-                  {editingExamId ? "Update Schedule" : "New Exam Schedule"}
+                  {editingExamId ? "تحديث الجدول" : "جدول امتحان جديد"}
                 </h2>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                  Fill in the academic details below
+                  املأ البيانات الدراسية بالأسفل
                 </p>
               </div>
               <button
@@ -379,8 +374,8 @@ const ExamManagement = () => {
             >
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase ml-2">
-                    Exam Title
+                  <label className="text-sm font-black text-slate-400 uppercase mr-2">
+                    عنوان الامتحان
                   </label>
                   <input
                     required
@@ -391,13 +386,13 @@ const ExamManagement = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, title: e.target.value })
                     }
-                    placeholder="Midterm Exams"
+                    placeholder="امتحانات نصف العام"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase ml-2">
-                    Exam Classification
+                  <label className="text-sm font-black text-slate-400 uppercase mr-2">
+                    نوع الامتحان
                   </label>
                   <select
                     required
@@ -407,14 +402,14 @@ const ExamManagement = () => {
                       setFormData({ ...formData, examType: e.target.value })
                     }
                   >
-                    <option value="final">Final Exam</option>
-                    <option value="midterm">Midterm Exam</option>
+                    <option value="final">امتحان نهاية العام</option>
+                    <option value="midterm">امتحان نصف العام</option>
                   </select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase ml-2">
-                    Academic Year
+                  <label className="text-sm font-black text-slate-400 uppercase mr-2">
+                    السنة الدراسية
                   </label>
                   <input
                     required
@@ -429,8 +424,8 @@ const ExamManagement = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase ml-2">
-                    Target Grade
+                  <label className="text-sm font-black text-slate-400 uppercase mr-2">
+                    المرحلة الدراسية
                   </label>
                   <select
                     required
@@ -440,7 +435,7 @@ const ExamManagement = () => {
                       setFormData({ ...formData, grade: e.target.value })
                     }
                   >
-                    <option value="">Select Grade...</option>
+                    <option value="">اختر المرحلة...</option>
                     {grades.map((g) => (
                       <option key={g._id} value={g._id}>
                         {g.name}
@@ -453,15 +448,14 @@ const ExamManagement = () => {
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h3 className="font-black text-slate-800 flex items-center gap-2">
-                    <Clock className="text-indigo-600" size={20} /> Timetable
-                    Details
+                    <Clock className="text-indigo-600" size={20} /> بيانات الجدول
                   </h3>
                   <button
                     type="button"
                     onClick={addTimetableRow}
                     className="text-indigo-600 text-[10px] font-black bg-indigo-50 px-5 py-2.5 rounded-xl hover:bg-indigo-600 hover:text-white transition-all uppercase tracking-widest"
                   >
-                    + Add Subject
+                    + إضافة مادة
                   </button>
                 </div>
 
@@ -472,8 +466,8 @@ const ExamManagement = () => {
                       className="grid grid-cols-1 md:grid-cols-12 gap-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 items-end"
                     >
                       <div className="md:col-span-4 space-y-1">
-                        <label className="text-[9px] font-black text-slate-400 uppercase ml-1">
-                          Subject
+                        <label className="text-[11px] font-black text-slate-400 uppercase mr-1">
+                          المادة
                         </label>
                         <select
                           required
@@ -487,7 +481,7 @@ const ExamManagement = () => {
                             )
                           }
                         >
-                          <option value="">Select Subject...</option>
+                          <option value="">اختر المادة...</option>
                           {subjects
                             .filter((s) => {
                               if (!formData.grade) return false;
@@ -505,8 +499,8 @@ const ExamManagement = () => {
                         </select>
                       </div>
                       <div className="md:col-span-3 space-y-1">
-                        <label className="text-[9px] font-black text-slate-400 uppercase ml-1">
-                          Date
+                        <label className="text-[11px] font-black text-slate-400 uppercase mr-1">
+                          التاريخ
                         </label>
                         <input
                           type="date"
@@ -519,8 +513,8 @@ const ExamManagement = () => {
                         />
                       </div>
                       <div className="md:col-span-2 space-y-1">
-                        <label className="text-[9px] font-black text-slate-400 uppercase ml-1">
-                          From
+                        <label className="text-[11px] font-black text-slate-400 uppercase mr-1">
+                          من
                         </label>
                         <input
                           type="time"
@@ -537,8 +531,8 @@ const ExamManagement = () => {
                         />
                       </div>
                       <div className="md:col-span-2 space-y-1">
-                        <label className="text-[9px] font-black text-slate-400 uppercase ml-1">
-                          To
+                        <label className="text-[11px] font-black text-slate-400 uppercase mr-1">
+                          إلى
                         </label>
                         <input
                           type="time"
@@ -577,7 +571,7 @@ const ExamManagement = () => {
                 ) : (
                   <Save size={22} />
                 )}
-                {editingExamId ? "UPDATE SCHEDULE" : "PUBLISH SCHEDULE"}
+                {editingExamId ? "تحديث الجدول" : "نشر الجدول"}
               </button>
             </form>
           </div>
@@ -593,11 +587,10 @@ const ExamManagement = () => {
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-black text-slate-800">
-                Delete Schedule
+                حذف الجدول
               </h3>
               <p className="text-sm font-medium text-slate-500">
-                Are you sure you want to delete this exam schedule? This action
-                cannot be undone.
+                هل أنت متأكد من حذف جدول الامتحان ده؟ لا يمكن التراجع عن هذا الإجراء.
               </p>
             </div>
             <div className="flex gap-3">
@@ -605,13 +598,13 @@ const ExamManagement = () => {
                 onClick={() => setDeleteId(null)}
                 className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all"
               >
-                Cancel
+                إلغاء
               </button>
               <button
                 onClick={handleDelete}
                 className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl shadow-lg shadow-rose-100 transition-all"
               >
-                Delete
+                حذف
               </button>
             </div>
           </div>
@@ -641,7 +634,7 @@ const ExamManagement = () => {
           appearance: none;
           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
           background-repeat: no-repeat;
-          background-position: right 1.5rem center;
+          background-position: left 1.5rem center;
           background-size: 1.25rem;
         }
       `,

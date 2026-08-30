@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import API from "../../api/axios";
 
 import {
   Users,
@@ -16,6 +16,9 @@ import {
   XCircle,
   Lock,
 } from "lucide-react";
+
+const roleLabel = (role) =>
+  ({ admin: "الإداري", teacher: "المعلم", parent: "ولي الأمر" })[role] || role;
 
 const AdminPage = () => {
   const [users, setUsers] = useState([]);
@@ -51,12 +54,19 @@ const AdminPage = () => {
     role: "admin",
   });
 
-  const currentUserInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
-  const isMaster = currentUserInfo.username === "admin_master";
+  const [editModal, setEditModal] = useState({ show: false, user: null });
+  const [editForm, setEditForm] = useState({
+    firstName: "",
+    lastName: "",
+    phoneNumber: "",
+    email: "",
+  });
 
-  const token = localStorage.getItem("token");
-  const config = { headers: { Authorization: `Bearer ${token}` } };
-  const BASE_URL = "http://localhost:5000/api/admin";
+  const currentUserInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
+  // A school's own primary admin (its "admin_master" equivalent) and the
+  // platform super-admin can both manage other admin accounts — an
+  // ordinary sub-admin can't.
+  const isMaster = currentUserInfo.isPrimaryAdmin || currentUserInfo.isSuperAdmin;
 
   const showToastMessage = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -72,8 +82,8 @@ const AdminPage = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const statsRes = await axios.get(`${BASE_URL}/dashboard`, config);
-      const allUsersRes = await axios.get(`${BASE_URL}/users`, config);
+      const statsRes = await API.get("/admin/dashboard");
+      const allUsersRes = await API.get("/admin/users");
 
       setStats({
         totalStudents: statsRes.data.stats.totalStudents,
@@ -83,11 +93,11 @@ const AdminPage = () => {
       });
 
       const roleQuery = activeRole !== "all" ? `?role=${activeRole}` : "";
-      const usersRes = await axios.get(`${BASE_URL}/users${roleQuery}`, config);
+      const usersRes = await API.get(`/admin/users${roleQuery}`);
       setUsers(usersRes.data.data);
     } catch (err) {
       console.error("Fetch Error:", err);
-      showToastMessage("Failed to load dashboard statistics", "error");
+      showToastMessage("فشل تحميل إحصائيات اللوحة", "error");
     } finally {
       setLoading(false);
     }
@@ -96,7 +106,7 @@ const AdminPage = () => {
   const handleAddUser = async (e) => {
     e.preventDefault();
     if (!isMaster) {
-      showToastMessage("Only admin_master can create sub-admins", "error");
+      showToastMessage("فقط المدير الأساسي يقدر يضيف إداريين فرعيين", "error");
       return;
     }
     setActionLoading(true);
@@ -111,13 +121,9 @@ const AdminPage = () => {
         role: "admin",
       };
 
-      const response = await axios.post(
-        `${BASE_URL}/sub-admin`,
-        cleanedData,
-        config,
-      );
+      const response = await API.post("/admin/sub-admin", cleanedData);
       showToastMessage(
-        response.data.message || "Sub-Admin account configured successfully",
+        response.data.message || "تم إنشاء حساب الإداري الفرعي بنجاح",
         "success",
       );
       setShowAddModal(false);
@@ -134,7 +140,41 @@ const AdminPage = () => {
       showToastMessage(
         err.response?.data?.message ||
           err.response?.data?.error ||
-          "An error occurred",
+          "حدث خطأ ما",
+        "error",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openEditModal = (user) => {
+    setEditForm({
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      phoneNumber: user.phoneNumber || "",
+      email: user.email || "",
+    });
+    setEditModal({ show: true, user });
+  };
+
+  const handleEditUser = async (e) => {
+    e.preventDefault();
+    setActionLoading(true);
+    try {
+      const cleanedData = {
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName.trim(),
+        phoneNumber: editForm.phoneNumber.trim(),
+        email: editForm.email.trim(),
+      };
+      await API.put(`/admin/user/${editModal.user._id}`, cleanedData);
+      showToastMessage("تم تحديث بيانات الحساب بنجاح", "success");
+      setEditModal({ show: false, user: null });
+      fetchInitialData();
+    } catch (err) {
+      showToastMessage(
+        err.response?.data?.message || err.response?.data?.error || "حدث خطأ ما",
         "error",
       );
     } finally {
@@ -154,17 +194,17 @@ const AdminPage = () => {
   const confirmDelete = async () => {
     setActionLoading(true);
     try {
-      await axios.delete(`${BASE_URL}/user/${deleteModal.id}`, config);
+      await API.delete(`/admin/user/${deleteModal.id}`);
       setUsers(users.filter((u) => u._id !== deleteModal.id));
       showToastMessage(
-        `${deleteModal.role.toUpperCase()} record removed successfully`,
+        `تم حذف حساب ${roleLabel(deleteModal.role)} بنجاح`,
         "success",
       );
       setDeleteModal({ show: false, id: null, name: "", role: "" });
       fetchInitialData();
     } catch (err) {
       showToastMessage(
-        err.response?.data?.message || "Error dropping user privileges",
+        err.response?.data?.message || "حدث خطأ أثناء إلغاء صلاحيات المستخدم",
         "error",
       );
     } finally {
@@ -190,11 +230,11 @@ const AdminPage = () => {
   return (
     <div
       className="min-h-screen bg-slate-50 p-4 lg:p-8 font-sans relative"
-      dir="ltr"
+      dir="rtl"
     >
       {toast.show && (
         <div
-          className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl border animate-slide-down text-sm font-bold ${toast.type === "success" ? "bg-emerald-50 border-emerald-100 text-emerald-800" : "bg-rose-50 border-rose-100 text-rose-800"}`}
+          className={`fixed top-6 left-6 z-[60] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl border animate-slide-down text-sm font-bold ${toast.type === "success" ? "bg-emerald-50 border-emerald-100 text-emerald-800" : "bg-rose-50 border-rose-100 text-rose-800"}`}
         >
           {toast.type === "success" ? (
             <CheckCircle2 className="text-emerald-500" size={20} />
@@ -206,7 +246,7 @@ const AdminPage = () => {
             onClick={() =>
               setToast({ show: false, message: "", type: "success" })
             }
-            className="ml-2 p-1 hover:bg-black/5 rounded-lg transition-colors"
+            className="mr-2 p-1 hover:bg-black/5 rounded-lg transition-colors"
           >
             <X size={14} />
           </button>
@@ -217,11 +257,10 @@ const AdminPage = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-              <ShieldCheck className="text-indigo-600" size={36} /> User
-              Management
+              <ShieldCheck className="text-indigo-600" size={36} /> إدارة المستخدمين
             </h1>
             <p className="text-slate-500 font-bold mt-1 uppercase text-xs tracking-widest">
-              EduLink Control Center
+              مركز التحكم في EduLink
             </p>
           </div>
 
@@ -230,26 +269,26 @@ const AdminPage = () => {
               onClick={() => setShowAddModal(true)}
               className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
             >
-              <Plus size={20} /> Add New Admin
+              <Plus size={20} /> إضافة إداري جديد
             </button>
           )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard
-            title="Students"
+            title="الطلاب"
             value={stats.totalStudents}
             icon={<UserCircle />}
             color="blue"
           />
           <StatCard
-            title="Teachers"
+            title="المعلمين"
             value={stats.totalTeachers}
             icon={<Users />}
             color="emerald"
           />
           <StatCard
-            title="Admins"
+            title="الإداريين"
             value={stats.totalAdmins}
             icon={<ShieldCheck />}
             color="indigo"
@@ -261,34 +300,34 @@ const AdminPage = () => {
             <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1 overflow-x-auto">
               <TabBtn
                 active={activeRole === "all"}
-                label="All"
+                label="الكل"
                 onClick={() => setActiveRole("all")}
               />
               <TabBtn
                 active={activeRole === "teacher"}
-                label="Teachers"
+                label="المعلمين"
                 onClick={() => setActiveRole("teacher")}
               />
               <TabBtn
                 active={activeRole === "parent"}
-                label="Parents"
+                label="أولياء الأمور"
                 onClick={() => setActiveRole("parent")}
               />
               <TabBtn
                 active={activeRole === "admin"}
-                label="Admins"
+                label="الإداريين"
                 onClick={() => setActiveRole("admin")}
               />
             </div>
             <div className="relative w-full lg:w-96">
               <Search
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
                 size={18}
               />
               <input
                 type="text"
-                placeholder="Search by name, ID or username..."
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-indigo-500/20 font-bold text-sm transition-all"
+                placeholder="ابحث بالاسم، الرقم القومي، أو اسم المستخدم..."
+                className="w-full pr-12 pl-4 py-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-indigo-500/20 font-bold text-sm transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -296,13 +335,13 @@ const AdminPage = () => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full text-right">
               <thead className="bg-slate-50/50 text-slate-400 text-xs font-black uppercase tracking-widest">
                 <tr>
-                  <th className="px-6 py-4">User Details</th>
-                  <th className="px-6 py-4">National ID</th>
-                  <th className="px-6 py-4">Contact info</th>
-                  <th className="px-6 py-4 text-center">Actions</th>
+                  <th className="px-6 py-4">بيانات المستخدم</th>
+                  <th className="px-6 py-4">الرقم القومي</th>
+                  <th className="px-6 py-4">بيانات التواصل</th>
+                  <th className="px-6 py-4 text-center">الإجراءات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -348,7 +387,10 @@ const AdminPage = () => {
                           <div className="flex items-center justify-center gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
                             {hasPermission ? (
                               <>
-                                <button className="p-2 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors">
+                                <button
+                                  onClick={() => openEditModal(user)}
+                                  className="p-2 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
+                                >
                                   <Edit size={16} />
                                 </button>
                                 <button
@@ -361,7 +403,7 @@ const AdminPage = () => {
                             ) : (
                               <span className="flex items-center gap-1 text-[11px] text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full font-bold">
                                 <Lock size={12} className="text-slate-400" />{" "}
-                                Locked
+                                مقفول
                               </span>
                             )}
                           </div>
@@ -374,12 +416,94 @@ const AdminPage = () => {
             </table>
             {!loading && filteredUsers.length === 0 && (
               <div className="py-20 text-center text-slate-400 font-bold tracking-wider">
-                No users found for this role
+                لا يوجد مستخدمين بهذا الدور
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {editModal.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 bg-indigo-600 text-white flex justify-between items-center">
+              <h2 className="text-xl font-black flex items-center gap-2">
+                <Edit /> تعديل الحساب
+              </h2>
+              <button
+                disabled={actionLoading}
+                onClick={() => setEditModal({ show: false, user: null })}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              >
+                <X />
+              </button>
+            </div>
+            <form
+              onSubmit={handleEditUser}
+              className="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+              <Input
+                label="الاسم الأول"
+                value={editForm.firstName}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, firstName: e.target.value })
+                }
+                type="text"
+                pattern="^[A-Za-z؀-ۿ\s]+$"
+                placeholder="أدخل الاسم الأول"
+              />
+              <Input
+                label="الاسم الأخير"
+                value={editForm.lastName}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, lastName: e.target.value })
+                }
+                type="text"
+                pattern="^[A-Za-z؀-ۿ\s]+$"
+                placeholder="أدخل الاسم الأخير"
+              />
+              <Input
+                label="رقم الهاتف"
+                type="text"
+                maxLength={11}
+                minLength={11}
+                value={editForm.phoneNumber}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    phoneNumber: e.target.value.replace(/\D/g, ""),
+                  })
+                }
+                placeholder="رقم هاتف مكوّن من 11 رقم"
+                pattern="[0-9]{11}"
+              />
+              <Input
+                label="البريد الإلكتروني"
+                type="email"
+                placeholder="أدخل البريد الإلكتروني"
+                pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                required
+                value={editForm.email}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, email: e.target.value })
+                }
+              />
+              <button
+                disabled={actionLoading}
+                className="md:col-span-2 lg:col-span-3 mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+              >
+                {actionLoading ? (
+                  <Loader2 className="animate-spin" size={20} />
+                ) : (
+                  <>
+                    <Edit size={20} /> حفظ التعديلات
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {deleteModal.show && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -389,14 +513,14 @@ const AdminPage = () => {
             </div>
             <div>
               <h3 className="text-xl font-black text-slate-800">
-                Terminate Profile
+                إنهاء الحساب
               </h3>
               <p className="text-slate-400 font-medium text-sm mt-2">
-                Are you sure you want to delete the {deleteModal.role}{" "}
+                هل أنت متأكد من حذف {roleLabel(deleteModal.role)}{" "}
                 <strong className="text-slate-700 font-bold">
                   {deleteModal.name}
                 </strong>
-                ? This structural change cannot be rolled back.
+                ؟ لا يمكن التراجع عن هذا التغيير الجذري.
               </p>
             </div>
             <div className="flex gap-4">
@@ -407,7 +531,7 @@ const AdminPage = () => {
                 }
                 className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
               >
-                Cancel
+                إلغاء
               </button>
               <button
                 disabled={actionLoading}
@@ -417,7 +541,7 @@ const AdminPage = () => {
                 {actionLoading ? (
                   <Loader2 className="animate-spin" size={20} />
                 ) : (
-                  "Yes, Delete"
+                  "نعم، احذف"
                 )}
               </button>
             </div>
@@ -427,10 +551,10 @@ const AdminPage = () => {
 
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 bg-indigo-600 text-white flex justify-between items-center">
               <h2 className="text-xl font-black flex items-center gap-2">
-                <ShieldCheck /> Add New Sub-Admin
+                <ShieldCheck /> إضافة إداري فرعي جديد
               </h2>
               <button
                 disabled={actionLoading}
@@ -442,34 +566,34 @@ const AdminPage = () => {
             </div>
             <form
               onSubmit={handleAddUser}
-              className="p-8 grid grid-cols-1 md:grid-cols-2 gap-4"
+              className="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             >
               <Input
-                label="First Name"
+                label="الاسم الأول"
                 value={userForm.firstName}
                 onChange={(e) =>
                   setUserForm({ ...userForm, firstName: e.target.value })
                 }
                 type="text"
                 pattern="^[A-Za-z\u0600-\u06FF\s]+$"
-                placeholder="Enter first name"
+                placeholder="أدخل الاسم الأول"
               />
               <Input
-                label="Last Name"
+                label="الاسم الأخير"
                 value={userForm.lastName}
                 onChange={(e) =>
                   setUserForm({ ...userForm, lastName: e.target.value })
                 }
                 type="text"
                 pattern="^[A-Za-z\u0600-\u06FF\s]+$"
-                placeholder="Enter last name"
+                placeholder="أدخل الاسم الأخير"
               />
               <Input
-                label="National ID"
+                label="الرقم القومي"
                 type="text"
                 maxLength={14}
                 minLength={14}
-                placeholder="14-digit ID"
+                placeholder="رقم قومي مكوّن من 14 رقم"
                 pattern="[0-9]{14}"
                 value={userForm.nationalId}
                 onChange={(e) =>
@@ -480,7 +604,7 @@ const AdminPage = () => {
                 }
               />
               <Input
-                label="Phone Number"
+                label="رقم الهاتف"
                 type="text"
                 maxLength={11}
                 minLength={11}
@@ -491,14 +615,14 @@ const AdminPage = () => {
                     phoneNumber: e.target.value.replace(/\D/g, ""),
                   })
                 }
-                placeholder="11-digit phone number"
+                placeholder="رقم هاتف مكوّن من 11 رقم"
                 pattern="[0-9]{11}"
               />
-              <div className="md:col-span-2">
+              <div className="md:col-span-2 lg:col-span-3">
                 <Input
-                  label="Email Address (Credentials will be sent here)"
+                  label="البريد الإلكتروني (سيتم إرسال بيانات الدخول إليه)"
                   type="email"
-                  placeholder="Enter email address"
+                  placeholder="أدخل البريد الإلكتروني"
                   pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
                   required
                   value={userForm.email}
@@ -509,13 +633,13 @@ const AdminPage = () => {
               </div>
               <button
                 disabled={actionLoading}
-                className="md:col-span-2 mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                className="md:col-span-2 lg:col-span-3 mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
               >
                 {actionLoading ? (
                   <Loader2 className="animate-spin" size={20} />
                 ) : (
                   <>
-                    <Plus size={20} /> Create Admin Account
+                    <Plus size={20} /> إنشاء حساب إداري
                   </>
                 )}
               </button>
@@ -568,7 +692,7 @@ const TabBtn = ({ active, label, onClick }) => (
 );
 const Input = ({ label, type = "text", ...props }) => (
   <div className="space-y-1.5">
-    <label className="text-[10px] font-black text-slate-400 mr-2 uppercase tracking-widest">
+    <label className="text-xs font-black text-slate-400 mr-2 uppercase tracking-widest">
       {label}
     </label>
     <input

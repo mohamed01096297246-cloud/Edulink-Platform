@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import API from "../../api/axios";
 import {
   Calendar,
   Clock,
@@ -29,6 +29,7 @@ const SchedulesPage = () => {
 
   // حالات الفلترة الجديدة (الصف والفصل)
   const [selectedClassroom, setSelectedClassroom] = useState("");
+  const [todayOnly, setTodayOnly] = useState(false);
 
   const [toast, setToast] = useState({
     show: false,
@@ -45,17 +46,20 @@ const SchedulesPage = () => {
     endTime: "",
   });
 
-  const token = localStorage.getItem("token");
-  const config = { headers: { Authorization: `Bearer ${token}` } };
-  const BASE_URL = "http://localhost:5000/api";
-
   const daysMapping = {
-    sun: "Sunday",
-    mon: "Monday",
-    tue: "Tuesday",
-    wed: "Wednesday",
-    thu: "Thursday",
+    sun: "الأحد",
+    mon: "الاثنين",
+    tue: "الثلاثاء",
+    wed: "الأربعاء",
+    thu: "الخميس",
   };
+
+  // ترتيب أيام الأسبوع زي JavaScript's Date.getDay() (0 = الأحد ... 6 = السبت)
+  // الجمعة والسبت مش موجودين في daysMapping أصلًا (مفيش حصص فيهم)، فلو النهاردة
+  // جمعة أو سبت هتفضل القيمة null ومفيش يوم هيتطابق معاها (يعني القائمة هتفضل فاضية،
+  // وده صح لأنه مفيش حصص أصلًا في يوم إجازة).
+  const jsDayToKey = ["sun", "mon", "tue", "wed", "thu", null, null];
+  const todayKey = jsDayToKey[new Date().getDay()];
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -72,15 +76,15 @@ const SchedulesPage = () => {
     setLoading(true);
     try {
       const [schRes, teachRes, classRes] = await Promise.all([
-        axios.get(`${BASE_URL}/schedules`, config),
-        axios.get(`${BASE_URL}/teacher`, config),
-        axios.get(`${BASE_URL}/classrooms`, config),
+        API.get("/schedules"),
+        API.get("/teacher"),
+        API.get("/classrooms"),
       ]);
       setSchedules(Array.isArray(schRes.data) ? schRes.data : []);
       setTeachers(teachRes.data.data || []);
       setClassrooms(Array.isArray(classRes.data) ? classRes.data : []);
     } catch (err) {
-      showToast("Error loading initial data", "error");
+      showToast("حدث خطأ أثناء تحميل البيانات", "error");
     } finally {
       setLoading(false);
     }
@@ -92,16 +96,16 @@ const SchedulesPage = () => {
     setActionLoading(true);
     try {
       if (editingId) {
-        await axios.put(`${BASE_URL}/schedules/${editingId}`, formData, config);
-        showToast("Session updated successfully", "success");
+        await API.put(`/schedules/${editingId}`, formData);
+        showToast("تم تحديث الحصة بنجاح", "success");
       } else {
-        await axios.post(`${BASE_URL}/schedules`, formData, config);
-        showToast("New session added successfully", "success");
+        await API.post("/schedules", formData);
+        showToast("تم إضافة الحصة الجديدة بنجاح", "success");
       }
       closeModal();
       fetchInitialData();
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || "An error occurred");
+      setErrorMessage(err.response?.data?.message || "حدث خطأ ما");
     } finally {
       setActionLoading(false);
     }
@@ -110,12 +114,12 @@ const SchedulesPage = () => {
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
-      await axios.delete(`${BASE_URL}/schedules/${deleteId}`, config);
-      showToast("Session deleted successfully", "success");
+      await API.delete(`/schedules/${deleteId}`);
+      showToast("تم حذف الحصة بنجاح", "success");
       fetchInitialData();
       setDeleteId(null);
     } catch (err) {
-      showToast("Failed to delete schedule", "error");
+      showToast("فشل حذف الحصة", "error");
       setDeleteId(null);
     }
   };
@@ -133,13 +137,13 @@ const SchedulesPage = () => {
     });
   };
 
-  // تصفية الجداول بناءً على الفصل المختار
-  const filteredSchedules = selectedClassroom
-    ? schedules.filter((s) => s.classroom?._id === selectedClassroom)
-    : schedules;
+  // تصفية الجداول بناءً على الفصل المختار وحصص اليوم فقط
+  const filteredSchedules = schedules
+    .filter((s) => !selectedClassroom || s.classroom?._id === selectedClassroom)
+    .filter((s) => !todayOnly || s.day === todayKey);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 lg:p-8 font-sans" dir="ltr">
+    <div className="min-h-screen bg-slate-50 p-4 lg:p-8 font-sans" dir="rtl">
       {toast.show && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[60] animate-in slide-in-from-top-5 duration-300">
           <div
@@ -164,17 +168,17 @@ const SchedulesPage = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-              <Calendar className="text-indigo-600" size={36} /> Class Schedules
+              <Calendar className="text-indigo-600" size={36} /> الجدول الدراسي
             </h1>
             <p className="text-slate-400 font-medium text-sm mt-1">
-              Manage and filter school lectures timeline
+              إدارة وفلترة جدول الحصص الدراسية
             </p>
           </div>
           <button
             onClick={() => setShowModal(true)}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white px-6 py-4 rounded-2xl font-black shadow-lg shadow-indigo-100"
           >
-            <Plus size={20} /> Add New Session
+            <Plus size={20} /> إضافة حصة جديدة
           </button>
         </div>
 
@@ -182,7 +186,7 @@ const SchedulesPage = () => {
         <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-center gap-4">
           <div className="flex items-center gap-2 text-slate-500 font-bold text-sm bg-slate-50 px-4 py-3 rounded-2xl">
             <Filter size={16} className="text-indigo-500" />
-            <span>Filter By Classroom:</span>
+            <span>فلترة حسب الفصل:</span>
           </div>
           <div className="w-full sm:w-72">
             <select
@@ -190,7 +194,7 @@ const SchedulesPage = () => {
               value={selectedClassroom}
               onChange={(e) => setSelectedClassroom(e.target.value)}
             >
-              <option value="">All Classrooms & Grades</option>
+              <option value="">كل الفصول والمراحل</option>
               {classrooms.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.grade?.name ? `${c.grade.name} - ` : ""}
@@ -204,9 +208,21 @@ const SchedulesPage = () => {
               onClick={() => setSelectedClassroom("")}
               className="text-xs font-bold text-rose-500 hover:bg-rose-50 px-3 py-2 rounded-xl transition-colors"
             >
-              Clear Filter
+              مسح الفلتر
             </button>
           )}
+
+          <button
+            onClick={() => setTodayOnly((prev) => !prev)}
+            className={`flex items-center gap-2 px-5 py-3.5 rounded-2xl font-black text-sm transition-all sm:mr-auto ${
+              todayOnly
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100"
+                : "bg-slate-50 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600"
+            }`}
+          >
+            <Calendar size={16} />
+            {todayOnly ? `حصص اليوم (${daysMapping[todayKey] || "إجازة"})` : "حصص اليوم فقط"}
+          </button>
         </div>
 
         {/* منطقة عرض البيانات (Cards Container) */}
@@ -217,7 +233,9 @@ const SchedulesPage = () => {
             </div>
           ) : filteredSchedules.length === 0 ? (
             <div className="bg-white rounded-[2.5rem] border border-slate-100 p-6 text-center py-32 text-slate-400 font-bold uppercase tracking-wider">
-              No schedules found for this selection.
+              {todayOnly && !todayKey
+                ? "النهاردة إجازة الأسبوع، مفيش حصص."
+                : "لا يوجد جداول مطابقة لهذا الاختيار."}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -251,10 +269,10 @@ const SchedulesPage = () => {
                         </div>
                         <div>
                           <h4 className="font-black text-slate-800 text-base leading-tight">
-                            {s.subject?.name || "No Subject Assigned"}
+                            {s.subject?.name || "لا توجد مادة محددة"}
                           </h4>
                           <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wide">
-                            Subject
+                            المادة
                           </span>
                         </div>
                       </div>
@@ -268,7 +286,7 @@ const SchedulesPage = () => {
                             {s.startTime} - {s.endTime}
                           </p>
                           <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wide">
-                            Session Timing
+                            توقيت الحصة
                           </span>
                         </div>
                       </div>
@@ -282,11 +300,11 @@ const SchedulesPage = () => {
                       <div>
                         <p className="text-sm font-bold text-slate-800">
                           {s.teacher
-                            ? `Mr. ${s.teacher.firstName} ${s.teacher.lastName}`
-                            : "Unknown Teacher"}
+                            ? `أ. ${s.teacher.firstName} ${s.teacher.lastName}`
+                            : "معلم غير معروف"}
                         </p>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                          Instructor
+                          المعلم
                         </p>
                       </div>
                     </div>
@@ -308,7 +326,7 @@ const SchedulesPage = () => {
                       }}
                       className="flex-1 py-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
                     >
-                      <Edit size={14} /> Edit
+                      <Edit size={14} /> تعديل
                     </button>
                     <button
                       onClick={() => setDeleteId(s._id)}
@@ -326,10 +344,10 @@ const SchedulesPage = () => {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-black text-slate-800">
-                {editingId ? "Edit Session" : "Add New Session"}
+                {editingId ? "تعديل الحصة" : "إضافة حصة جديدة"}
               </h2>
               <button
                 onClick={closeModal}
@@ -347,11 +365,11 @@ const SchedulesPage = () => {
 
             <form
               onSubmit={handleSubmit}
-              className="grid grid-cols-1 md:grid-cols-2 gap-5"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
             >
-              <div className="md:col-span-2 space-y-1">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">
-                  Teacher
+              <div className="md:col-span-2 lg:col-span-3 space-y-1">
+                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
+                  المعلم
                 </label>
                 <select
                   required
@@ -361,7 +379,7 @@ const SchedulesPage = () => {
                     setFormData({ ...formData, teacher: e.target.value })
                   }
                 >
-                  <option value="">Choose a teacher...</option>
+                  <option value="">اختر معلمًا...</option>
                   {teachers.map((t) => (
                     <option key={t._id} value={t._id}>
                       {t.firstName} {t.lastName}
@@ -371,8 +389,8 @@ const SchedulesPage = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">
-                  Classroom
+                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
+                  الفصل
                 </label>
                 <select
                   required
@@ -382,7 +400,7 @@ const SchedulesPage = () => {
                     setFormData({ ...formData, classroom: e.target.value })
                   }
                 >
-                  <option value="">Select class...</option>
+                  <option value="">اختر الفصل...</option>
                   {classrooms.map((c) => (
                     <option key={c._id} value={c._id}>
                       {c.grade?.name ? `${c.grade.name} - ` : ""}
@@ -393,8 +411,8 @@ const SchedulesPage = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">
-                  Day
+                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
+                  اليوم
                 </label>
                 <select
                   className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 bg-white outline-none font-bold text-slate-700 transition-all"
@@ -412,8 +430,8 @@ const SchedulesPage = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">
-                  Start Time
+                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
+                  وقت البداية
                 </label>
                 <input
                   type="time"
@@ -426,8 +444,8 @@ const SchedulesPage = () => {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">
-                  End Time
+                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
+                  وقت النهاية
                 </label>
                 <input
                   type="time"
@@ -441,14 +459,14 @@ const SchedulesPage = () => {
               </div>
               <button
                 disabled={actionLoading}
-                className="md:col-span-2 mt-4 py-4 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-xl shadow-indigo-100 disabled:opacity-50"
+                className="md:col-span-2 lg:col-span-3 mt-4 py-4 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-xl shadow-indigo-100 disabled:opacity-50"
               >
                 {actionLoading ? (
                   <Loader2 className="animate-spin" size={20} />
                 ) : (
                   <Save size={20} />
                 )}
-                {editingId ? "Update Schedule" : "Confirm & Save"}
+                {editingId ? "تحديث الحصة" : "تأكيد وحفظ"}
               </button>
             </form>
           </div>
@@ -463,11 +481,10 @@ const SchedulesPage = () => {
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-black text-slate-800">
-                Delete Session
+                حذف الحصة
               </h3>
               <p className="text-sm font-medium text-slate-500">
-                Are you sure you want to delete this schedule slot? This action
-                cannot be undone.
+                هل أنت متأكد من حذف هذه الحصة؟ لا يمكن التراجع عن هذا الإجراء.
               </p>
             </div>
             <div className="flex gap-3">
@@ -475,13 +492,13 @@ const SchedulesPage = () => {
                 onClick={() => setDeleteId(null)}
                 className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all"
               >
-                Cancel
+                إلغاء
               </button>
               <button
                 onClick={handleDelete}
                 className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl shadow-lg shadow-rose-100 transition-all"
               >
-                Delete
+                حذف
               </button>
             </div>
           </div>

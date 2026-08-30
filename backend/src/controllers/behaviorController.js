@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Behavior = require("../models/Behavior");
 const Student = require("../models/Student");
 const Schedule = require("../models/Schedule");
+const { scopeFilter } = require("../utils/tenant");
 
 
 exports.recordBulkBehavior = async (req, res) => {
@@ -11,7 +12,7 @@ exports.recordBulkBehavior = async (req, res) => {
     if (!scheduleId || !selectedDate) {
       return res.status(400).json({
         success: false,
-        message: "Required parameters (scheduleId, selectedDate) are missing.",
+        message: "بيانات ناقصة (رقم الحصة أو التاريخ).",
       });
     }
 
@@ -24,14 +25,14 @@ exports.recordBulkBehavior = async (req, res) => {
       );
       return res.status(404).json({
         success: false,
-        message: `Schedule not found. The ID sent was: ${scheduleId}`,
+        message: "لم يتم العثور على هذه الحصة.",
       });
     }
 
     if (!currentSchedule.subject || !currentSchedule.classroom) {
       return res.status(422).json({
         success: false,
-        message: "Schedule is missing subject or classroom information.",
+        message: "بيانات هذه الحصة ناقصة (المادة أو الفصل).",
       });
     }
 
@@ -46,7 +47,7 @@ exports.recordBulkBehavior = async (req, res) => {
       return res.status(400).json({
         success: false,
         message:
-          "You must select a behavior type and write a note for at least one student.",
+          "لازم تختار نوع السلوك وتكتب ملاحظة لطالب واحد على الأقل.",
       });
     }
 
@@ -62,7 +63,7 @@ exports.recordBulkBehavior = async (req, res) => {
       return res.status(409).json({
         success: false,
         message:
-          "Behavior logs for this session have already been recorded today.",
+          "تم تسجيل سلوك هذه الحصة بالفعل النهاردة.",
       });
     }
 
@@ -74,20 +75,21 @@ exports.recordBulkBehavior = async (req, res) => {
       type: record.type,
       note: record.note.trim(),
       date: pureDate,
+      school: req.user.school,
     }));
 
     const result = await Behavior.insertMany(bulkData, { ordered: false });
 
     return res.status(201).json({
       success: true,
-      message: `Successfully recorded behavior evaluations for ${result.length} students.`,
+      message: `تم تسجيل تقييم السلوك لـ ${result.length} طالب بنجاح.`,
     });
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({
         success: false,
         message:
-          "Some records were skipped because they already exist for this student today.",
+          "تم تجاهل بعض السجلات لأنها مسجّلة بالفعل لهذا الطالب النهاردة.",
       });
     }
     console.error("Behavior Bulk Error:", err);
@@ -103,7 +105,7 @@ exports.checkExistingBehavior = async (req, res) => {
     if (!classroomId || !date) {
       return res
         .status(400)
-        .json({ success: false, message: "Missing parameters." });
+        .json({ success: false, message: "بيانات ناقصة." });
     }
 
     const currentSchedule = await Schedule.findById(classroomId);
@@ -133,9 +135,15 @@ exports.checkExistingBehavior = async (req, res) => {
 
 exports.getAllBehavior = async (req, res) => {
   try {
-    let filter = {};
-    if (req.user.role === "teacher") {
-      filter = { teacher: req.user.id };
+    const filter = scopeFilter(
+      req,
+      req.user.role === "teacher" ? { teacher: req.user.id } : {},
+    );
+
+    if (!filter) {
+      return res.status(400).json({
+        message: "برجاء تحديد مدرسة (?school=id) لعرض سجلات السلوك.",
+      });
     }
 
     const data = await Behavior.find(filter)
@@ -163,7 +171,7 @@ exports.getStudentBehavior = async (req, res) => {
     if (!student) {
       return res
         .status(404)
-        .json({ success: false, message: "Student not found" });
+        .json({ success: false, message: "الطالب غير موجود" });
     }
 
     if (
@@ -172,7 +180,7 @@ exports.getStudentBehavior = async (req, res) => {
     ) {
       return res.status(403).json({
         success: false,
-        message: "Unauthorized: Access denied to view this student's records.",
+        message: "غير مصرح لك بعرض سجلات هذا الطالب.",
       });
     }
 
@@ -195,7 +203,7 @@ exports.deleteBehavior = async (req, res) => {
     if (!behavior) {
       return res
         .status(404)
-        .json({ success: false, message: "Behavior record not found" });
+        .json({ success: false, message: "سجل السلوك غير موجود" });
     }
 
     if (
@@ -204,12 +212,12 @@ exports.deleteBehavior = async (req, res) => {
     ) {
       return res.status(403).json({
         success: false,
-        message: "sorry, you are not authorized to delete another teacher's record.",
+        message: "عذرًا، غير مصرح لك بحذف سجل معلم آخر.",
       });
     }
 
     await behavior.deleteOne();
-    res.json({ success: true, message: "Record deleted successfully." });
+    res.json({ success: true, message: "تم حذف السجل بنجاح." });
   } catch (err) {
     console.error("Delete Behavior Error:", err);
     res.status(500).json({ success: false, message: err.message });

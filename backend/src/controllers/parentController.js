@@ -4,6 +4,7 @@ const Behavior = require("../models/Behavior");
 const HomeworkResult = require("../models/HomeworkResult");
 const Result = require("../models/Result");
 const User = require("../models/User");
+const { buildStudentReport } = require("../utils/reportBuilder");
 
 exports.getParentDashboard = async (req, res) => {
   try {
@@ -60,6 +61,43 @@ exports.getParentDashboard = async (req, res) => {
       children: childrenData,
     });
   } catch (err) {
-    res.status(500).json({ message: "Internal server error: " + err.message });
+    res.status(500).json({ message: "خطأ داخلي في السيرفر: " + err.message });
+  }
+};
+
+const VALID_PERIODS = ["daily", "weekly", "monthly"];
+
+exports.getStudentReport = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const period = VALID_PERIODS.includes(req.query.period)
+      ? req.query.period
+      : "weekly";
+
+    const student = await Student.findById(studentId);
+
+    if (!student) {
+      return res.status(404).json({ message: "الطالب غير موجود" });
+    }
+
+    const parentUser = await User.findById(req.user.id);
+    const linkedIds = (parentUser?.linkedStudents || []).map((id) =>
+      id.toString()
+    );
+    const isOwnChild =
+      student.parent.toString() === req.user.id ||
+      linkedIds.includes(student._id.toString());
+
+    if (!isOwnChild) {
+      return res.status(403).json({
+        message: "غير مصرح لك بعرض تقرير هذا الطالب.",
+      });
+    }
+
+    const report = await buildStudentReport(studentId, period);
+
+    res.status(200).json({ success: true, data: report });
+  } catch (err) {
+    res.status(500).json({ message: "خطأ داخلي في السيرفر: " + err.message });
   }
 };

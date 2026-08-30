@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import API from "../../api/axios";
 import {
   Bell,
   Send,
@@ -47,13 +47,6 @@ const AdminNotifications = () => {
     }, 3000);
   };
 
-  const getAuthHeader = () => {
-    const token = localStorage.getItem("token");
-    return { headers: { Authorization: `Bearer ${token}` } };
-  };
-
-  const NOTIF_URL = "http://localhost:5000/api/notifications";
-
   useEffect(() => {
     fetchData();
   }, []);
@@ -61,15 +54,11 @@ const AdminNotifications = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const config = getAuthHeader();
-      const notifRes = await axios.get(NOTIF_URL, config);
+      const notifRes = await API.get("/notifications");
       const fetchedNotifs = notifRes.data?.data || notifRes.data || [];
       setNotifications(fetchedNotifs);
 
-      const parentsRes = await axios.get(
-        "http://localhost:5000/api/admin/users?role=parent",
-        config,
-      );
+      const parentsRes = await API.get("/admin/users?role=parent");
       const fetchedParents =
         parentsRes.data?.data ||
         parentsRes.data?.users ||
@@ -86,17 +75,14 @@ const AdminNotifications = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const config = getAuthHeader();
-
       if (editingId) {
-        const response = await axios.put(
-          `${NOTIF_URL}/${editingId}`,
-          { title: formData.title, message: formData.message },
-          config,
-        );
+        const response = await API.put(`/notifications/${editingId}`, {
+          title: formData.title,
+          message: formData.message,
+        });
         showToast(response.data.message || "تم تحديث الإشعار بنجاح", "success");
       } else {
-        const response = await axios.post(NOTIF_URL, formData, config);
+        const response = await API.post("/notifications", formData);
         showToast(response.data.message || "تم إرسال الإشعار بنجاح", "success");
       }
       closeModal();
@@ -109,10 +95,7 @@ const AdminNotifications = () => {
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
-      const response = await axios.delete(
-        `${NOTIF_URL}/${deleteId}`,
-        getAuthHeader(),
-      );
+      const response = await API.delete(`/notifications/${deleteId}`);
       showToast(response.data.message || "تم حذف الإشعار بنجاح", "success");
       setNotifications(notifications.filter((n) => n._id !== deleteId));
       setDeleteId(null);
@@ -139,9 +122,9 @@ const AdminNotifications = () => {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 lg:p-8 font-sans" dir="ltr">
+    <div className="min-h-screen bg-slate-50 p-4 lg:p-8 font-sans" dir="rtl">
       {toast.show && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-5 duration-300">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[60] animate-in slide-in-from-top-5 duration-300">
           <div
             className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl border ${
               toast.type === "success"
@@ -164,17 +147,17 @@ const AdminNotifications = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-              <Bell className="text-blue-600" size={36} /> Notifications
+              <Bell className="text-blue-600" size={36} /> الإشعارات
             </h1>
             <p className="text-slate-500 font-bold mt-1 uppercase text-xs tracking-widest">
-              EduLink Broadcast Center
+              مركز البث في EduLink
             </p>
           </div>
           <button
             onClick={() => setShowModal(true)}
             className="flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-4 rounded-2xl font-black shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95"
           >
-            <Plus size={20} /> New Notification
+            <Plus size={20} /> إشعار جديد
           </button>
         </div>
 
@@ -186,7 +169,7 @@ const AdminNotifications = () => {
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center py-20 text-slate-400">
               <AlertCircle size={48} className="mb-4 opacity-20" />
-              <p className="font-bold">No notifications found</p>
+              <p className="font-bold">لا يوجد إشعارات</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
@@ -218,7 +201,7 @@ const AdminNotifications = () => {
                               : "bg-amber-500 text-white"
                           }`}
                         >
-                          {n.target === "all" ? "All" : "Private"}
+                          {n.target === "all" ? "للجميع" : "خاص"}
                         </span>
                         <h3 className="font-black text-slate-800">{n.title}</h3>
                       </div>
@@ -226,7 +209,7 @@ const AdminNotifications = () => {
                         {n.message}
                       </p>
                       <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase tracking-widest">
-                        By: {n.createdBy?.name || "Admin"} •{" "}
+                        بواسطة: {n.createdBy?.name || "الإدارة"} •{" "}
                         {new Date(n.createdAt).toLocaleDateString()}
                       </p>
                     </div>
@@ -263,10 +246,10 @@ const AdminNotifications = () => {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95">
-            <div className="p-6 bg-blue-600 text-white flex justify-between items-center">
+          <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95">
+            <div className="p-6 bg-indigo-600 text-white flex justify-between items-center">
               <h2 className="text-xl font-black">
-                {editingId ? "Edit Notification" : "New Notification"}
+                {editingId ? "تعديل الإشعار" : "إشعار جديد"}
               </h2>
               <button
                 onClick={closeModal}
@@ -275,47 +258,64 @@ const AdminNotifications = () => {
                 <X />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-8 space-y-4">
+            <form onSubmit={handleSubmit} className="p-8 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {!editingId && (
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2">
-                    Target
+                  <label className="text-xs font-black text-slate-400 uppercase mr-2">
+                    الجهة المستهدفة
                   </label>
                   <select
-                    className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none font-bold text-sm"
+                    className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-sm"
                     value={formData.target}
                     onChange={(e) =>
                       setFormData({ ...formData, target: e.target.value })
                     }
                   >
-                    <option value="all">All Parents</option>
-                    <option value="parent">Specific Parent</option>
+                    <option value="all">كل أولياء الأمور</option>
+                    <option value="parent">ولي أمر محدد</option>
                   </select>
                 </div>
               )}
 
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-slate-400 uppercase mr-2">
+                  العنوان
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-sm"
+                  value={formData.title}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
+                />
+              </div>
+              </div>
+
               {/* حقل اختيار الأب المطور مع ميزة البحث السريع */}
               {formData.target === "parent" && !editingId && (
                 <div className="space-y-1.5 relative animate-in slide-in-from-top-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2">
-                    Search & Select Parent
+                  <label className="text-xs font-black text-slate-400 uppercase mr-2">
+                    ابحث واختر ولي الأمر
                   </label>
 
                   {/* حاوية حقل البحث الإدخالي */}
                   <div className="relative flex items-center">
                     <Search
                       size={16}
-                      className="absolute left-4 text-slate-400"
+                      className="absolute right-4 text-slate-400"
                     />
                     <input
                       type="text"
                       placeholder={
                         formData.parentId
                           ? parents.find((p) => p._id === formData.parentId)
-                              ?.name || "Parent Selected"
-                          : "Type parent name to filter..."
+                              ?.name || "تم اختيار ولي الأمر"
+                          : "اكتب اسم ولي الأمر للفلترة..."
                       }
-                      className="w-full pl-11 pr-4 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none font-bold text-sm text-slate-700 placeholder-slate-500"
+                      className="w-full pr-11 pl-4 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-sm text-slate-700 placeholder-slate-500"
                       value={searchQuery}
                       onChange={(e) => {
                         setSearchQuery(e.target.value);
@@ -324,8 +324,8 @@ const AdminNotifications = () => {
                       onFocus={() => setIsDropdownOpen(true)}
                     />
                     {formData.parentId && (
-                      <span className="absolute right-4 text-[10px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md font-black">
-                        Selected
+                      <span className="absolute left-4 text-[10px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md font-black">
+                        تم الاختيار
                       </span>
                     )}
                   </div>
@@ -342,9 +342,9 @@ const AdminNotifications = () => {
                             <button
                               key={p._id}
                               type="button"
-                              className={`w-full text-left p-3 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+                              className={`w-full text-right p-3 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
                                 formData.parentId === p._id
-                                  ? "bg-blue-50 text-blue-600"
+                                  ? "bg-indigo-50 text-indigo-600"
                                   : "text-slate-600 hover:bg-slate-50"
                               }`}
                               onClick={() => {
@@ -362,7 +362,7 @@ const AdminNotifications = () => {
                         })
                       ) : (
                         <div className="p-4 text-center text-slate-400 text-xs font-medium">
-                          No parents match your search
+                          لا يوجد أولياء أمور مطابقين للبحث
                         </div>
                       )}
                     </div>
@@ -373,28 +373,13 @@ const AdminNotifications = () => {
               )}
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase ml-2">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none font-bold text-sm"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase ml-2">
-                  Message
+                <label className="text-xs font-black text-slate-400 uppercase mr-2">
+                  الرسالة
                 </label>
                 <textarea
                   rows="4"
                   required
-                  className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none font-bold text-sm resize-none"
+                  className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-sm resize-none"
                   value={formData.message}
                   onChange={(e) =>
                     setFormData({ ...formData, message: e.target.value })
@@ -402,8 +387,8 @@ const AdminNotifications = () => {
                 />
               </div>
 
-              <button className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
-                <Send size={18} /> {editingId ? "Update" : "Send Now"}
+              <button className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+                <Send size={18} /> {editingId ? "تحديث" : "إرسال الآن"}
               </button>
             </form>
           </div>
@@ -418,11 +403,10 @@ const AdminNotifications = () => {
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-black text-slate-800">
-                Delete Notification
+                حذف الإشعار
               </h3>
               <p className="text-sm font-medium text-slate-500">
-                Are you sure you want to delete this notification? This action
-                cannot be undone.
+                هل أنت متأكد من حذف هذا الإشعار؟ لا يمكن التراجع عن هذا الإجراء.
               </p>
             </div>
             <div className="flex gap-3">
@@ -430,13 +414,13 @@ const AdminNotifications = () => {
                 onClick={() => setDeleteId(null)}
                 className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all"
               >
-                Cancel
+                إلغاء
               </button>
               <button
                 onClick={handleDelete}
                 className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl shadow-lg shadow-rose-100 transition-all"
               >
-                Delete
+                حذف
               </button>
             </div>
           </div>

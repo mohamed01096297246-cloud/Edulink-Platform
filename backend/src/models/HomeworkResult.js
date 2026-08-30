@@ -21,9 +21,19 @@ const homeworkResultSchema = new mongoose.Schema(
       type: Number,
       default: null
     },
+    teacherFeedback: {
+      type: String,
+      trim: true,
+      default: ""
+    },
     gradedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", 
+      ref: "User",
+      required: true
+    },
+    school: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "School",
       required: true
     }
   },

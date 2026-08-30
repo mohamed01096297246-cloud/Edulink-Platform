@@ -3,7 +3,7 @@ const router = express.Router();
 
 const examController = require("../controllers/examController");
 
-const { protect, authorize } = require("../middleware/authMiddleware");
+const { protect, authorize, requireUserFeature } = require("../middleware/authMiddleware");
 
 
 router.post("/", protect, authorize("admin"), examController.createExamSchedule);
@@ -16,6 +16,6 @@ router.put("/:id", protect, authorize("admin"), examController.updateExamSchedul
 
 router.delete("/:id", protect, authorize("admin"), examController.deleteExamSchedule);
 
-router.get("/student/:studentId", protect, authorize("parent", "admin"), examController.getStudentExams);
+router.get("/student/:studentId", protect, authorize("parent", "admin"), requireUserFeature("exams"), examController.getStudentExams);
 
 module.exports = router;

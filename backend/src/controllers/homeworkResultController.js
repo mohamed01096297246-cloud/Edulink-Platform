@@ -2,6 +2,7 @@ const HomeworkResult = require("../models/HomeworkResult");
 const Homework = require("../models/Homework");
 const Student = require("../models/Student");
 const { sendAlertEmail } = require("../utils/emailService");
+const { sameSchool } = require("../utils/tenant");
 
 exports.gradeBulkHomework = async (req, res) => {
   try {
@@ -13,12 +14,12 @@ exports.gradeBulkHomework = async (req, res) => {
       "name",
     );
     if (!homework)
-      return res.status(404).json({ message: "Homework not found" });
+      return res.status(404).json({ message: "الواجب غير موجود" });
 
     if (homework.teacher.toString() !== req.user.id) {
       return res
         .status(403)
-        .json({ message: "You are not authorized to grade this homework" });
+        .json({ message: "غير مصرح لك بتصحيح هذا الواجب" });
     }
 
     const studentIds = grades.map((g) => g.studentId);
@@ -31,7 +32,7 @@ exports.gradeBulkHomework = async (req, res) => {
     if (existingResults) {
       return res.status(400).json({
         success: false,
-        message: "Grades for this homework have already been recorded.",
+        message: "تم تسجيل درجات هذا الواجب بالفعل.",
       });
     }
 
@@ -44,6 +45,7 @@ exports.gradeBulkHomework = async (req, res) => {
             score: record.status === "missing" ? 0 : record.score,
             teacherFeedback: record.teacherFeedback,
             gradedBy: req.user.id,
+            school: req.user.school,
           },
         },
         upsert: true,
@@ -65,8 +67,8 @@ exports.gradeBulkHomework = async (req, res) => {
             try {
               await sendAlertEmail(
                 studentData.parent.email,
-                "Warning: Academic Negligence: Non-Submission of Assignment",
-                `Dear Parent, we would like to inform you that the student ${studentData.firstName} has not submitted the assignment (${homework.title}) in the subject ${homework.subject.name}. Please follow up.`,
+                "تنبيه: عدم تسليم واجب مدرسي",
+                `عزيزي ولي الأمر، نود إبلاغكم بأن الطالب ${studentData.firstName} لم يسلّم الواجب (${homework.title}) في مادة ${homework.subject.name}. برجاء المتابعة.`,
               );
             } catch (e) {
               console.log("Error sending assignment email:", e.message);
@@ -78,7 +80,7 @@ exports.gradeBulkHomework = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Grades recorded successfully for ${grades.length} students.`,
+      message: `تم تسجيل الدرجات بنجاح لـ ${grades.length} طالب.`,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -88,6 +90,23 @@ exports.getParentHomeworkDashboard = async (req, res) => {
   try {
     const { studentId } = req.params;
     const student = await Student.findById(studentId);
+
+    if (!student || !sameSchool(req, student)) {
+      return res.status(404).json({ message: "الطالب غير موجود" });
+    }
+
+    // A parent could otherwise pass any studentId and read a stranger's
+    // child's homework grades — this must mirror the same ownership check
+    // every sibling student-scoped endpoint (attendance/behavior/exams)
+    // already enforces.
+    if (
+      req.user.role === "parent" &&
+      student.parent.toString() !== req.user.id
+    ) {
+      return res.status(403).json({
+        message: "غير مصرح لك بعرض واجبات هذا الطالب.",
+      });
+    }
 
     const allHomeworks = await Homework.find({ classroom: student.classroom })
       .populate("subject", "name")
@@ -146,7 +165,7 @@ exports.updateSingleGrade = async (req, res) => {
 
     const result = await HomeworkResult.findById(resultId).populate("homework");
     if (!result)
-      return res.status(404).json({ message: "Grade record not found" });
+      return res.status(404).json({ message: "سجل الدرجة غير موجود" });
 
     if (
       result.homework.teacher.toString() !== req.user.id &&
@@ -154,7 +173,7 @@ exports.updateSingleGrade = async (req, res) => {
     ) {
       return res
         .status(403)
-        .json({ message: "You are not authorized to modify this grade" });
+        .json({ message: "غير مصرح لك بتعديل هذه الدرجة" });
     }
 
     result.status = status || result.status;
@@ -168,7 +187,7 @@ exports.updateSingleGrade = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Student grade updated successfully",
+      message: "تم تحديث درجة الطالب بنجاح",
       data: result,
     });
   } catch (err) {
@@ -182,7 +201,7 @@ exports.deleteSingleGrade = async (req, res) => {
 
     const result = await HomeworkResult.findById(resultId).populate("homework");
     if (!result)
-      return res.status(404).json({ message: "Grade record not found" });
+      return res.status(404).json({ message: "سجل الدرجة غير موجود" });
 
     if (
       result.homework.teacher.toString() !== req.user.id &&
@@ -190,7 +209,7 @@ exports.deleteSingleGrade = async (req, res) => {
     ) {
       return res
         .status(403)
-        .json({ message: "You are not authorized to delete this grade" });
+        .json({ message: "غير مصرح لك بحذف هذه الدرجة" });
     }
 
     await result.deleteOne();
@@ -198,7 +217,7 @@ exports.deleteSingleGrade = async (req, res) => {
     res.status(200).json({
       success: true,
       message:
-        "Grade record deleted successfully, the assignment is now pending for this student",
+        "تم حذف سجل الدرجة بنجاح، والواجب أصبح معلّقًا لهذا الطالب مرة أخرى",
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

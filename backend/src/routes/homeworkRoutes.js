@@ -9,7 +9,7 @@ const {
   deleteHomework,
 } = require("../controllers/homeworkController");
 
-const { protect, authorize } = require("../middleware/authMiddleware");
+const { protect, authorize, requireUserFeature } = require("../middleware/authMiddleware");
 
 router.post("/", protect, authorize("teacher"), createHomework);
 router.get("/", protect, authorize("teacher"), getAllHomeworks);
@@ -17,6 +17,7 @@ router.get(
   "/student/:studentId",
   protect,
   authorize("parent", "admin"),
+  requireUserFeature("homework"),
   getStudentHomeworks,
 );
 

@@ -1,20 +1,29 @@
 const Classroom = require("../models/Classroom");
 const Student = require("../models/Student");
 const Schedule = require("../models/Schedule");
+const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
 
 exports.createClassroom = async (req, res) => {
   try {
     const { name, grade, academicYear, capacity } = req.body;
+    const school = creationSchool(req);
+
+    if (!school) {
+      return res.status(400).json({
+        message: "Please specify a school (?school=id) to create a classroom for.",
+      });
+    }
 
     const existingClass = await Classroom.findOne({
       name,
       grade,
       academicYear,
+      school,
     });
 
     if (existingClass) {
       return res.status(400).json({
-        message: "Classroom already exists for this academic year",
+        message: "هذا الفصل موجود بالفعل لهذه المرحلة الدراسية ",
       });
     }
 
@@ -23,16 +32,17 @@ exports.createClassroom = async (req, res) => {
       grade,
       academicYear,
       capacity: capacity || 30,
+      school,
     });
 
     res.status(201).json({
-      message: "classroom created successfully",
+      message: "تم إنشاء الفصل بنجاح",
       classroom,
     });
   } catch (err) {
     if (err.code === 11000) {
       return res.status(400).json({
-        message: "Classroom already exists",
+        message: "الفصل موجود بالفعل",
       });
     }
     res.status(400).json({ message: err.message });
@@ -41,7 +51,15 @@ exports.createClassroom = async (req, res) => {
 
 exports.getAllClassrooms = async (req, res) => {
   try {
-    const data = await Classroom.find()
+    const filter = scopeFilter(req);
+
+    if (!filter) {
+      return res.status(400).json({
+        message: "Please specify a school (?school=id) to list its classrooms.",
+      });
+    }
+
+    const data = await Classroom.find(filter)
       .populate("grade", "name academicYear")
       .sort({
         academicYear: -1,
@@ -61,9 +79,9 @@ exports.getClassroom = async (req, res) => {
       "name academicYear",
     );
 
-    if (!classroom) {
+    if (!classroom || !sameSchool(req, classroom)) {
       return res.status(404).json({
-        message: "Classroom not found",
+        message: "لم يتم العثور علي هذا الفصل ",
       });
     }
 
@@ -85,8 +103,8 @@ exports.updateClassroom = async (req, res) => {
     const { name, grade, academicYear, capacity } = req.body;
 
     const currentClassroom = await Classroom.findById(req.params.id);
-    if (!currentClassroom) {
-      return res.status(404).json({ message: "Classroom not found" });
+    if (!currentClassroom || !sameSchool(req, currentClassroom)) {
+      return res.status(404).json({ message: "لم يتم العثور علي هذا الفصل " });
     }
 
     if (capacity && capacity < currentClassroom.currentStudents) {
@@ -99,6 +117,7 @@ exports.updateClassroom = async (req, res) => {
       name,
       grade,
       academicYear,
+      school: currentClassroom.school,
       _id: { $ne: req.params.id },
     });
 
@@ -116,7 +135,7 @@ exports.updateClassroom = async (req, res) => {
     ).populate("grade", "name academicYear");
 
     res.json({
-      message: "Classroom updated successfully",
+      message: "تم إنشاء الفصل بنجاح ",
       classroom: updatedClassroom,
     });
   } catch (err) {
@@ -128,9 +147,9 @@ exports.deleteClassroom = async (req, res) => {
   try {
     const classroom = await Classroom.findById(req.params.id);
 
-    if (!classroom) {
+    if (!classroom || !sameSchool(req, classroom)) {
       return res.status(404).json({
-        message: "Classroom not found",
+        message: "لم يتم العثور علي هذا الفصل ",
       });
     }
 
@@ -141,7 +160,7 @@ exports.deleteClassroom = async (req, res) => {
     if (studentsCount > 0) {
       return res.status(400).json({
         message:
-          "you cannot delete this classroom because it has associated students.",
+          "لايمكن حذف هذا الفصل لوجود طلاب بالفعل ",
       });
     }
 
@@ -152,14 +171,14 @@ exports.deleteClassroom = async (req, res) => {
     if (schedulesCount > 0) {
       return res.status(400).json({
         message:
-          "you cannot delete this classroom because it is associated with existing schedules.",
+           "لايمكن حذف هذا الفصل لوجود جداول دراسية مرتبطه به ",
       });
     }
 
     await classroom.deleteOne();
 
     res.json({
-      message: "Classroom deleted successfully",
+      message: "تم حذف الفصل بنجاح",
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

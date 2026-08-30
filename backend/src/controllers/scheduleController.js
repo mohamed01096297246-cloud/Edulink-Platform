@@ -1,15 +1,27 @@
 const Schedule = require("../models/Schedule");
 const User = require("../models/User");
 const Classroom = require("../models/Classroom");
+const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
 
 exports.createSchedule = async (req, res) => {
   try {
     const { teacher, classroom, day, startTime, endTime } = req.body;
+    const school = creationSchool(req);
+
+    if (!school) {
+      return res.status(400).json({
+        message: "Please specify a school (?school=id) to create a schedule for.",
+      });
+    }
+
     const teacherData = await User.findOne({ _id: teacher, role: "teacher" });
-    if (!teacherData)
+    if (!teacherData || teacherData.school?.toString() !== school.toString())
       return res.status(404).json({ message: "Teacher not found" });
     const classroomData = await Classroom.findById(classroom);
-    if (!classroomData)
+    if (
+      !classroomData ||
+      classroomData.school.toString() !== school.toString()
+    )
       return res.status(404).json({ message: "Classroom not found" });
 
     const isAuthorized = teacherData.teachingGrades.some(
@@ -61,6 +73,7 @@ exports.createSchedule = async (req, res) => {
       day,
       startTime,
       endTime,
+      school,
     });
 
     res
@@ -73,10 +86,11 @@ exports.createSchedule = async (req, res) => {
 
 exports.deleteSchedule = async (req, res) => {
   try {
-    const schedule = await Schedule.findByIdAndDelete(req.params.id);
-    if (!schedule)
+    const schedule = await Schedule.findById(req.params.id);
+    if (!schedule || !sameSchool(req, schedule))
       return res.status(404).json({ message: "this schedule does not exist" });
 
+    await schedule.deleteOne();
     res.json({ message: "Schedule deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -88,7 +102,7 @@ exports.updateSchedule = async (req, res) => {
     const { day, startTime, endTime, teacher, classroom, subject } = req.body;
     const scheduleId = req.params.id;
     const existingSchedule = await Schedule.findById(scheduleId);
-    if (!existingSchedule) {
+    if (!existingSchedule || !sameSchool(req, existingSchedule)) {
       return res.status(404).json({ message: "this schedule does not exist" });
     }
     if (day || startTime || endTime || teacher || classroom) {
@@ -164,7 +178,7 @@ exports.getCurrentClass = async (req, res) => {
     if (!currentClass) {
       return res
         .status(404)
-        .json({ message: "No classes scheduled for you at this time" });
+        .json({ message: "لا يوجد حصة مجدولة لك في هذا الوقت" });
     }
     res.json(currentClass);
   } catch (err) {
@@ -174,9 +188,15 @@ exports.getCurrentClass = async (req, res) => {
 
 exports.getAllSchedules = async (req, res) => {
   try {
-    let filter = {};
-    if (req.user.role === "teacher") {
-      filter = { teacher: req.user.id };
+    const filter = scopeFilter(
+      req,
+      req.user.role === "teacher" ? { teacher: req.user.id } : {},
+    );
+
+    if (!filter) {
+      return res.status(400).json({
+        message: "Please specify a school (?school=id) to list its schedules.",
+      });
     }
 
     const data = await Schedule.find(filter)
@@ -196,7 +216,10 @@ exports.getAllSchedules = async (req, res) => {
 
 exports.getTeacherSchedule = async (req, res) => {
   try {
-    const data = await Schedule.find({ teacher: req.params.id })
+    const data = await Schedule.find({
+      teacher: req.params.id,
+      school: req.user.school,
+    })
       .populate({
         path: "classroom",
         select: "name grade",
@@ -212,7 +235,10 @@ exports.getTeacherSchedule = async (req, res) => {
 
 exports.getClassSchedule = async (req, res) => {
   try {
-    const data = await Schedule.find({ classroom: req.params.classroom })
+    const data = await Schedule.find({
+      classroom: req.params.classroom,
+      school: req.user.school,
+    })
       .populate("teacher", "firstName lastName")
       .populate("subject", "name")
       .sort({ startTime: 1 });

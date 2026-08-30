@@ -1,19 +1,30 @@
 const Exam = require("../models/Exam");
 const Student = require("../models/Student");
 const User = require("../models/User");
+const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
+
 exports.createExamSchedule = async (req, res) => {
   try {
     const { title, examType, academicYear, grade, timetable } = req.body;
+    const school = creationSchool(req);
+
+    if (!school) {
+      return res.status(400).json({
+        message: "برجاء تحديد مدرسة (?school=id) لإنشاء جدول امتحانات.",
+      });
+    }
+
     const exam = await Exam.create({
       title,
       examType,
       academicYear,
       grade,
       timetable,
+      school,
     });
     res.status(201).json({
       success: true,
-      message: "Exam schedule created successfully",
+      message: "تم إنشاء جدول الامتحانات بنجاح",
       data: exam,
     });
   } catch (err) {
@@ -23,7 +34,15 @@ exports.createExamSchedule = async (req, res) => {
 
 exports.getAllExams = async (req, res) => {
   try {
-    const exams = await Exam.find()
+    const filter = scopeFilter(req);
+
+    if (!filter) {
+      return res.status(400).json({
+        message: "برجاء تحديد مدرسة (?school=id) لعرض الامتحانات.",
+      });
+    }
+
+    const exams = await Exam.find(filter)
       .populate("grade", "name academicYear")
       .populate("timetable.subject", "name")
       .sort({ createdAt: -1 });
@@ -37,11 +56,12 @@ exports.getTeacherExams = async (req, res) => {
   try {
     const teacher = await User.findById(req.user.id).populate("classrooms");
 
-    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
+    if (!teacher) return res.status(404).json({ message: "المعلم غير موجود" });
 
     const gradeIds = [...new Set(teacher.classrooms.map((c) => c.grade))];
     const exams = await Exam.find({
       grade: { $in: gradeIds },
+      school: req.user.school,
     })
       .populate("grade", "name academicYear")
       .populate("timetable.subject", "name");
@@ -61,18 +81,21 @@ exports.getStudentExams = async (req, res) => {
     const { studentId } = req.params;
 
     const student = await Student.findById(studentId);
-    if (!student) return res.status(404).json({ message: "Student not found" });
+    if (!student) return res.status(404).json({ message: "الطالب غير موجود" });
 
     if (
       req.user.role === "parent" &&
       student.parent.toString() !== req.user.id
     ) {
       return res.status(403).json({
-        message: "You are not authorized to view this student's exams",
+        message: "غير مصرح لك بعرض امتحانات هذا الطالب",
       });
     }
 
-    const exams = await Exam.find({ grade: student.grade })
+    const exams = await Exam.find({
+      grade: student.grade,
+      school: student.school,
+    })
       .populate("grade", "name academicYear")
       .populate("timetable.subject", "name")
       .sort({ createdAt: -1 });
@@ -86,6 +109,11 @@ exports.updateExamSchedule = async (req, res) => {
   try {
     const examId = req.params.id;
 
+    const existing = await Exam.findById(examId);
+    if (!existing || !sameSchool(req, existing)) {
+      return res.status(404).json({ message: "جدول الامتحانات غير موجود" });
+    }
+
     const updatedExam = await Exam.findByIdAndUpdate(examId, req.body, {
       new: true,
       runValidators: true,
@@ -93,13 +121,9 @@ exports.updateExamSchedule = async (req, res) => {
       .populate("grade", "name academicYear")
       .populate("timetable.subject", "name");
 
-    if (!updatedExam) {
-      return res.status(404).json({ message: "Exam schedule not found" });
-    }
-
     res.status(200).json({
       success: true,
-      message: "Exam schedule updated successfully",
+      message: "تم تحديث جدول الامتحانات بنجاح",
       data: updatedExam,
     });
   } catch (err) {
@@ -112,15 +136,15 @@ exports.deleteExamSchedule = async (req, res) => {
 
     const exam = await Exam.findById(examId);
 
-    if (!exam) {
-      return res.status(404).json({ message: "Exam schedule not found" });
+    if (!exam || !sameSchool(req, exam)) {
+      return res.status(404).json({ message: "جدول الامتحانات غير موجود" });
     }
 
     await exam.deleteOne();
 
     res.status(200).json({
       success: true,
-      message: "Exam schedule deleted successfully",
+      message: "تم حذف جدول الامتحانات بنجاح",
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -6,8 +6,7 @@ import {
   User,
   Loader2,
   AlertCircle,
-  ChevronRight,
-  School,
+  ChevronLeft,
 } from "lucide-react";
 import "./pagesCss/login.css";
 
@@ -43,7 +42,7 @@ const Login = ({ onLogin }) => {
       }
     } catch (err) {
       setError(
-        err.response?.data?.message || "Connection failed. Please try again.",
+        err.response?.data?.message || "فشل الاتصال بالسيرفر، حاول مرة أخرى.",
       );
     } finally {
       setLoading(false);
@@ -51,42 +50,31 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="login-container">
+    <div className="login-container" dir="rtl">
       <div className="left-side">
         <h1 className="logo">
           Edu <span>Link</span>
         </h1>
         <ul>
-          <li>
-            the system is used to facilitate administrative process within the
-            school and provide follow-up services with the parents
-          </li>
-          <li>
-            the system is used to facilitate the process of managing student
-            records and academic performance
-          </li>
-          <li>
-            the system is used to facilitate communication between school and
-            parents
-          </li>
+          <li>النظام يسهّل العمليات الإدارية داخل المدرسة ويوفّر متابعة مستمرة لأولياء الأمور</li>
+          <li>النظام يسهّل إدارة بيانات الطلاب ومتابعة أدائهم الأكاديمي</li>
+          <li>النظام يسهّل التواصل بين المدرسة وأولياء الأمور</li>
         </ul>
         <hr />
         <ul>
-          <h3>parent can follow up thier children in the following :</h3>
-          <li>precnce and absence tracking</li>
-          <li>
-            view the academic performance of their children and their grades
-          </li>
-          <li>class schedules and announcements</li>
-          <li>homework assignments and due dates</li>
-          <li>children behavior and disciplinary records</li>
+          <h3>يقدر ولي الأمر يتابع أبناءه في:</h3>
+          <li>الحضور والغياب</li>
+          <li>الأداء الأكاديمي والدرجات</li>
+          <li>الجدول الدراسي والإعلانات</li>
+          <li>الواجبات ومواعيد تسليمها</li>
+          <li>السلوك والسجلات التأديبية</li>
         </ul>
       </div>
       <div className=" right-side ">
         <div>
           <div className="text">
-            <h1>School Management System</h1>
-            <p>sign-in to EDU LINK</p>
+            <h1>نظام إدارة المدرسة</h1>
+            <p>تسجيل الدخول إلى EduLink</p>
           </div>
 
           <div className="form-container">
@@ -101,18 +89,18 @@ const Login = ({ onLogin }) => {
 
 
               <div className="space-y-2">
-                <label className="text-xs font-black text-slate-500 ml-2 uppercase tracking-wider">
-                  Username
+                <label className="text-xs font-black text-slate-500 mr-2 uppercase tracking-wider">
+                  اسم المستخدم
                 </label>
                 <div className="relative group">
                   <User
-                    className="absolute left-4 top-4 text-slate-300 group-focus-within:text-indigo-600 transition-colors"
+                    className="absolute right-4 top-4 text-slate-300 group-focus-within:text-indigo-600 transition-colors"
                     size={20}
                   />
                   <input
                     required
                     type="text"
-                    placeholder="Enter your username"
+                    placeholder="أدخل اسم المستخدم"
                     className="login-input"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -122,12 +110,12 @@ const Login = ({ onLogin }) => {
 
               {/* Password Input */}
               <div className="space-y-2">
-                <label className="text-xs font-black text-slate-500 ml-2 uppercase tracking-wider">
-                  Password
+                <label className="text-xs font-black text-slate-500 mr-2 uppercase tracking-wider">
+                  كلمة المرور
                 </label>
                 <div className="relative group">
                   <LockKeyhole
-                    className="absolute left-4 top-4 text-slate-300 group-focus-within:text-indigo-600 transition-colors"
+                    className="absolute right-4 top-4 text-slate-300 group-focus-within:text-indigo-600 transition-colors"
                     size={20}
                   />
                   <input
@@ -151,10 +139,10 @@ const Login = ({ onLogin }) => {
                   <Loader2 className="animate-spin" size={24} />
                 ) : (
                   <>
-                    Sign In
-                    <ChevronRight
+                    تسجيل الدخول
+                    <ChevronLeft
                       size={20}
-                      className="group-hover:translate-x-1 transition-transform"
+                      className="group-hover:-translate-x-1 transition-transform"
                     />
                   </>
                 )}

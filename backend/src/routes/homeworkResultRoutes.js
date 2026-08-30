@@ -11,12 +11,13 @@ const {
   deleteSingleGrade,
 } = require("../controllers/homeworkResultController");
 
-const { protect, authorize } = require("../middleware/authMiddleware");
+const { protect, authorize, requireUserFeature } = require("../middleware/authMiddleware");
 
 router.post(
   "/grade/:homeworkId",
   protect,
   authorize("teacher"),
+  requireUserFeature("homeworkGrades"),
   gradeBulkHomework,
 );
 
@@ -24,6 +25,7 @@ router.get(
   "/dashboard/:studentId",
   protect,
   authorize("parent", "admin"),
+  requireUserFeature("homework"),
   getParentHomeworkDashboard,
 );
 

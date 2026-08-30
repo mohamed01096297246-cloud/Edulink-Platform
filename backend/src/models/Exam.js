@@ -23,6 +23,11 @@ const examSchema = new mongoose.Schema(
       ref: "Grade",
       required: [true, "Grade is required"],
     },
+    school: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "School",
+      required: true,
+    },
     timetable: [
       {
         subject: {

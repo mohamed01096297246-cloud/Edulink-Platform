@@ -36,9 +36,14 @@ const resultRoutes = require("./src/routes/resultRoutes");
 const homeworkResultRoutes = require("./src/routes/homeworkResultRoutes");
 const notificationRoutes = require("./src/routes/notificationRoutes");
 const gradeRoutes = require("./src/routes/gradeRoutes");
+const schoolRoutes = require("./src/routes/schoolRoutes");
+const feeRoutes = require("./src/routes/feeRoutes");
+const analyticsRoutes = require("./src/routes/analyticsRoutes");
+const staffAttendanceRoutes = require("./src/routes/staffAttendanceRoutes");
 
 
 app.use("/api/auth", authRoutes);
+app.use("/api/schools", schoolRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/teacher", teacherRoutes);
 app.use("/api/parent", parentRoutes);
@@ -54,6 +59,9 @@ app.use("/api/results", resultRoutes);
 app.use("/api/homework-results", homeworkResultRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/grades",gradeRoutes );
+app.use("/api/fees", feeRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/staff-attendance", staffAttendanceRoutes);
 
 
 
@@ -63,6 +71,22 @@ app.get("/", (req, res) => {
     message: "Welcome to EduLink API 🚀",
     status: "Server is healthy",
     version: "1.0.0"
+  });
+});
+
+// Real readiness check for the hosting platform's rolling deploys — a
+// health check that only inspects the Express process (like the "/" route
+// above) would report healthy the instant Node boots, before it can
+// actually serve a database-backed request. Reporting DB state here is
+// what lets Render/Railway/etc. hold traffic on the old instance until the
+// new one can genuinely handle a request, giving zero-downtime deploys.
+app.get("/health", (req, res) => {
+  const mongoose = require("mongoose");
+  const dbReady = mongoose.connection.readyState === 1; // 1 = connected
+
+  res.status(dbReady ? 200 : 503).json({
+    status: dbReady ? "ok" : "not_ready",
+    db: dbReady ? "connected" : "disconnected",
   });
 });
 

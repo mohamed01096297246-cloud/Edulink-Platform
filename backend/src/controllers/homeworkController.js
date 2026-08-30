@@ -2,6 +2,7 @@ const Homework = require("../models/Homework");
 const Classroom = require("../models/Classroom");
 const User = require("../models/User");
 const Student = require("../models/Student");
+const { scopeFilter, sameSchool } = require("../utils/tenant");
 
 exports.createHomework = async (req, res) => {
   try {
@@ -15,7 +16,7 @@ exports.createHomework = async (req, res) => {
       return res
         .status(403)
         .json({
-          message: "You are not authorized to create homework for this grade.",
+          message: "غير مصرح لك بإضافة واجب لهذه المرحلة.",
         });
     }
 
@@ -24,7 +25,7 @@ exports.createHomework = async (req, res) => {
       return res
         .status(404)
         .json({
-          message: "No classrooms registered for this grade at the moment.",
+          message: "لا يوجد فصول مسجّلة لهذه المرحلة حاليًا.",
         });
     }
 
@@ -36,13 +37,14 @@ exports.createHomework = async (req, res) => {
       classroom: cls._id,
       teacher: req.user.id,
       subject: teacher.subject,
+      school: req.user.school,
     }));
 
     await Homework.insertMany(homeworkEntries);
 
     res.status(201).json({
       success: true,
-      message: `Homework created successfully for ${classrooms.length} classrooms in grade ${grade}`,
+      message: `تم إضافة الواجب بنجاح لـ ${classrooms.length} فصل في هذه المرحلة`,
     });
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -50,9 +52,15 @@ exports.createHomework = async (req, res) => {
 };
 exports.getAllHomeworks = async (req, res) => {
   try {
-    let filter = {};
-    if (req.user.role === "teacher") {
-      filter.teacher = req.user.id;
+    const filter = scopeFilter(
+      req,
+      req.user.role === "teacher" ? { teacher: req.user.id } : {},
+    );
+
+    if (!filter) {
+      return res.status(400).json({
+        message: "برجاء تحديد مدرسة (?school=id) لعرض الواجبات.",
+      });
     }
 
     if (req.query.gradeId) {
@@ -80,7 +88,7 @@ exports.getStudentHomeworks = async (req, res) => {
   try {
     const { studentId } = req.params;
     const student = await Student.findById(studentId);
-    if (!student) return res.status(404).json({ message: "Student not found" });
+    if (!student) return res.status(404).json({ message: "الطالب غير موجود" });
     if (
       req.user.role === "parent" &&
       student.parent.toString() !== req.user.id
@@ -88,7 +96,7 @@ exports.getStudentHomeworks = async (req, res) => {
       return res
         .status(403)
         .json({
-          message: "You are not authorized to view this student's homework",
+          message: "غير مصرح لك بعرض واجبات هذا الطالب",
         });
     }
     const homeworks = await Homework.find({ classroom: student.classroom })
@@ -117,13 +125,13 @@ exports.updateHomework = async (req, res) => {
     const homework = await Homework.findById(homeworkId);
 
     if (!homework) {
-      return res.status(404).json({ message: "homework not found" });
+      return res.status(404).json({ message: "الواجب غير موجود" });
     }
 
     if (homework.teacher.toString() !== req.user.id) {
       return res
         .status(403)
-        .json({ message: "You are not authorized to update this homework" });
+        .json({ message: "غير مصرح لك بتعديل هذا الواجب" });
     }
 
     const updatedHomework = await Homework.findByIdAndUpdate(
@@ -140,7 +148,7 @@ exports.updateHomework = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "homework updated successfully",
+      message: "تم تحديث الواجب بنجاح",
       data: updatedHomework,
     });
   } catch (err) {
@@ -154,23 +162,23 @@ exports.deleteHomework = async (req, res) => {
     const homework = await Homework.findById(homeworkId);
 
     if (!homework) {
-      return res.status(404).json({ message: "homework not found" });
+      return res.status(404).json({ message: "الواجب غير موجود" });
     }
 
     if (
       homework.teacher.toString() !== req.user.id &&
-      req.user.role !== "admin"
+      !(req.user.role === "admin" && sameSchool(req, homework))
     ) {
       return res
         .status(403)
-        .json({ message: "You are not authorized to delete this homework" });
+        .json({ message: "غير مصرح لك بحذف هذا الواجب" });
     }
 
     await homework.deleteOne();
 
     res.status(200).json({
       success: true,
-      message: "homework deleted successfully",
+      message: "تم حذف الواجب بنجاح",
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

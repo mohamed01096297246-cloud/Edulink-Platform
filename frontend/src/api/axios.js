@@ -1,18 +1,40 @@
-// import axios from "axios";
-// const API = axios.create({
-//   // ده العنوان الرئيسي للباك إند بتاعك
-//   baseURL: "http://localhost:5000/api",
-//   headers: {
-//     "Content-Type": "application/json",
-//   },
-// });
-// // إضافة "المراقب" (Interceptors) عشان يبعت التوكن أوتوماتيك لو موجود
-// API.interceptors.request.use((config) => {
-//   const token = localStorage.getItem("token");
-//   if (token) {
-//     config.headers.Authorization = `Bearer ${token}`;
-//   }
-//   return config;
-// });
+import axios from "axios";
 
-// export default API;
+// One place for the backend URL — set REACT_APP_API_URL in a .env file
+// before deploying so this doesn't need editing across every page that
+// calls the API. Falls back to the local dev server when unset.
+const API = axios.create({
+  baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000/api",
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// Attaches the stored token automatically — callers never need to build
+// the Authorization header by hand.
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// An expired/invalid token gets the same "you're signed out" experience
+// everywhere instead of each page separately guessing what a 401 means.
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      localStorage.removeItem("userInfo");
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
+  },
+);
+
+export default API;

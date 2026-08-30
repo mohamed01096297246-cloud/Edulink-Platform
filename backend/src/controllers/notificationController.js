@@ -1,9 +1,19 @@
 const Notification = require("../models/Notification");
 const User = require("../models/User");
 const { sendCredentialsEmail } = require("../utils/emailService");
+const { sendPushNotifications } = require("../utils/pushNotifications");
+const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
+
 exports.createNotification = async (req, res) => {
   try {
     const { title, message, target, parentId } = req.body;
+    const school = creationSchool(req);
+
+    if (!school) {
+      return res.status(400).json({
+        message: "Please specify a school (?school=id) to notify.",
+      });
+    }
 
     if (target === "parent" && !parentId) {
       return res.status(400).json({
@@ -17,16 +27,23 @@ exports.createNotification = async (req, res) => {
       target: target || "all",
       parent: target === "parent" ? parentId : null,
       createdBy: req.user._id,
+      school,
     });
 
     if (target === "all" || !target) {
-      const parents = await User.find({ role: "parent" });
+      const parents = await User.find({ role: "parent", school });
 
       for (let p of parents) {
         if (p.email) {
           await sendCredentialsEmail(p.email, title, message);
         }
       }
+      await sendPushNotifications(
+        parents.map((p) => p.pushToken),
+        title,
+        message,
+        { type: "notification", notificationId: notification._id },
+      );
     }
 
     if (target === "parent") {
@@ -34,6 +51,14 @@ exports.createNotification = async (req, res) => {
 
       if (parentUser && parentUser.email) {
         await sendCredentialsEmail(parentUser.email, title, message);
+      }
+      if (parentUser) {
+        await sendPushNotifications(
+          [parentUser.pushToken],
+          title,
+          message,
+          { type: "notification", notificationId: notification._id },
+        );
       }
     }
 
@@ -49,6 +74,7 @@ exports.createNotification = async (req, res) => {
 exports.getParentNotifications = async (req, res) => {
   try {
     const notifications = await Notification.find({
+      school: req.user.school,
       $or: [{ target: "all" }, { target: "parent", parent: req.user._id }],
     })
       .sort({ createdAt: -1 })
@@ -61,7 +87,15 @@ exports.getParentNotifications = async (req, res) => {
 };
 exports.getAllNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find()
+    const filter = scopeFilter(req);
+
+    if (!filter) {
+      return res.status(400).json({
+        message: "Please specify a school (?school=id) to list its notifications.",
+      });
+    }
+
+    const notifications = await Notification.find(filter)
       .sort({ createdAt: -1 })
       .populate("createdBy", "name role");
 
@@ -75,15 +109,16 @@ exports.updateNotification = async (req, res) => {
     const { title, message } = req.body;
     const notificationId = req.params.id;
 
+    const existing = await Notification.findById(notificationId);
+    if (!existing || !sameSchool(req, existing)) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+
     const notification = await Notification.findByIdAndUpdate(
       notificationId,
       { title, message },
       { new: true, runValidators: true },
     );
-
-    if (!notification) {
-      return res.status(404).json({ message: "Notification not found" });
-    }
 
     res.json({
       message: "Notification updated successfully",
@@ -97,11 +132,13 @@ exports.deleteNotification = async (req, res) => {
   try {
     const notificationId = req.params.id;
 
-    const notification = await Notification.findByIdAndDelete(notificationId);
+    const notification = await Notification.findById(notificationId);
 
-    if (!notification) {
+    if (!notification || !sameSchool(req, notification)) {
       return res.status(404).json({ message: "Notification not found" });
     }
+
+    await notification.deleteOne();
 
     res.json({ message: "Notification deleted successfully" });
   } catch (err) {

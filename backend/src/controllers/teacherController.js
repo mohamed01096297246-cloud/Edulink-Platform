@@ -1,15 +1,14 @@
 const User = require("../models/User");
 const Subject = require("../models/Subject");
-const Grade = require("../models/Grade");
 const Schedule = require("../models/Schedule");
-const Attendance = require("../models/Attendance");
-const Homework = require("../models/Homework");
 const Student = require("../models/Student");
 const { sendCredentialsEmail } = require("../utils/emailService");
 const {
   generateUsername,
   generatePassword,
 } = require("../utils/generateCredentials");
+const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
+const { friendlyDuplicateKeyMessage } = require("../utils/formatDbError");
 
 exports.createTeacher = async (req, res) => {
   try {
@@ -23,13 +22,20 @@ exports.createTeacher = async (req, res) => {
       teachingGrades,
     } = req.body;
 
+    const school = creationSchool(req);
+    if (!school) {
+      return res.status(400).json({
+        message: "Please specify a school (?school=id) to create a teacher for.",
+      });
+    }
+
     const existingSubject = await Subject.findById(subjectId);
-    if (!existingSubject) {
+    if (!existingSubject || existingSubject.school.toString() !== school.toString()) {
       return res
         .status(400)
         .json({ message: "sorry, the selected subject does not exist" });
     }
-    const username = generateUsername(`${firstName} ${lastName}`);
+    const username = generateUsername(phoneNumber);
     const password = generatePassword();
     const teacher = await User.create({
       firstName,
@@ -40,6 +46,7 @@ exports.createTeacher = async (req, res) => {
       role: "teacher",
       subject: subjectId,
       teachingGrades,
+      school,
       username,
       password,
       active: true,
@@ -57,13 +64,23 @@ exports.createTeacher = async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res
+      .status(500)
+      .json({ error: friendlyDuplicateKeyMessage(err) || err.message });
   }
 };
 
 exports.getAllTeachers = async (req, res) => {
   try {
-    const teachers = await User.find({ role: "teacher" })
+    const filter = scopeFilter(req, { role: "teacher" });
+
+    if (!filter) {
+      return res.status(400).json({
+        message: "Please specify a school (?school=id) to list its teachers.",
+      });
+    }
+
+    const teachers = await User.find(filter)
       .populate("subject", "name code")
       .populate("teachingGrades", "name academicYear")
       .select(
@@ -78,7 +95,7 @@ exports.getAllTeachers = async (req, res) => {
   } catch (err) {
     res.status(500).json({
       success: false,
-      message: "error during data retrieval: " + err.message,
+      message: "حدث خطأ أثناء استرجاع البيانات: " + err.message,
     });
   }
 };
@@ -87,7 +104,7 @@ exports.getTeacherDashboard = async (req, res) => {
     if (req.user.role !== "teacher") {
       return res
         .status(403)
-        .json({ message: "sorry, this dashboard is for teachers only" });
+        .json({ message: "عذرًا، هذه الشاشة مخصصة للمعلمين فقط" });
     }
 
     const teacherId = req.user.id;
@@ -106,6 +123,7 @@ exports.getTeacherDashboard = async (req, res) => {
     if (classroomId) {
       currentClassStudents = await Student.find({
         classroom: classroomId,
+        school: req.user.school,
         active: true,
       }).select("firstName lastName gender phoneNumber");
     }
@@ -133,6 +151,11 @@ exports.getTeacherDashboard = async (req, res) => {
   }
 };
 
+// Account access (`active`) and per-user app feature toggles
+// (`appFeatures`) are deliberately NOT editable through this endpoint —
+// that control lives only on the platform owner's side now (see
+// schoolController's user-management surface, called via
+// PUT /admin/user/:id), not a school's own admin.
 exports.updateTeacher = async (req, res) => {
   try {
     const teacherId = req.params.id;
@@ -144,11 +167,10 @@ exports.updateTeacher = async (req, res) => {
       email,
       subjectId,
       teachingGrades,
-      active,
     } = req.body;
 
     const teacher = await User.findOne({ _id: teacherId, role: "teacher" });
-    if (!teacher) {
+    if (!teacher || !sameSchool(req, teacher)) {
       return res
         .status(404)
         .json({ message: "sorry, the requested teacher was not found." });
@@ -156,12 +178,12 @@ exports.updateTeacher = async (req, res) => {
 
     const updateData = { firstName, lastName, phoneNumber, nationalId, email };
 
-    if (active !== undefined) updateData.active = active;
-
     if (subjectId) {
-      const Subject = require("../models/Subject");
       const existingSubject = await Subject.findById(subjectId);
-      if (!existingSubject) {
+      if (
+        !existingSubject ||
+        existingSubject.school.toString() !== teacher.school.toString()
+      ) {
         return res
           .status(400)
           .json({ message: "sorry, the selected subject does not exist" });
@@ -194,23 +216,14 @@ exports.updateTeacher = async (req, res) => {
 exports.deleteTeacher = async (req, res) => {
   try {
     const teacherId = req.params.id;
-    const MASTER_EMAIL = "admin_master";
-    if (req.user && req.user.username !== MASTER_EMAIL) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "sorry, your account does not have permission to delete teachers. Please contact the Master Admin.",
-      });
-    }
 
     const teacher = await User.findOne({ _id: teacherId, role: "teacher" });
-    if (!teacher) {
+    if (!teacher || !sameSchool(req, teacher)) {
       return res
         .status(404)
         .json({ message: "sorry, the requested teacher was not found." });
     }
 
-    const Schedule = require("../models/Schedule");
     const schedulesCount = await Schedule.countDocuments({
       teacher: teacherId,
     });
@@ -226,8 +239,7 @@ exports.deleteTeacher = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message:
-        "sorry, the teacher's account has been successfully deleted by the Master Admin",
+      message: "sorry, the teacher's account has been successfully deleted",
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

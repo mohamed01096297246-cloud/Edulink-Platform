@@ -3,6 +3,7 @@ const Schedule = require("../models/Schedule");
 const Student = require("../models/Student");
 const mongoose = require("mongoose");
 const sendCredentialsEmail = require("../utils/emailService.js");
+const { scopeFilter } = require("../utils/tenant");
 
 const timeToMinutes = (timeStr) => {
   const [hours, minutes] = timeStr.split(":").map(Number);
@@ -35,7 +36,7 @@ exports.recordBulkAttendance = async (req, res) => {
       return res.status(400).json({
         success: false,
         message:
-          "sorry, both the schedule ID and the selected date are required to record attendance.",
+          "عذرًا، رقم الحصة والتاريخ مطلوبان لتسجيل الحضور.",
       });
     }
 
@@ -43,7 +44,7 @@ exports.recordBulkAttendance = async (req, res) => {
       return res.status(400).json({
         success: false,
         message:
-          "no attendance records provided. Please provide at least one record to save.",
+          "لا يوجد سجلات حضور. برجاء إضافة سجل واحد على الأقل للحفظ.",
       });
     }
 
@@ -53,7 +54,7 @@ exports.recordBulkAttendance = async (req, res) => {
     if (!targetSchedule) {
       return res.status(404).json({
         success: false,
-        message: "sorry, the selected schedule is not found.",
+        message: "عذرًا، الحصة المختارة غير موجودة.",
       });
     }
 
@@ -69,7 +70,7 @@ exports.recordBulkAttendance = async (req, res) => {
       return res.status(409).json({
         success: false,
         message:
-          "sorry, attendance for this schedule has already been recorded for this date and cannot be recorded again.",
+          "عذرًا، تم تسجيل حضور هذه الحصة لهذا التاريخ بالفعل ولا يمكن تسجيله مرة أخرى.",
       });
     }
 
@@ -82,6 +83,7 @@ exports.recordBulkAttendance = async (req, res) => {
           date: pureDate,
           status: record.status,
           recordedBy: new mongoose.Types.ObjectId(req.user.id),
+          school: req.user.school,
         },
       },
     }));
@@ -90,14 +92,14 @@ exports.recordBulkAttendance = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Attendance records saved successfully.",
+      message: "تم حفظ سجلات الحضور بنجاح.",
     });
   } catch (err) {
     console.error("Attendance Bulk Error:", err);
     return res.status(500).json({
       success: false,
       message:
-        "An internal error occurred while saving attendance records: " +
+        "حدث خطأ أثناء حفظ سجلات الحضور: " +
         err.message,
     });
   }
@@ -107,7 +109,7 @@ exports.getStudentAttendance = async (req, res) => {
     const { studentId } = req.params;
 
     const student = await Student.findById(studentId);
-    if (!student) return res.status(404).json({ message: "student not found" });
+    if (!student) return res.status(404).json({ message: "الطالب غير موجود" });
 
     if (
       req.user.role === "parent" &&
@@ -115,7 +117,7 @@ exports.getStudentAttendance = async (req, res) => {
     ) {
       return res.status(403).json({
         message:
-          "sorry, you cannot view the attendance record of a student who is not your child.",
+          "عذرًا، لا يمكنك عرض سجل حضور طالب ليس ابنك.",
       });
     }
     const data = await Attendance.find({ student: studentId })
@@ -136,10 +138,15 @@ exports.getStudentAttendance = async (req, res) => {
 };
 exports.getAllAttendance = async (req, res) => {
   try {
-    let filter = {};
+    const filter = scopeFilter(
+      req,
+      req.user.role === "teacher" ? { recordedBy: req.user.id } : {},
+    );
 
-    if (req.user.role === "teacher") {
-      filter = { recordedBy: req.user.id };
+    if (!filter) {
+      return res.status(400).json({
+        message: "برجاء تحديد مدرسة (?school=id) لعرض الحضور.",
+      });
     }
 
     const data = await Attendance.find(filter)
@@ -184,7 +191,7 @@ exports.getAttendanceById = async (req, res) => {
       });
 
     if (!attendance)
-      return res.status(404).json({ message: "Attendance record not found" });
+      return res.status(404).json({ message: "سجل الحضور غير موجود" });
 
     res.json({ success: true, data: attendance });
   } catch (err) {
@@ -196,7 +203,7 @@ exports.updateAttendance = async (req, res) => {
   try {
     const record = await Attendance.findById(req.params.id).populate("student");
     if (!record)
-      return res.status(404).json({ message: "Attendance record not found" });
+      return res.status(404).json({ message: "سجل الحضور غير موجود" });
 
     const activeClass = await getActiveClass(
       req.user.id,
@@ -206,7 +213,7 @@ exports.updateAttendance = async (req, res) => {
     if (!activeClass) {
       return res.status(403).json({
         message:
-          "sorry, you cannot modify attendance after the official class time has ended.",
+          "عذرًا، لا يمكنك تعديل الحضور بعد انتهاء وقت الحصة الرسمي.",
       });
     }
 
@@ -215,7 +222,7 @@ exports.updateAttendance = async (req, res) => {
       req.body,
       { new: true },
     );
-    res.json({ message: "Attendance updated successfully", updated });
+    res.json({ message: "تم تحديث الحضور بنجاح", updated });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -227,7 +234,7 @@ exports.checkExistingAttendance = async (req, res) => {
     if (!classroomId || !date) {
       return res
         .status(400)
-        .json({ success: false, message: "Required parameters are missing." });
+        .json({ success: false, message: "بيانات ناقصة." });
     }
 
     const [year, month, day] = date.split("-").map(Number);

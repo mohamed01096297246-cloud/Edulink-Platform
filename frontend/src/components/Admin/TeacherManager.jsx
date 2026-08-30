@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import API from "../../api/axios";
 import {
   UserPlus,
   Users,
@@ -9,7 +9,7 @@ import {
   Layers,
   Trash2,
   Edit3,
-  ChevronRight,
+  ChevronLeft,
   AlertTriangle,
   CheckCircle2,
   XCircle,
@@ -48,13 +48,6 @@ const TeacherManagement = () => {
     teachingGrades: [],
   });
 
-  const token = localStorage.getItem("token");
-  // استخراج رتبة المستخدم الحالي (تأكد من تخزينك لها أثناء عملية تسجيل الدخول باسم userRole)
-  const userRole = localStorage.getItem("userRole");
-
-  const config = { headers: { Authorization: `Bearer ${token}` } };
-  const BASE_URL = "http://localhost:5000/api";
-
   const showToastMessage = (message, type = "success") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -66,9 +59,9 @@ const TeacherManagement = () => {
     setLoading(true);
     try {
       const [teachersRes, subjectsRes, gradesRes] = await Promise.all([
-        axios.get(`${BASE_URL}/teacher`, config),
-        axios.get(`${BASE_URL}/subjects`, config),
-        axios.get(`${BASE_URL}/grades`, config),
+        API.get("/teacher"),
+        API.get("/subjects"),
+        API.get("/grades"),
       ]);
 
       setTeachers(teachersRes.data.data || []);
@@ -80,7 +73,7 @@ const TeacherManagement = () => {
       setGrades(gradesRes.data.data || []);
     } catch (err) {
       console.error("Fetch Error:", err);
-      showToastMessage("Failed to fetch data from server", "error");
+      showToastMessage("فشل تحميل البيانات من السيرفر", "error");
     } finally {
       setLoading(false);
     }
@@ -141,12 +134,12 @@ const TeacherManagement = () => {
   const confirmDelete = async () => {
     setActionLoading(true);
     try {
-      await axios.delete(`${BASE_URL}/teacher/${deleteModal.id}`, config);
-      showToastMessage("Instructor record deleted successfully", "success");
+      await API.delete(`/teacher/${deleteModal.id}`);
+      showToastMessage("تم حذف سجل المعلم بنجاح", "success");
       fetchData();
     } catch (err) {
       showToastMessage(
-        err.response?.data?.message || "Error deleting instructor",
+        err.response?.data?.message || "حدث خطأ أثناء حذف المعلم",
         "error",
       );
     } finally {
@@ -169,15 +162,11 @@ const TeacherManagement = () => {
     setActionLoading(true);
     try {
       if (editMode) {
-        await axios.put(
-          `${BASE_URL}/teacher/${selectedTeacherId}`,
-          formData,
-          config,
-        );
-        showToastMessage("Instructor profile updated successfully", "success");
+        await API.put(`/teacher/${selectedTeacherId}`, formData);
+        showToastMessage("تم تحديث بيانات المعلم بنجاح", "success");
       } else {
-        await axios.post(`${BASE_URL}/teacher`, formData, config);
-        showToastMessage("New instructor registered successfully", "success");
+        await API.post("/teacher", formData);
+        showToastMessage("تم تسجيل المعلم الجديد بنجاح", "success");
       }
 
       setShowModal(false);
@@ -185,7 +174,7 @@ const TeacherManagement = () => {
       fetchData();
     } catch (err) {
       showToastMessage(
-        err.response?.data?.message || "An error occurred while saving data",
+        err.response?.data?.message || "حدث خطأ أثناء حفظ البيانات",
         "error",
       );
     } finally {
@@ -200,10 +189,10 @@ const TeacherManagement = () => {
   );
 
   return (
-    <div className="p-8 bg-[#F8FAFC] min-h-screen relative" dir="ltr">
+    <div className="p-8 bg-[#F8FAFC] min-h-screen relative" dir="rtl">
       {toast.show && (
         <div
-          className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl border animate-slide-down text-sm font-bold ${
+          className={`fixed top-6 left-6 z-[60] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl border animate-slide-down text-sm font-bold ${
             toast.type === "success"
               ? "bg-emerald-50 border-emerald-100 text-emerald-800"
               : "bg-rose-50 border-rose-100 text-rose-800"
@@ -219,7 +208,7 @@ const TeacherManagement = () => {
             onClick={() =>
               setToast({ show: false, message: "", type: "success" })
             }
-            className="ml-2 p-1 hover:bg-black/5 rounded-lg transition-colors"
+            className="mr-2 p-1 hover:bg-black/5 rounded-lg transition-colors"
           >
             <X size={14} />
           </button>
@@ -235,10 +224,10 @@ const TeacherManagement = () => {
             </div>
             <div>
               <h1 className="text-3xl font-black text-slate-800">
-                Faculty Registry
+                سجل المعلمين
               </h1>
               <p className="text-slate-400 font-medium text-sm">
-                Manage school teachers and assignments
+                إدارة معلمي المدرسة وتخصيصاتهم
               </p>
             </div>
           </div>
@@ -249,7 +238,7 @@ const TeacherManagement = () => {
             }}
             className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-2 hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200"
           >
-            <UserPlus size={20} /> Add New Teacher
+            <UserPlus size={20} /> إضافة معلم جديد
           </button>
         </div>
 
@@ -260,7 +249,7 @@ const TeacherManagement = () => {
             </div>
             <div>
               <p className="text-slate-400 text-xs font-black uppercase tracking-widest">
-                Total Teachers
+                إجمالي المعلمين
               </p>
               <h3 className="text-2xl font-black text-slate-800">
                 {teachers.length}
@@ -271,33 +260,33 @@ const TeacherManagement = () => {
 
         <div className="relative mb-8">
           <Search
-            className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400"
+            className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400"
             size={20}
           />
           <input
             type="text"
-            placeholder="Search by instructor name..."
-            className="w-full pl-14 pr-6 py-5 bg-white border border-slate-200 rounded-[1.5rem] outline-none focus:border-indigo-500 shadow-sm font-medium"
+            placeholder="ابحث باسم المعلم..."
+            className="w-full pr-14 pl-6 py-5 bg-white border border-slate-200 rounded-[1.5rem] outline-none focus:border-indigo-500 shadow-sm font-medium"
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
         <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full text-right">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100">
                   <th className="p-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">
-                    Full Name
+                    الاسم الكامل
                   </th>
                   <th className="p-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">
-                    Subject
+                    المادة
                   </th>
                   <th className="p-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">
-                    Grades
+                    المراحل
                   </th>
                   <th className="p-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">
-                    Actions
+                    الإجراءات
                   </th>
                 </tr>
               </thead>
@@ -311,6 +300,16 @@ const TeacherManagement = () => {
                       />
                     </td>
                   </tr>
+                ) : filteredTeachers.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="p-16 text-center">
+                      <p className="text-slate-400 font-bold">
+                        {teachers.length === 0
+                          ? "لا يوجد معلمين مسجّلين بعد. اضغط \"إضافة معلم جديد\" لإضافة أول معلم."
+                          : "لا يوجد معلمين مطابقين للبحث."}
+                      </p>
+                    </td>
+                  </tr>
                 ) : (
                   filteredTeachers.map((teacher) => (
                     <tr
@@ -322,7 +321,7 @@ const TeacherManagement = () => {
                       </td>
                       <td className="p-6">
                         <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg text-[10px] font-black border border-emerald-100">
-                          {teacher.subject?.name || "N/A"}
+                          {teacher.subject?.name || "غير محدد"}
                         </span>
                       </td>
                       <td className="p-6">
@@ -346,15 +345,12 @@ const TeacherManagement = () => {
                             <Edit3 size={18} />
                           </button>
 
-                          {/* فحص الرتبة: زر الحذف يظهر فقط إذا لم يكن المستخدم sub-admin */}
-                          {userRole !== "sub-admin" && (
-                            <button
-                              onClick={() => openDeleteModal(teacher)}
-                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => openDeleteModal(teacher)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -374,14 +370,14 @@ const TeacherManagement = () => {
             </div>
             <div>
               <h3 className="text-xl font-black text-slate-800">
-                Delete Instructor
+                حذف المعلم
               </h3>
               <p className="text-slate-400 font-medium text-sm mt-2">
-                Are you sure you want to completely remove{" "}
+                هل أنت متأكد إنك عايز تحذف{" "}
                 <strong className="text-slate-700 font-bold">
                   {deleteModal.name}
-                </strong>
-                ? This will clear all their teaching schedules.
+                </strong>{" "}
+                نهائيًا؟ هيتم حذف كل جداوله الدراسية كمان.
               </p>
             </div>
             <div className="flex gap-4">
@@ -392,7 +388,7 @@ const TeacherManagement = () => {
                 }
                 className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
               >
-                Cancel
+                إلغاء
               </button>
               <button
                 disabled={actionLoading}
@@ -402,7 +398,7 @@ const TeacherManagement = () => {
                 {actionLoading ? (
                   <Loader2 className="animate-spin" size={20} />
                 ) : (
-                  "Yes, Delete"
+                  "نعم، احذف"
                 )}
               </button>
             </div>
@@ -416,12 +412,12 @@ const TeacherManagement = () => {
             <div className="p-8 border-b flex justify-between items-center bg-slate-50/30">
               <div>
                 <h2 className="text-2xl font-black text-slate-800 tracking-tight">
-                  {editMode ? "Update Teacher" : "Add New Teacher"}
+                  {editMode ? "تعديل بيانات المعلم" : "إضافة معلم جديد"}
                 </h2>
                 <p className="text-slate-400 text-xs font-bold uppercase mt-1 tracking-widest">
                   {editMode
-                    ? "Modify teacher profile and permissions"
-                    : "New teacher profile registration"}
+                    ? "تعديل بيانات وصلاحيات المعلم"
+                    : "تسجيل بيانات معلم جديد"}
                 </p>
               </div>
               <button
@@ -441,12 +437,12 @@ const TeacherManagement = () => {
             >
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <label className="label-style">First Name</label>
+                  <label className="label-style">الاسم الأول</label>
                   <input
                     required
                     type="text"
                     pattern="^[A-Za-z\u0600-\u06FF\s]+$"
-                    placeholder="Enter first name"
+                    placeholder="أدخل الاسم الأول"
                     value={formData.firstName}
                     className="modal-input"
                     onChange={(e) =>
@@ -455,11 +451,11 @@ const TeacherManagement = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="label-style">Last Name</label>
+                  <label className="label-style">الاسم الأخير</label>
                   <input
                     type="text"
                     pattern="^[A-Za-z\u0600-\u06FF\s]+$"
-                    placeholder="Enter last name"
+                    placeholder="أدخل الاسم الأخير"
                     required
                     value={formData.lastName}
                     className="modal-input"
@@ -469,10 +465,10 @@ const TeacherManagement = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="label-style">National ID</label>
+                  <label className="label-style">الرقم القومي</label>
                   <input
                     type="text"
-                    placeholder="14-digit ID"
+                    placeholder="رقم قومي مكوّن من 14 رقم"
                     pattern="[0-9]{14}"
                     maxLength={14}
                     minLength={14}
@@ -485,11 +481,11 @@ const TeacherManagement = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="label-style">Email</label>
+                  <label className="label-style">البريد الإلكتروني</label>
                   <input
                     required
                     type="email"
-                    placeholder="Enter email address"
+                    placeholder="أدخل البريد الإلكتروني"
                     pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
                     value={formData.email}
                     className="modal-input"
@@ -499,10 +495,10 @@ const TeacherManagement = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="label-style">Phone</label>
+                  <label className="label-style">رقم الهاتف</label>
                   <input
                     type="text"
-                    placeholder="11-digit phone number"
+                    placeholder="رقم هاتف مكوّن من 11 رقم"
                     pattern="[0-9]{11}"
                     maxLength={11}
                     minLength={11}
@@ -515,7 +511,7 @@ const TeacherManagement = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="label-style">Subject</label>
+                  <label className="label-style">المادة</label>
                   <select
                     required
                     value={formData.subjectId}
@@ -524,7 +520,7 @@ const TeacherManagement = () => {
                       setFormData({ ...formData, subjectId: e.target.value })
                     }
                   >
-                    <option value="">Select Subject</option>
+                    <option value="">اختر المادة</option>
                     {subjects.map((s) => (
                       <option key={s._id} value={s._id}>
                         {s.name}
@@ -536,7 +532,7 @@ const TeacherManagement = () => {
 
               <div className="space-y-4">
                 <label className="label-style flex items-center gap-2 border-b border-slate-100 pb-2">
-                  <Layers size={14} /> Assigned Teaching Grades
+                  <Layers size={14} /> المراحل الدراسية المُسندة إليه
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                   {grades.map((grade) => (
@@ -563,8 +559,8 @@ const TeacherManagement = () => {
                   <Loader2 className="animate-spin" />
                 ) : (
                   <>
-                    {editMode ? "UPDATE TEACHER INFO" : "COMPLETE REGISTRATION"}{" "}
-                    <ChevronRight size={18} />
+                    {editMode ? "تحديث بيانات المعلم" : "إتمام التسجيل"}{" "}
+                    <ChevronLeft size={18} />
                   </>
                 )}
               </button>
@@ -578,7 +574,7 @@ const TeacherManagement = () => {
           __html: `
         .modal-input { width: 100%; padding: 1.1rem; background: #F8FAFC; border: 2px solid #F1F5F9; border-radius: 1.2rem; font-weight: 700; font-size: 0.9rem; outline: none; transition: 0.2s; }
         .modal-input:focus { border-color: #6366f1; background: white; }
-        .label-style { font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-left: 8px; }
+        .label-style { font-size: 13px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px; }
         
         @keyframes slideDown {
           from { transform: translateY(-1rem); opacity: 0; }

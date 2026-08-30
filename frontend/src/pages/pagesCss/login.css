@@ -6,6 +6,8 @@
   background-color: #f8fafc;
   font-family:
     "Inter",
+    "Segoe UI",
+    Tahoma,
     system-ui,
     -apple-system,
     sans-serif;
@@ -29,7 +31,7 @@
   content: "";
   position: absolute;
   top: -20%;
-  left: -20%;
+  right: -20%;
   width: 60%;
   height: 60%;
   background: radial-gradient(
@@ -47,7 +49,7 @@
   margin-bottom: 2.5rem;
   letter-spacing: -0.05em;
   text-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
-  text-align: left;
+  text-align: right;
 }
 
 .logo span {
@@ -68,7 +70,7 @@
   font-size: 1.1rem;
   font-weight: 800;
   color: #e0e7ff;
-  text-align: left;
+  text-align: right;
   margin-bottom: 1.25rem;
   letter-spacing: -0.02em;
   line-height: 1.4;
@@ -89,7 +91,8 @@
   color: #cbd5e1;
   font-weight: 500;
   margin: 0;
-  padding-left: 1.75rem;
+  padding-right: 1.75rem;
+  text-align: right;
   position: relative;
   transition: transform 0.3s ease;
 }
@@ -97,7 +100,7 @@
 .left-side li::before {
   content: "✓";
   position: absolute;
-  left: 0;
+  right: 0;
   top: 2px;
   color: #38bdf8;
   font-weight: 900;
@@ -112,7 +115,7 @@
 }
 
 .left-side li:hover {
-  transform: translateX(6px);
+  transform: translateX(-6px);
   color: #ffffff;
 }
 
@@ -171,7 +174,8 @@
 
 .login-input {
   width: 100%;
-  padding: 1.1rem 1.25rem 1.1rem 3.25rem;
+  padding: 1.1rem 3.25rem 1.1rem 1.25rem;
+  text-align: right;
   background-color: #f8fafc;
   border: 2px solid #f1f5f9;
   border-radius: 1rem;
