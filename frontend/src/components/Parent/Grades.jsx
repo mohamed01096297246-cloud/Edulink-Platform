@@ -10,19 +10,19 @@ import {
   Filter,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { API_URL } from "../../api/axios";
 
 const Grades = ({ studentId, selectedChild }) => {
 
   const [allExams, setAllExams] = useState([]);
-  const [subjectsMap, setSubjectsMap] = useState({}); 
-  const [selectedType, setSelectedType] = useState("all"); 
+  const [subjectsMap, setSubjectsMap] = useState({});
+  const [selectedType, setSelectedType] = useState("all");
   const [compiledGrades, setCompiledGrades] = useState([]);
 
   // Loading states
   const [loadingData, setLoadingData] = useState(false);
 
   const token = localStorage.getItem("token");
-  const API_URL = "http://localhost:5000/api";
 
   const examTypes = [
     { id: "all", label: "All Examinations" },

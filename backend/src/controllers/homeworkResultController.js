@@ -3,7 +3,12 @@ const Homework = require("../models/Homework");
 const Student = require("../models/Student");
 const { sendAlertEmail } = require("../utils/emailService");
 const { sameSchool } = require("../utils/tenant");
+const { notifyParent } = require("../utils/notify");
 
+// Every teacher-facing grading screen (attendance, monthly grades, weekly
+// evaluation) lets a teacher reopen and re-save — homework grading matches
+// that now too, so no "already graded" guard here: the upsert below just
+// overwrites each student's existing result with whatever's submitted.
 exports.gradeBulkHomework = async (req, res) => {
   try {
     const { homeworkId } = req.params;
@@ -20,20 +25,6 @@ exports.gradeBulkHomework = async (req, res) => {
       return res
         .status(403)
         .json({ message: "غير مصرح لك بتصحيح هذا الواجب" });
-    }
-
-    const studentIds = grades.map((g) => g.studentId);
-
-    const existingResults = await HomeworkResult.findOne({
-      homework: homeworkId,
-      student: { $in: studentIds },
-    });
-
-    if (existingResults) {
-      return res.status(400).json({
-        success: false,
-        message: "تم تسجيل درجات هذا الواجب بالفعل.",
-      });
     }
 
     const bulkOps = grades.map((record) => ({
@@ -54,38 +45,86 @@ exports.gradeBulkHomework = async (req, res) => {
 
     await HomeworkResult.bulkWrite(bulkOps);
 
-    const missingStudents = grades.filter((g) => g.status === "missing");
+    const gradedIds = grades.map((g) => g.studentId);
+    const gradedStudents = await Student.find({
+      _id: { $in: gradedIds },
+    }).populate("parent", "email pushToken");
+    const studentById = new Map(
+      gradedStudents.map((s) => [s._id.toString(), s]),
+    );
 
-    if (missingStudents.length > 0) {
-      const missingIds = missingStudents.map((g) => g.studentId);
-      const studentsToNotify = await Student.find({
-        _id: { $in: missingIds },
-      }).populate("parent");
-      await Promise.all(
-        studentsToNotify.map(async (studentData) => {
-          if (studentData.parent && studentData.parent.email) {
+    // Best-effort — never blocks the grade save if a notification fails.
+    await Promise.all(
+      grades.map(async (record) => {
+        const student = studentById.get(record.studentId.toString());
+        if (!student?.parent) return;
+
+        if (record.status === "missing") {
+          if (student.parent.email) {
             try {
               await sendAlertEmail(
-                studentData.parent.email,
+                student.parent.email,
                 "تنبيه: عدم تسليم واجب مدرسي",
-                `عزيزي ولي الأمر، نود إبلاغكم بأن الطالب ${studentData.firstName} لم يسلّم الواجب (${homework.title}) في مادة ${homework.subject.name}. برجاء المتابعة.`,
+                `عزيزي ولي الأمر، نود إبلاغكم بأن الطالب ${student.firstName} لم يسلّم الواجب (${homework.title}) في مادة ${homework.subject.name}. برجاء المتابعة.`,
               );
             } catch (e) {
               console.log("Error sending assignment email:", e.message);
             }
           }
-        }),
-      );
-    }
+        }
+
+        const scoreText =
+          record.status === "missing"
+            ? "لم يُسلَّم"
+            : `${record.score}/${homework.totalMarks}`;
+
+        await notifyParent({
+          parentId: student.parent._id,
+          pushToken: student.parent.pushToken,
+          studentId: student._id,
+          type: "homeworkGrade",
+          title: "تم تصحيح الواجب",
+          message: `${student.firstName}: ${scoreText} في واجب "${homework.title}" (${homework.subject.name}).`,
+          school: req.user.school,
+          createdBy: req.user.id,
+        });
+      }),
+    );
 
     res.status(200).json({
       success: true,
-      message: `تم تسجيل الدرجات بنجاح لـ ${grades.length} طالب.`,
+      message: `تم حفظ الدرجات بنجاح لـ ${grades.length} طالب.`,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
+// Prefill support: the grades this teacher already saved for this homework,
+// so reopening the grading screen shows what's there instead of a blank
+// sheet — mirrors the same pattern as monthly-grades/weekly-evaluation.
+exports.getHomeworkResults = async (req, res) => {
+  try {
+    const { homeworkId } = req.params;
+
+    const homework = await Homework.findById(homeworkId);
+    if (!homework)
+      return res.status(404).json({ message: "الواجب غير موجود" });
+
+    if (homework.teacher.toString() !== req.user.id) {
+      return res
+        .status(403)
+        .json({ message: "غير مصرح لك بعرض درجات هذا الواجب" });
+    }
+
+    const results = await HomeworkResult.find({ homework: homeworkId });
+
+    res.status(200).json({ success: true, data: results });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 exports.getParentHomeworkDashboard = async (req, res) => {
   try {
     const { studentId } = req.params;

@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   Loader2,
 } from "lucide-react";
+import { API_URL } from "../../api/axios";
 
 const TeacherGrades = ({ teachingGrades, classroomId }) => {
   const [selectedGrade, setSelectedGrade] = useState("");
@@ -26,7 +27,7 @@ const TeacherGrades = ({ teachingGrades, classroomId }) => {
         try {
           const token = localStorage.getItem("token");
           const res = await axios.get(
-            `http://localhost:5000/api/homework?gradeId=${selectedGrade}`,
+            `${API_URL}/homework?gradeId=${selectedGrade}`,
             {
               headers: { Authorization: `Bearer ${token}` },
             },
@@ -51,7 +52,7 @@ const TeacherGrades = ({ teachingGrades, classroomId }) => {
       setLoading(true);
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        `http://localhost:5000/api/teacher/dashboard?classroomId=${hw.classroom._id}`,
+        `${API_URL}/teacher/dashboard?classroomId=${hw.classroom._id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
@@ -96,7 +97,7 @@ const TeacherGrades = ({ teachingGrades, classroomId }) => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(
-        `http://localhost:5000/api/homework-results/grade/${selectedHomework._id}`,
+        `${API_URL}/homework-results/grade/${selectedHomework._id}`,
         { grades: gradingList },
         { headers: { Authorization: `Bearer ${token}` } },
       );

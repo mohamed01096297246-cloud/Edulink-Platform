@@ -22,6 +22,7 @@ exports.createStudent = async (req, res) => {
       email,
       gender,
       grade,
+      classroom: classroomId,
       parentFirstName,
       parentLastName,
       parentNationalId,
@@ -36,15 +37,27 @@ exports.createStudent = async (req, res) => {
       );
     }
 
+    if (!classroomId) {
+      throw new Error("برجاء اختيار الفصل الذي سينضم إليه الطالب.");
+    }
+
+    // Classroom assignment is manual now, not auto-picked — verify the admin's
+    // choice actually belongs to this grade/school and still has room,
+    // rather than silently overriding it with whatever classroom happens to
+    // have space.
     const availableClassroom = await Classroom.findOne({
+      _id: classroomId,
       grade: grade,
       school,
-      $expr: { $lt: ["$currentStudents", "$capacity"] },
     }).session(session);
 
     if (!availableClassroom) {
+      throw new Error("الفصل المختار غير موجود ضمن هذه المرحلة الدراسية.");
+    }
+
+    if (availableClassroom.currentStudents >= availableClassroom.capacity) {
       throw new Error(
-        "sorry, there are no available classrooms in this grade level. Please create a new classroom first.",
+        `عذرًا، فصل (${availableClassroom.name}) وصل للحد الأقصى من الطلاب (${availableClassroom.capacity}). اختر فصلًا آخر.`,
       );
     }
 
@@ -196,17 +209,37 @@ exports.updateStudent = async (req, res) => {
       return res.status(404).json({ message: "Student not found" });
     }
 
-    if (req.body.grade && req.body.grade !== student.grade.toString()) {
-      const availableClassroom = await Classroom.findOne({
-        grade: req.body.grade,
+    const gradeChanged =
+      req.body.grade && req.body.grade !== student.grade.toString();
+    const classroomChanged =
+      req.body.classroom &&
+      req.body.classroom !== (student.classroom || "").toString();
+
+    // Classroom assignment is manual, not auto-picked — a grade change
+    // requires the admin to explicitly say which classroom in that grade
+    // the student moves to (never silently pick whichever has room).
+    if (gradeChanged && !req.body.classroom) {
+      return res.status(400).json({
+        message: "برجاء اختيار الفصل الجديد ضمن المرحلة المختارة.",
+      });
+    }
+
+    if (gradeChanged || classroomChanged) {
+      const targetClassroom = await Classroom.findOne({
+        _id: req.body.classroom,
+        grade: req.body.grade || student.grade,
         school: student.school,
-        $expr: { $lt: ["$currentStudents", "$capacity"] },
       });
 
-      if (!availableClassroom) {
+      if (!targetClassroom) {
         return res.status(400).json({
-          message:
-            "Sorry, there are no available classrooms in this new grade level. Please create a new classroom first.",
+          message: "الفصل المختار غير موجود ضمن هذه المرحلة الدراسية.",
+        });
+      }
+
+      if (targetClassroom.currentStudents >= targetClassroom.capacity) {
+        return res.status(400).json({
+          message: `عذرًا، فصل (${targetClassroom.name}) وصل للحد الأقصى من الطلاب (${targetClassroom.capacity}). اختر فصلًا آخر.`,
         });
       }
 
@@ -216,11 +249,11 @@ exports.updateStudent = async (req, res) => {
         });
       }
 
-      await Classroom.findByIdAndUpdate(availableClassroom._id, {
+      await Classroom.findByIdAndUpdate(targetClassroom._id, {
         $inc: { currentStudents: 1 },
       });
 
-      req.body.classroom = availableClassroom._id;
+      req.body.classroom = targetClassroom._id;
     }
 
     if (req.body.parent && req.body.parent !== student.parent.toString()) {

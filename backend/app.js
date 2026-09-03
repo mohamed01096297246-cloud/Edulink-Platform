@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const cors = require("cors");
 const helmet = require("helmet");
 const compression = require("compression");
@@ -7,10 +8,23 @@ require("dotenv").config();
 const app = express();
 
 
-app.use(helmet()); 
-app.use(cors()); 
-app.use(compression()); 
-app.use(express.json()); 
+app.use(helmet());
+app.use(cors());
+app.use(compression());
+app.use(express.json());
+
+// Uploaded homework photos (see src/middleware/upload.js) — served with a
+// relaxed CORP header since these are plain public images fetched by
+// whichever client (mobile app, future web dashboard) needs to show them,
+// not the app's authenticated JSON API.
+app.use(
+  "/uploads",
+  (req, res, next) => {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  },
+  express.static(path.join(__dirname, "uploads")),
+);
 
 if (process.env.NODE_ENV === "development") {
   app.use((req, res, next) => {
@@ -40,6 +54,12 @@ const schoolRoutes = require("./src/routes/schoolRoutes");
 const feeRoutes = require("./src/routes/feeRoutes");
 const analyticsRoutes = require("./src/routes/analyticsRoutes");
 const staffAttendanceRoutes = require("./src/routes/staffAttendanceRoutes");
+const monthlyGradeRoutes = require("./src/routes/monthlyGradeRoutes");
+const weeklyEvaluationRoutes = require("./src/routes/weeklyEvaluationRoutes");
+const courseworkRoutes = require("./src/routes/courseworkRoutes");
+const gradeRegisterRoutes = require("./src/routes/gradeRegisterRoutes");
+const classworkNotebookRoutes = require("./src/routes/classworkNotebookRoutes");
+const boardNoteRoutes = require("./src/routes/boardNoteRoutes");
 
 
 app.use("/api/auth", authRoutes);
@@ -62,6 +82,12 @@ app.use("/api/grades",gradeRoutes );
 app.use("/api/fees", feeRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/staff-attendance", staffAttendanceRoutes);
+app.use("/api/monthly-grades", monthlyGradeRoutes);
+app.use("/api/weekly-evaluation", weeklyEvaluationRoutes);
+app.use("/api/coursework", courseworkRoutes);
+app.use("/api/grade-register", gradeRegisterRoutes);
+app.use("/api/classwork-notebook", classworkNotebookRoutes);
+app.use("/api/board-notes", boardNoteRoutes);
 
 
 

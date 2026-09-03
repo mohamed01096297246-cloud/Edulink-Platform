@@ -11,6 +11,7 @@ import {
   BookOpen,
   Filter,
 } from "lucide-react";
+import { API_URL } from "../../api/axios";
 
 const Behavior = ({ studentId }) => {
   const [behaviors, setBehaviors] = useState([]);
@@ -33,7 +34,7 @@ const Behavior = ({ studentId }) => {
       setLoading(true);
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        `http://localhost:5000/api/behavior/student/${studentId}`,
+        `${API_URL}/behavior/student/${studentId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },

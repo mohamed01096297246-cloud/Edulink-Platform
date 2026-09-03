@@ -4,6 +4,8 @@ const router = express.Router();
 const {
   gradeBulkHomework,
 
+  getHomeworkResults,
+
   getParentHomeworkDashboard,
 
   updateSingleGrade,
@@ -19,6 +21,13 @@ router.post(
   authorize("teacher"),
   requireUserFeature("homeworkGrades"),
   gradeBulkHomework,
+);
+
+router.get(
+  "/homework/:homeworkId",
+  protect,
+  authorize("teacher"),
+  getHomeworkResults,
 );
 
 router.get(

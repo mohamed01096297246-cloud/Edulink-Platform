@@ -22,6 +22,7 @@ import {
 const StudentManagement = () => {
   const [students, setStudents] = useState([]);
   const [grades, setGrades] = useState([]);
+  const [classrooms, setClassrooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -49,6 +50,7 @@ const StudentManagement = () => {
     email: "",
     gender: "male",
     grade: "",
+    classroom: "",
     parentFirstName: "",
     parentLastName: "",
     parentNationalId: "",
@@ -66,12 +68,14 @@ const StudentManagement = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [studentsRes, gradesRes] = await Promise.all([
+      const [studentsRes, gradesRes, classroomsRes] = await Promise.all([
         API.get("/students"),
         API.get("/grades"),
+        API.get("/classrooms"),
       ]);
       setStudents(studentsRes.data.data || []);
       setGrades(gradesRes.data.data || []);
+      setClassrooms(classroomsRes.data || []);
     } catch (err) {
       console.error("Fetch Error:", err);
       showToastMessage("فشل تحميل بيانات الطلاب", "error");
@@ -94,6 +98,7 @@ const StudentManagement = () => {
       email: "",
       gender: "male",
       grade: "",
+      classroom: "",
       parentFirstName: "",
       parentLastName: "",
       parentNationalId: "",
@@ -112,6 +117,7 @@ const StudentManagement = () => {
       email: student.email || "",
       gender: student.gender || "male",
       grade: student.grade?._id || "",
+      classroom: student.classroom?._id || "",
       parentNationalId: student.parent?.nationalId || "",
       parentFirstName: student.parent?.firstName || "",
       parentLastName: student.parent?.lastName || "",
@@ -344,7 +350,7 @@ const StudentManagement = () => {
                           {student.grade?.name || "غير محدد"}
                         </span>
                         <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-[10px] font-black block w-fit border border-blue-100">
-                          {student.classroom?.name || "جارٍ التخصيص..."}
+                          {student.classroom?.name || "غير محدد"}
                         </span>
                       </td>
                       <td className="p-6">
@@ -432,7 +438,7 @@ const StudentManagement = () => {
                 <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">
                   {editMode
                     ? "تحديث بيانات الطالب الحالية"
-                    : "التخصيص التلقائي للفصل مفعّل"}
+                    : "اختيار الفصل يدوي"}
                 </p>
               </div>
               <button
@@ -515,7 +521,11 @@ const StudentManagement = () => {
                       value={formData.grade}
                       className="modal-input"
                       onChange={(e) =>
-                        setFormData({ ...formData, grade: e.target.value })
+                        setFormData({
+                          ...formData,
+                          grade: e.target.value,
+                          classroom: "",
+                        })
                       }
                     >
                       <option value="">اختر المرحلة</option>
@@ -524,6 +534,40 @@ const StudentManagement = () => {
                           {g.name}
                         </option>
                       ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="label-style">
+                      الفصل
+                    </label>
+                    <select
+                      required
+                      disabled={!formData.grade}
+                      value={formData.classroom}
+                      className="modal-input disabled:opacity-50 disabled:cursor-not-allowed"
+                      onChange={(e) =>
+                        setFormData({ ...formData, classroom: e.target.value })
+                      }
+                    >
+                      <option value="">
+                        {formData.grade ? "اختر الفصل" : "اختر المرحلة أولاً"}
+                      </option>
+                      {classrooms
+                        .filter((c) => c.grade?._id === formData.grade)
+                        .map((c) => {
+                          const isFull = c.currentStudents >= c.capacity;
+                          const isCurrent = c._id === formData.classroom;
+                          return (
+                            <option
+                              key={c._id}
+                              value={c._id}
+                              disabled={isFull && !isCurrent}
+                            >
+                              {c.name} ({c.currentStudents}/{c.capacity}
+                              {isFull ? " — مكتمل" : ""})
+                            </option>
+                          );
+                        })}
                     </select>
                   </div>
                   <div className="space-y-2">

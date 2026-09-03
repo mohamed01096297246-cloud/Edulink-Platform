@@ -11,8 +11,7 @@ import {
   Lock,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-
-const API_URL = "http://localhost:5000/api";
+import { API_URL } from "../../api/axios";
 
 const TeacherAttendance = ({ students, loading, classroomId }) => {
   const [attendanceData, setAttendanceData] = useState({});

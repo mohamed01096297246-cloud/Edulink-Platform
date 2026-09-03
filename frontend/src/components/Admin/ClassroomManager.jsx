@@ -375,12 +375,17 @@ const ClassroomManagement = () => {
                 </label>
                 <input
                   type="number"
+                  min="1"
+                  max="50"
                   className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-slate-700 transition-all"
                   value={formData.capacity}
                   onChange={(e) =>
                     setFormData({ ...formData, capacity: e.target.value })
                   }
                 />
+                <p className="text-[11px] font-bold text-slate-400 mr-2">
+                  الحد الأقصى 50 طالبًا لكل فصل
+                </p>
               </div>
 
               <button

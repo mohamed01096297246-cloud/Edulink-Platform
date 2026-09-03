@@ -2,7 +2,9 @@ const mongoose = require("mongoose");
 const Behavior = require("../models/Behavior");
 const Student = require("../models/Student");
 const Schedule = require("../models/Schedule");
+const Subject = require("../models/Subject");
 const { scopeFilter } = require("../utils/tenant");
+const { notifyParent } = require("../utils/notify");
 
 
 exports.recordBulkBehavior = async (req, res) => {
@@ -52,20 +54,17 @@ exports.recordBulkBehavior = async (req, res) => {
     }
 
 
-    const existingBehavior = await Behavior.findOne({
+    // Teachers can re-open and edit a day's behavior report after saving —
+    // rather than reject a re-submission, replace that exact
+    // teacher/subject/classroom/date's whole record set with the new one.
+    // This cleanly covers every edit case (a note reworded, a type flipped,
+    // an entry removed) in one atomic pass instead of diffing individually.
+    await Behavior.deleteMany({
       teacher: new mongoose.Types.ObjectId(req.user.id),
       subject: currentSchedule.subject,
       classroom: currentSchedule.classroom,
       date: pureDate,
     });
-
-    if (existingBehavior) {
-      return res.status(409).json({
-        success: false,
-        message:
-          "تم تسجيل سلوك هذه الحصة بالفعل النهاردة.",
-      });
-    }
 
     const bulkData = validRecords.map((record) => ({
       student: new mongoose.Types.ObjectId(record.studentId),
@@ -80,9 +79,14 @@ exports.recordBulkBehavior = async (req, res) => {
 
     const result = await Behavior.insertMany(bulkData, { ordered: false });
 
+    // Best-effort — never blocks the behavior save if a notification fails.
+    notifyBehaviorParents(bulkData, currentSchedule.subject, req.user).catch(
+      (err) => console.log("Behavior — parent notify error:", err.message),
+    );
+
     return res.status(201).json({
       success: true,
-      message: `تم تسجيل تقييم السلوك لـ ${result.length} طالب بنجاح.`,
+      message: `تم حفظ تقييم السلوك لـ ${result.length} طالب بنجاح.`,
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -97,6 +101,37 @@ exports.recordBulkBehavior = async (req, res) => {
   }
 };
 
+// One personalized notice per student — the note text differs per child,
+// so this can't go through the same-message-for-everyone broadcast helper.
+async function notifyBehaviorParents(bulkData, subjectId, user) {
+  const studentIds = bulkData.map((record) => record.student);
+  const students = await Student.find({ _id: { $in: studentIds } }).populate(
+    "parent",
+    "pushToken",
+  );
+  const studentById = new Map(students.map((s) => [s._id.toString(), s]));
+  const subjectDoc = await Subject.findById(subjectId).select("name");
+
+  await Promise.all(
+    bulkData.map((record) => {
+      const student = studentById.get(record.student.toString());
+      if (!student?.parent) return null;
+
+      const typeLabel = record.type === "positive" ? "إيجابي" : "سلبي";
+
+      return notifyParent({
+        parentId: student.parent._id,
+        pushToken: student.parent.pushToken,
+        studentId: student._id,
+        type: "behavior",
+        title: "ملاحظة سلوك جديدة",
+        message: `سلوك ${typeLabel} في مادة ${subjectDoc?.name || ""}: "${record.note}"`,
+        school: user.school,
+        createdBy: user.id,
+      });
+    }),
+  );
+}
 
 exports.checkExistingBehavior = async (req, res) => {
   try {

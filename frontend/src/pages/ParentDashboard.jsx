@@ -10,6 +10,7 @@ import Grades from "../components/Parent/Grades";
 import Schedules from "../components/Parent/Schedules";
 import Notifications from "../components/Parent/Notifications";
 import ExamsSchedule from "../components/Parent/ExamsSchedule";
+import { API_URL } from "../api/axios";
 
 function ParentDashboard({ handleLogout }) {
   const [children, setChildren] = useState([]);
@@ -18,7 +19,6 @@ function ParentDashboard({ handleLogout }) {
 
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
-  const API_URL = "http://localhost:5000/api";
 
   useEffect(() => {
     fetchMyChildren();

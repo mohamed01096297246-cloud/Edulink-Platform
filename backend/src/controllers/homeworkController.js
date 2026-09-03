@@ -2,11 +2,44 @@ const Homework = require("../models/Homework");
 const Classroom = require("../models/Classroom");
 const User = require("../models/User");
 const Student = require("../models/Student");
+const Schedule = require("../models/Schedule");
+const Subject = require("../models/Subject");
 const { scopeFilter, sameSchool } = require("../utils/tenant");
+const { sendAlertEmail } = require("../utils/emailService");
+const { notifyParentsOfStudents } = require("../utils/notify");
+
+const DAY_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+const DAY_NAMES_AR = {
+  sun: "الأحد",
+  mon: "الاثنين",
+  tue: "الثلاثاء",
+  wed: "الأربعاء",
+  thu: "الخميس",
+  fri: "الجمعة",
+  sat: "السبت",
+};
+
+// "تسليم الواجب الحصة الجاية" — due date is never picked by hand, it's
+// always the next time this exact classroom actually meets for this
+// subject. Strictly *next*: if today happens to be the class's day, that
+// means the class already met (or is about to) today, so the due date is
+// next week's occurrence, not today's.
+const nextSessionDate = (dayCode) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const targetIndex = DAY_INDEX[dayCode];
+  let daysAhead = targetIndex - today.getDay();
+  if (daysAhead <= 0) daysAhead += 7;
+
+  const result = new Date(today);
+  result.setDate(today.getDate() + daysAhead);
+  return result;
+};
 
 exports.createHomework = async (req, res) => {
   try {
-    const { title, pageNumber, totalMarks, dueDate, grade } = req.body;
+    const { title, pageNumber, totalMarks, grade, classroomId } = req.body;
     const teacher = await User.findById(req.user.id);
     const isAuthorized = teacher.teachingGrades.some(
       (gId) => gId.toString() === grade.toString(),
@@ -20,7 +53,25 @@ exports.createHomework = async (req, res) => {
         });
     }
 
-    const classrooms = await Classroom.find({ grade: grade });
+    let classrooms;
+
+    if (classroomId) {
+      const classroom = await Classroom.findOne({
+        _id: classroomId,
+        grade: grade,
+      });
+
+      if (!classroom) {
+        return res.status(404).json({
+          message: "هذا الفصل غير موجود ضمن هذه المرحلة.",
+        });
+      }
+
+      classrooms = [classroom];
+    } else {
+      classrooms = await Classroom.find({ grade: grade });
+    }
+
     if (classrooms.length === 0) {
       return res
         .status(404)
@@ -29,27 +80,115 @@ exports.createHomework = async (req, res) => {
         });
     }
 
-    const homeworkEntries = classrooms.map((cls) => ({
-      title,
-      pageNumber,
-      totalMarks,
-      dueDate,
-      classroom: cls._id,
+    // Each classroom can meet on a different day even for the same
+    // teacher/subject (e.g. فصل 1/1 يوم الأحد، فصل 1/2 يوم الاثنين) — so the
+    // due date is computed per classroom, from that classroom's own
+    // schedule entries. A classroom can also have *more than one* weekly
+    // session of the same subject/teacher (e.g. Sunday AND Monday) — the
+    // "next session" is whichever of those actually comes first, not
+    // whichever schedule row happened to be read last.
+    const schedules = await Schedule.find({
       teacher: req.user.id,
       subject: teacher.subject,
-      school: req.user.school,
-    }));
+      classroom: { $in: classrooms.map((c) => c._id) },
+    });
+    const daysByClassroom = new Map();
+    schedules.forEach((s) => {
+      const key = s.classroom.toString();
+      if (!daysByClassroom.has(key)) daysByClassroom.set(key, []);
+      daysByClassroom.get(key).push(s.day);
+    });
 
-    await Homework.insertMany(homeworkEntries);
+    const homeworkEntries = classrooms.map((cls) => {
+      const dayCodes = daysByClassroom.get(cls._id.toString());
+      // No schedule found is unexpected (the classroom came from the
+      // teacher's own authorized grade) but not fatal — fall back to a
+      // week out rather than blocking the whole save.
+      const candidateDates = (dayCodes?.length ? dayCodes : ["sun"]).map(
+        nextSessionDate,
+      );
+      const dueDate = new Date(Math.min(...candidateDates.map((d) => d.getTime())));
+      const nearestDayCode = dayCodes?.length
+        ? dayCodes[candidateDates.findIndex((d) => d.getTime() === dueDate.getTime())]
+        : null;
+
+      return {
+        title,
+        pageNumber,
+        totalMarks,
+        dueDate,
+        classroom: cls._id,
+        teacher: req.user.id,
+        subject: teacher.subject,
+        school: req.user.school,
+        _dayCode: nearestDayCode,
+      };
+    });
+
+    await Homework.insertMany(
+      homeworkEntries.map(({ _dayCode, ...entry }) => entry),
+    );
+
+    const subjectDoc = await Subject.findById(teacher.subject).select("name");
+
+    // Best-effort notice to parents — never blocks the homework save if it
+    // fails partway through.
+    notifyParents(homeworkEntries, subjectDoc?.name, title).catch((err) =>
+      console.log("Homework creation — parent notify error:", err.message),
+    );
 
     res.status(201).json({
       success: true,
-      message: `تم إضافة الواجب بنجاح لـ ${classrooms.length} فصل في هذه المرحلة`,
+      message: classroomId
+        ? "تم إضافة الواجب بنجاح لهذا الفصل"
+        : `تم إضافة الواجب بنجاح لـ ${classrooms.length} فصل في هذه المرحلة`,
     });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 };
+
+// One notice per classroom (each may have its own due weekday), sent to
+// every parent with an active child in that classroom — mirrors the day
+// the class meets both ways: the day the homework was assigned *and* the
+// day it's due, since the class recurs weekly on the same weekday.
+async function notifyParents(homeworkEntries, subjectName, title) {
+  for (const entry of homeworkEntries) {
+    const dayName = entry._dayCode ? DAY_NAMES_AR[entry._dayCode] : null;
+
+    const message = dayName
+      ? `تم تسجيل واجب جديد في مادة ${subjectName || ""}: "${title}". الواجب اتسلّم يوم ${dayName}، وميعاد تسليمه هو نفس اليوم (${dayName}) الأسبوع الجاي.`
+      : `تم تسجيل واجب جديد في مادة ${subjectName || ""}: "${title}".`;
+
+    const students = await Student.find({
+      classroom: entry.classroom,
+      active: true,
+    }).populate("parent", "email pushToken");
+
+    const parentsMap = new Map();
+    students.forEach((student) => {
+      if (student.parent) {
+        parentsMap.set(student.parent._id.toString(), student.parent);
+      }
+    });
+    const parents = Array.from(parentsMap.values());
+
+    for (const parent of parents) {
+      if (parent.email) {
+        await sendAlertEmail(parent.email, "واجب مدرسي جديد", message);
+      }
+    }
+
+    await notifyParentsOfStudents({
+      students,
+      type: "homework",
+      title: "واجب مدرسي جديد",
+      message,
+      school: entry.school,
+      createdBy: entry.teacher,
+    });
+  }
+}
 exports.getAllHomeworks = async (req, res) => {
   try {
     const filter = scopeFilter(

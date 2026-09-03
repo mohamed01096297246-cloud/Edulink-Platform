@@ -9,6 +9,7 @@ import {
   Lock,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { API_URL } from "../../api/axios";
 
 const TeacherBehavior = ({ students, loading, classroomId }) => {
   const [behaviorEntries, setBehaviorEntries] = useState({});
@@ -35,7 +36,7 @@ const TeacherBehavior = ({ students, loading, classroomId }) => {
         setFetchingPastBehavior(true);
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          `http://localhost:5000/api/behavior/check?classroomId=${classroomId}&date=${selectedDate}`,
+          `${API_URL}/behavior/check?classroomId=${classroomId}&date=${selectedDate}`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
 
@@ -112,7 +113,7 @@ const TeacherBehavior = ({ students, loading, classroomId }) => {
       setSubmitting(true);
       const token = localStorage.getItem("token");
       const response = await axios.post(
-        "http://localhost:5000/api/behavior/bulk",
+        `${API_URL}/behavior/bulk`,
         {
           scheduleId: classroomId,
           behaviorRecords,

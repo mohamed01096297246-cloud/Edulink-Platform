@@ -10,6 +10,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { API_URL } from "../../api/axios";
 
 const TeacherExamMarks = () => {
   const [grades, setGrades] = useState([]);
@@ -36,7 +37,7 @@ const TeacherExamMarks = () => {
         setLoadingGrades(true);
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          "http://localhost:5000/api/results/teacher-grades",
+          `${API_URL}/results/teacher-grades`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },
@@ -62,7 +63,7 @@ const TeacherExamMarks = () => {
         setLoadingFilters(true);
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          `http://localhost:5000/api/results/grade-filters/${selectedGrade}`,
+          `${API_URL}/results/grade-filters/${selectedGrade}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },
@@ -112,7 +113,7 @@ const TeacherExamMarks = () => {
         setLoadingStudents(true);
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          `http://localhost:5000/api/results/classroom-students/${selectedClassroom}`,
+          `${API_URL}/results/classroom-students/${selectedClassroom}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },
@@ -170,7 +171,7 @@ const TeacherExamMarks = () => {
       const token = localStorage.getItem("token");
 
       const response = await axios.post(
-        "http://localhost:5000/api/results/add",
+        `${API_URL}/results/add`,
         {
           examId: selectedExam,
           subjectId: activeSubjectId,

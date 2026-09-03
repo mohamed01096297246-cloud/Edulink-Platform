@@ -18,6 +18,7 @@ import TeacherGrades from "../components/Teacher/TeacherGrades";
 import TeacherBehavior from "../components/Teacher/TeacherBehavior";
 import TeacherHomework from "../components/Teacher/TeacherHomework";
 import TeacherExamGrades from "../components/Teacher/TeacherExamGrades";
+import { API_URL } from "../api/axios";
 
 const TeacherDashboard = ({ onLogout }) => {
   const [allSchedules, setAllSchedules] = useState([]);
@@ -51,7 +52,7 @@ const TeacherDashboard = ({ onLogout }) => {
   const fetchTeachingGrades = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:5000/api/grades", {
+      const res = await axios.get(`${API_URL}/grades`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setTeachingGrades(res.data.data);
@@ -64,7 +65,7 @@ const TeacherDashboard = ({ onLogout }) => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        "http://localhost:5000/api/teacher/dashboard",
+        `${API_URL}/teacher/dashboard`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
@@ -101,7 +102,7 @@ const TeacherDashboard = ({ onLogout }) => {
       setLoadingStudents(true);
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        `http://localhost:5000/api/teacher/dashboard?classroomId=${classId}`,
+        `${API_URL}/teacher/dashboard?classroomId=${classId}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setStudents(res.data.currentClassStudents);

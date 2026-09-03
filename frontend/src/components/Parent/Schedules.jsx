@@ -8,13 +8,13 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
+import { API_URL } from "../../api/axios";
 
 function Schedules({ classroomId }) {
   const [schedule, setSchedule] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const token = localStorage.getItem("token");
-  const API_URL = "http://localhost:5000/api";
   const daysOfWeek = ["sun", "mon", "tue", "wed", "thu"];
   const timeSlots = [
     { start: "08:00", end: "09:00", label: "08:00 AM - 09:00 AM" },

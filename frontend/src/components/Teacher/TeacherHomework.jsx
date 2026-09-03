@@ -14,6 +14,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { API_URL as BASE_API_URL } from "../../api/axios";
 
 const TeacherHomework = ({ grades, loading: gradesLoading }) => {
   const [formData, setFormData] = useState({
@@ -30,7 +31,7 @@ const TeacherHomework = ({ grades, loading: gradesLoading }) => {
   const [editingId, setEditingId] = useState(null); // تخزين ID الواجب الجاري تعديله
 
   const token = localStorage.getItem("token");
-  const API_URL = "http://localhost:5000/api/homework";
+  const API_URL = `${BASE_API_URL}/homework`;
 
   useEffect(() => {
     fetchHomeworks();

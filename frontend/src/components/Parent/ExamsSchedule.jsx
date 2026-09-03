@@ -10,6 +10,7 @@ import {
   Filter,
   Tag,
 } from "lucide-react";
+import { API_URL } from "../../api/axios";
 
 function ExamsSchedule({ studentId }) {
   const [exams, setExams] = useState([]);
@@ -19,7 +20,6 @@ function ExamsSchedule({ studentId }) {
   const [error, setError] = useState("");
 
   const token = localStorage.getItem("token");
-  const API_URL = "http://localhost:5000/api";
 
   useEffect(() => {
     if (studentId) {

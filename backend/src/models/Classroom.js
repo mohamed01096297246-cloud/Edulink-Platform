@@ -14,7 +14,11 @@ grade: {
       required:[true, "المستوي الدراسي مطلوب"]
     },
     
-    capacity: { type: Number, default: 30 },
+    capacity: {
+      type: Number,
+      default: 30,
+      max: [50, "لا يمكن أن تتجاوز سعة الفصل 50 طالبًا"],
+    },
 
     currentStudents: { type: Number, default: 0 },
 

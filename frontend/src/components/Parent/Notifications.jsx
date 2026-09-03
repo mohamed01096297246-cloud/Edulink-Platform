@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Bell, AlertCircle, Info, Loader2 } from "lucide-react";
+import { API_URL } from "../../api/axios";
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
@@ -14,7 +15,7 @@ const Notifications = () => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        "http://localhost:5000/api/notifications/parent",
+        `${API_URL}/notifications/parent`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },

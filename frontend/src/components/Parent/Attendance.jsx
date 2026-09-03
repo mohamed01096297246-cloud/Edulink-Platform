@@ -9,6 +9,7 @@ import {
   AlertCircle,
   BookOpen,
 } from "lucide-react";
+import { API_URL } from "../../api/axios";
 
 function Attendance({ attendanceData, studentId }) {
   const [attendance, setAttendance] = useState([]);
@@ -17,7 +18,6 @@ function Attendance({ attendanceData, studentId }) {
   const [error, setError] = useState("");
 
   const token = localStorage.getItem("token");
-  const API_URL = "http://localhost:5000/api";
 
   useEffect(() => {
     const initializeData = async () => {

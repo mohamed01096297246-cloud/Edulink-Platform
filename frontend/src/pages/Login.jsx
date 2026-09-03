@@ -9,6 +9,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import "./pagesCss/login.css";
+import { API_URL } from "../api/axios";
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState("");
@@ -21,7 +22,7 @@ const Login = ({ onLogin }) => {
     setLoading(true);
     setError("");
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/login", {
+      const res = await axios.post(`${API_URL}/auth/login`, {
         username: username.trim(),
         password: password,
       });

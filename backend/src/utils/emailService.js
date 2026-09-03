@@ -56,7 +56,8 @@ const sendAlertEmail = async (email, subjectTitle, messageBody) => {
     console.log("Email Error:", error);
   }
 };
-module.exports = { 
-  sendCredentialsEmail,  
+module.exports = {
+  sendCredentialsEmail,
+  sendAlertEmail,
 };
 

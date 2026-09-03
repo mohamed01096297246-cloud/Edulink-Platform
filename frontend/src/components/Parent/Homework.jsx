@@ -11,16 +11,16 @@ import {
   Award,
   MessageSquare,
 } from "lucide-react";
+import { API_URL } from "../../api/axios";
 
 function Homework({ studentId }) {
   const [activeHomeworks, setActiveHomeworks] = useState([]);
   const [gradedHomeworks, setGradedHomeworks] = useState([]);
-  const [activeTab, setActiveTab] = useState("active"); 
+  const [activeTab, setActiveTab] = useState("active");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const token = localStorage.getItem("token");
-  const API_URL = "http://localhost:5000/api";
 
   useEffect(() => {
     if (studentId) {

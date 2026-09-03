@@ -3,8 +3,14 @@ import axios from "axios";
 // One place for the backend URL — set REACT_APP_API_URL in a .env file
 // before deploying so this doesn't need editing across every page that
 // calls the API. Falls back to the local dev server when unset.
+// Exported so the handful of pages that build their own axios/fetch calls
+// (instead of using the shared `API` instance below) can still point at the
+// right backend instead of hardcoding localhost.
+export const API_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+
 const API = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000/api",
+  baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
   },

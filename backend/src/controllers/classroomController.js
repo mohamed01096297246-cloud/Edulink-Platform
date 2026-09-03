@@ -14,6 +14,12 @@ exports.createClassroom = async (req, res) => {
       });
     }
 
+    if (capacity && capacity > 50) {
+      return res.status(400).json({
+        message: "لا يمكن أن تتجاوز سعة الفصل 50 طالبًا.",
+      });
+    }
+
     const existingClass = await Classroom.findOne({
       name,
       grade,
@@ -31,7 +37,7 @@ exports.createClassroom = async (req, res) => {
       name,
       grade,
       academicYear,
-      capacity: capacity || 30,
+      capacity: capacity || 35,
       school,
     });
 
@@ -110,6 +116,12 @@ exports.updateClassroom = async (req, res) => {
     if (capacity && capacity < currentClassroom.currentStudents) {
       return res.status(400).json({
         message: `Logical Error: You cannot reduce the capacity of the classroom to (${capacity}) because it currently has (${currentClassroom.currentStudents}) students.`,
+      });
+    }
+
+    if (capacity && capacity > 50) {
+      return res.status(400).json({
+        message: "لا يمكن أن تتجاوز سعة الفصل 50 طالبًا.",
       });
     }
 
