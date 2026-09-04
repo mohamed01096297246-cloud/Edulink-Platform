@@ -16,6 +16,14 @@ const attendanceSchema = new mongoose.Schema(
       enum: ["present", "absent", "late"],
       required: true,
     },
+    // A qualifier on an absence, deliberately not a fourth `status` value:
+    // an excused absence is still an absence, so every existing query that
+    // filters on status: "absent" (reports, dashboards, the parent app)
+    // keeps counting it without needing to know this field exists.
+    excused: {
+      type: Boolean,
+      default: false,
+    },
     schedule: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Schedule",

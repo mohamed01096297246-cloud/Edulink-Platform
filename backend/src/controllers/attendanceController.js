@@ -82,6 +82,9 @@ exports.recordBulkAttendance = async (req, res) => {
           subject: targetSchedule.subject,
           date: pureDate,
           status: record.status,
+          // Only an absence can carry an excuse — ignore the flag on a
+          // present/late record rather than trusting whatever was sent.
+          excused: record.status === "absent" && record.excused === true,
           recordedBy: new mongoose.Types.ObjectId(req.user.id),
           school: req.user.school,
         },
