@@ -36,14 +36,23 @@ const buildAttendanceSummary = async (studentId, start, end) => {
   const present = records.filter((r) => r.status === "present").length;
   const absent = records.filter((r) => r.status === "absent").length;
   const late = records.filter((r) => r.status === "late").length;
+  const excusedAbsence = records.filter(
+    (r) => r.status === "absent" && r.excused,
+  ).length;
   const total = records.length;
+
+  // An excused absence leaves the rate alone entirely — it's dropped from
+  // the denominator rather than counted as attended, so a child off sick
+  // with a note is neither rewarded nor penalised for that day.
+  const countedTotal = total - excusedAbsence;
 
   return {
     total,
     present,
     absent,
     late,
-    rate: total > 0 ? round1((present / total) * 100) : null,
+    excusedAbsence,
+    rate: countedTotal > 0 ? round1((present / countedTotal) * 100) : null,
   };
 };
 
