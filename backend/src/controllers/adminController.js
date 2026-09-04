@@ -158,7 +158,15 @@ exports.getAdminDashboard = async (req, res) => {
         present: studentsPresent,
         absent: studentsAbsent,
       },
-      latestNotifications: await Notification.find(filter)
+      // Admins care about school announcements here, not the per-parent
+      // notices a teacher's grading/behavior/homework actions generate —
+      // those belong to the parent's own feed and would otherwise bury
+      // every real announcement. $nin (rather than type: "broadcast")
+      // keeps pre-`type` legacy announcements visible too.
+      latestNotifications: await Notification.find({
+        ...filter,
+        type: { $nin: ["homework", "homeworkGrade", "behavior", "boardNote"] },
+      })
         .sort({ createdAt: -1 })
         .limit(5),
     });

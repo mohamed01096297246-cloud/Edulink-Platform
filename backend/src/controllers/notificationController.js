@@ -180,7 +180,15 @@ exports.getAllNotifications = async (req, res) => {
       });
     }
 
-    const notifications = await Notification.find(filter)
+    // The school's announcement log — deliberately excludes the per-parent
+    // notices generated automatically by a teacher's grading/behavior/
+    // homework/board-note actions, which are the parent's feed, not an
+    // administrative record. Without this, a single grading session buries
+    // every real announcement under one row per student.
+    const notifications = await Notification.find({
+      ...filter,
+      type: { $nin: ["homework", "homeworkGrade", "behavior", "boardNote"] },
+    })
       .sort({ createdAt: -1 })
       .populate("createdBy", "name role");
 
@@ -198,6 +206,9 @@ exports.getMyNotifications = async (req, res) => {
     const notifications = await Notification.find({
       createdBy: req.user.id,
       school: req.user.school,
+      // Same reasoning as getAllNotifications: this list is "messages I
+      // wrote", not the automatic notices my grading actions triggered.
+      type: { $nin: ["homework", "homeworkGrade", "behavior", "boardNote"] },
     })
       .sort({ createdAt: -1 })
       .populate("parent", "firstName lastName");
