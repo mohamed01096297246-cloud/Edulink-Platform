@@ -4,6 +4,7 @@ const Attendance = require("../models/Attendance");
 const Homework = require("../models/Homework");
 const HomeworkResult = require("../models/HomeworkResult");
 const WeeklyEvaluation = require("../models/WeeklyEvaluation");
+const ClassworkNotebook = require("../models/ClassworkNotebook");
 const User = require("../models/User");
 const {
   buildWeeklyRegisterWorkbook,
@@ -40,26 +41,42 @@ const sortByArabicName = (students) =>
 const computeWeekScores = async (classroomId, subjectId, studentIds, weekStart) => {
   const rangeEnd = weekEnd(weekStart);
 
-  const [attendanceRecords, homeworks, weeklyEvaluations] = await Promise.all([
-    Attendance.find({
-      student: { $in: studentIds },
-      subject: subjectId,
-      date: { $gte: weekStart, $lte: rangeEnd },
-    }).select("student status"),
-    Homework.find({
-      classroom: classroomId,
-      subject: subjectId,
-      dueDate: { $gte: weekStart, $lte: rangeEnd },
-    }).select("_id totalMarks"),
-    WeeklyEvaluation.find({
-      classroom: classroomId,
-      subject: subjectId,
-      weekStart,
-    }).select("student score"),
-  ]);
+  const [attendanceRecords, homeworks, weeklyEvaluations, classworkEntries] =
+    await Promise.all([
+      Attendance.find({
+        student: { $in: studentIds },
+        subject: subjectId,
+        date: { $gte: weekStart, $lte: rangeEnd },
+      }).select("student status excused"),
+      // A homework belongs to the week it was *set* in, not the week it
+      // happens to fall due. Matching on dueDate silently dropped any
+      // homework a teacher assigned on, say, Thursday for the following
+      // week — it landed in a week the register wasn't printing, so the
+      // column came out empty even though the marks were entered.
+      Homework.find({
+        classroom: classroomId,
+        subject: subjectId,
+        createdAt: { $gte: weekStart, $lte: rangeEnd },
+      }).select("_id totalMarks"),
+      WeeklyEvaluation.find({
+        classroom: classroomId,
+        subject: subjectId,
+        weekStart,
+      }).select("student score"),
+      ClassworkNotebook.find({
+        classroom: classroomId,
+        subject: subjectId,
+        weekStart,
+      }).select("student score"),
+    ]);
 
   const attendanceByStudent = new Map();
   attendanceRecords.forEach((record) => {
+    // An excused absence is left out of the calculation entirely, matching
+    // the attendance rate shown to parents — it neither earns nor costs
+    // the student marks here.
+    if (record.status === "absent" && record.excused) return;
+
     const key = record.student.toString();
     if (!attendanceByStudent.has(key)) {
       attendanceByStudent.set(key, { total: 0, attended: 0 });
@@ -93,6 +110,11 @@ const computeWeekScores = async (classroomId, subjectId, studentIds, weekStart) 
     weeklyByStudent.set(record.student.toString(), record.score);
   });
 
+  const classworkByStudent = new Map();
+  classworkEntries.forEach((record) => {
+    classworkByStudent.set(record.student.toString(), record.score);
+  });
+
   const scores = {};
   studentIds.forEach((id) => {
     const key = id.toString();
@@ -108,7 +130,16 @@ const computeWeekScores = async (classroomId, subjectId, studentIds, weekStart) 
 
     const weeklyEvalScore = weeklyByStudent.has(key) ? weeklyByStudent.get(key) : null;
 
-    const total = [attendanceScore, homeworkScore, weeklyEvalScore]
+    const classworkScore = classworkByStudent.has(key)
+      ? classworkByStudent.get(key)
+      : null;
+
+    const total = [
+      attendanceScore,
+      homeworkScore,
+      weeklyEvalScore,
+      classworkScore,
+    ]
       .filter((v) => v !== null && !Number.isNaN(v))
       .reduce((a, b) => a + b, 0);
 
@@ -116,6 +147,7 @@ const computeWeekScores = async (classroomId, subjectId, studentIds, weekStart) 
       attendanceScore,
       homeworkScore,
       weeklyEvalScore,
+      classworkScore,
       total: round1(total),
     };
   });

@@ -3,10 +3,8 @@ const ExcelJS = require("exceljs");
 // Mirrors the paper "سجل رصد درجات فصل" register the school already uses on
 // paper — weeks (or a month's worth of weeks) as column groups, students as
 // rows — but built from the system's own live data instead of copied out by
-// hand. Only the categories the system actually tracks per week are
-// included (حضور ومواظبة، تقييم أسبوعي، واجب منزلي); كراسة النشاط/الأداء
-// الصفي have no digital source yet (see courseworkController) so they're
-// left off rather than printed as permanently-empty columns.
+// hand. Covers the four categories the system tracks per week: مواظبة
+// وسلوك، تقييم أسبوعي، واجب منزلي، كراسة الحصة.
 const MONTH_NAMES = [
   "",
   "يناير",
@@ -78,10 +76,11 @@ exports.buildWeeklyRegisterWorkbook = ({
 
   const columns = [
     "الاسم",
-    "حضور ومواظبة (5)",
+    "مواظبة وسلوك (5)",
     "تقييم أسبوعي (10)",
     "واجب منزلي (5)",
-    "الإجمالي (20)",
+    "كراسة الحصة (5)",
+    "الإجمالي (25)",
   ];
 
   sheet.columns = columns.map((_, i) => ({ width: i === 0 ? 28 : 18 }));
@@ -109,6 +108,7 @@ exports.buildWeeklyRegisterWorkbook = ({
       entry.attendanceScore ?? "-",
       entry.weeklyEvalScore ?? "-",
       entry.homeworkScore ?? "-",
+      entry.classworkScore ?? "-",
       entry.total ?? "-",
     ];
 
@@ -136,7 +136,7 @@ exports.buildMonthlyRegisterWorkbook = ({
   const workbook = new ExcelJS.Workbook();
   const sheet = baseSheet(workbook, "سجل الشهر");
 
-  const subCols = ["حضور", "تقييم", "واجب", "إجمالي"];
+  const subCols = ["مواظبة", "تقييم", "واجب", "كراسة", "إجمالي"];
   // RTL layout, rightmost first: الاسم | week1(4) | week2(4) | ... |
   // متوسط الأسابيع(4) | الجموع
   const totalCols = 1 + weekStarts.length * subCols.length + subCols.length + 1;
@@ -205,6 +205,7 @@ exports.buildMonthlyRegisterWorkbook = ({
     const attendanceValues = [];
     const weeklyEvalValues = [];
     const homeworkValues = [];
+    const classworkValues = [];
     const perWeekTotals = [];
 
     weeklyScores.forEach(({ scores }) => {
@@ -214,6 +215,7 @@ exports.buildMonthlyRegisterWorkbook = ({
         entry.attendanceScore,
         entry.weeklyEvalScore,
         entry.homeworkScore,
+        entry.classworkScore,
         entry.total,
       ].forEach((value) => {
         const cell = row.getCell(c++);
@@ -224,6 +226,7 @@ exports.buildMonthlyRegisterWorkbook = ({
       attendanceValues.push(entry.attendanceScore);
       weeklyEvalValues.push(entry.weeklyEvalScore);
       homeworkValues.push(entry.homeworkScore);
+      classworkValues.push(entry.classworkScore);
       perWeekTotals.push(entry.total);
     });
 
@@ -233,6 +236,7 @@ exports.buildMonthlyRegisterWorkbook = ({
       average(attendanceValues),
       average(weeklyEvalValues),
       average(homeworkValues),
+      average(classworkValues),
       avgTotal,
     ].forEach((value) => {
       const cell = row.getCell(c++);
