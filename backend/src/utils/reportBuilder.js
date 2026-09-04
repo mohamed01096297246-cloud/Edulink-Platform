@@ -141,6 +141,86 @@ const classifyStatus = ({ attendance, behavior, homework, exams }) => {
   return "good";
 };
 
+// Every aspect is normalised onto the same 0-100 scale so they can be
+// compared with each other and averaged into one overall level. An aspect
+// with no records at all returns null and is skipped entirely rather than
+// counted as a zero — a child with no exams yet isn't "failing exams".
+const scoreAttendance = (attendance) => attendance.rate;
+
+const scoreHomework = (homework) => {
+  if (homework.total === 0) return null;
+
+  const submissionRate = (homework.submitted / homework.total) * 100;
+
+  // Handing work in and doing it well are both half the picture; when
+  // nothing is graded yet, submission alone carries the score.
+  if (homework.avgScorePercent === null) return round1(submissionRate);
+
+  return round1(submissionRate * 0.5 + homework.avgScorePercent * 0.5);
+};
+
+const scoreExams = (exams) => exams.avgGrade;
+
+// Behaviour has no natural percentage, so it starts from a neutral baseline
+// and moves either way. A negative note weighs heavier than a positive one
+// because that asymmetry is what a parent actually needs surfaced.
+const scoreBehavior = (behavior) => {
+  if (behavior.total === 0) return null;
+
+  const raw = 80 + behavior.positive * 5 - behavior.negative * 15;
+
+  return Math.max(0, Math.min(100, raw));
+};
+
+const OVERALL_LEVELS = [
+  { key: "excellent", min: 85 },
+  { key: "very_good", min: 70 },
+  { key: "good", min: 55 },
+  { key: "needs_follow_up", min: 0 },
+];
+
+const ASPECT_LEVELS = [
+  { key: "excellent", min: 85 },
+  { key: "good", min: 65 },
+  { key: "needs_improvement", min: 0 },
+];
+
+const levelFor = (scale, score) =>
+  scale.find((level) => score >= level.min).key;
+
+// The parent-facing headline: one level for the whole picture, plus the
+// same judgement broken down per aspect so "needs follow-up" always comes
+// with "…on what". Aspect keys (not Arabic labels) cross the wire — the
+// app already names these four things in its own UI.
+const buildProgress = ({ attendance, behavior, homework, exams }) => {
+  const aspects = [
+    { key: "attendance", score: scoreAttendance(attendance) },
+    { key: "homework", score: scoreHomework(homework) },
+    { key: "exams", score: scoreExams(exams) },
+    { key: "behavior", score: scoreBehavior(behavior) },
+  ]
+    .filter((aspect) => aspect.score !== null)
+    .map((aspect) => ({
+      ...aspect,
+      score: round1(aspect.score),
+      level: levelFor(ASPECT_LEVELS, aspect.score),
+    }));
+
+  if (aspects.length === 0) {
+    return { overallScore: null, overallLevel: null, aspects: [] };
+  }
+
+  const overallScore = round1(
+    aspects.reduce((sum, aspect) => sum + aspect.score, 0) / aspects.length,
+  );
+
+  return {
+    overallScore,
+    overallLevel: levelFor(OVERALL_LEVELS, overallScore),
+    aspects,
+  };
+};
+
 // Template-based guidance — condition -> pre-written tip. Deliberately not
 // AI-generated: instant, free, and every message here was reviewed rather
 // than produced on the fly.
@@ -249,12 +329,16 @@ exports.buildStudentReport = async (studentId, period) => {
   ]);
 
   const status = classifyStatus({ attendance, behavior, homework, exams });
+  const progress = buildProgress({ attendance, behavior, homework, exams });
   const tips = buildTips({ attendance, behavior, homework, exams });
 
   return {
     period,
     range: { start, end },
+    // `status` predates `progress` and stays in the payload so an older
+    // installed app build keeps working against this deployment.
     status,
+    progress,
     attendance,
     behavior,
     homework,
