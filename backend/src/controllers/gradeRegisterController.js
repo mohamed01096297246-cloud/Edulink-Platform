@@ -6,6 +6,7 @@ const HomeworkResult = require("../models/HomeworkResult");
 const WeeklyEvaluation = require("../models/WeeklyEvaluation");
 const ClassworkNotebook = require("../models/ClassworkNotebook");
 const User = require("../models/User");
+const School = require("../models/School");
 const {
   buildWeeklyRegisterWorkbook,
   buildMonthlyRegisterWorkbook,
@@ -195,7 +196,11 @@ exports.exportWeeklyRegister = async (req, res) => {
       weekStart,
     );
 
+    const school = await School.findById(req.user.school).select("name");
+
     const workbook = buildWeeklyRegisterWorkbook({
+      schoolName: school?.name || "",
+      teacherName: `${teacher.firstName || ""} ${teacher.lastName || ""}`.trim(),
       subjectName: teacher.subject?.name || "",
       classroomName: classroom.name,
       weekStart,
@@ -290,7 +295,11 @@ exports.exportMonthlyRegister = async (req, res) => {
       weeklyScores.push({ weekStart, scores });
     }
 
+    const school = await School.findById(req.user.school).select("name");
+
     const workbook = buildMonthlyRegisterWorkbook({
+      schoolName: school?.name || "",
+      teacherName: `${teacher.firstName || ""} ${teacher.lastName || ""}`.trim(),
       subjectName: teacher.subject?.name || "",
       classroomName: classroom.name,
       month: Number(month),

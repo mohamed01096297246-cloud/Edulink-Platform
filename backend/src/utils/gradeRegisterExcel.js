@@ -45,6 +45,65 @@ const formatDateAr = (date) => {
 const baseSheet = (workbook, title) =>
   workbook.addWorksheet(title, { views: [{ rightToLeft: true }] });
 
+// The fixed wording carried by the school's own paper register, so a
+// printed export can be filed and signed exactly like the handwritten one.
+// The directorate line is left blank because the system doesn't hold it —
+// better an obvious blank to fill in by hand than a wrong name in print.
+const SIGNATURE_LABELS = ["معلم المادة", "موجه المادة", "مدير المدرسة"];
+
+// Schools and classrooms are often already named "مدرسة النور" / "فصل 1/1",
+// so blindly prefixing the label produced "مدرسة مدرسة النور" in print.
+const withLabel = (label, value, fallback = "....................") => {
+  const text = (value || "").trim();
+
+  if (!text) return `${label} ${fallback}`;
+
+  return text.startsWith(label) ? text : `${label} ${text}`;
+};
+
+// Writes the two identifying lines above the table and returns the row the
+// table itself should start on.
+const writeHeaderBlock = (sheet, totalCols, { schoolName, title, subtitle }) => {
+  const line = (rowNumber, value, options = {}) => {
+    sheet.mergeCells(rowNumber, 1, rowNumber, totalCols);
+    const cell = sheet.getCell(rowNumber, 1);
+    cell.value = value;
+    cell.font = { bold: true, size: options.size || 11 };
+    cell.alignment = { horizontal: options.align || "center", vertical: "middle" };
+    sheet.getRow(rowNumber).height = options.height || 20;
+  };
+
+  line(1, "إدارة .................... التعليمية", { align: "right" });
+  line(2, withLabel("مدرسة", schoolName), { align: "right" });
+  line(3, title, { size: 14, height: 26 });
+  line(4, subtitle, { size: 11 });
+
+  return 6;
+};
+
+// The three signature lines the paper register ends with.
+const writeSignatureBlock = (sheet, totalCols, lastDataRow, teacherName) => {
+  const rowNumber = lastDataRow + 2;
+  const row = sheet.getRow(rowNumber);
+  const span = Math.max(1, Math.floor(totalCols / SIGNATURE_LABELS.length));
+
+  SIGNATURE_LABELS.forEach((label, index) => {
+    const from = index * span + 1;
+    const to = index === SIGNATURE_LABELS.length - 1 ? totalCols : from + span - 1;
+
+    if (to > from) sheet.mergeCells(rowNumber, from, rowNumber, to);
+
+    const cell = sheet.getCell(rowNumber, from);
+    // Only the subject teacher is known to the system; the supervisor and
+    // principal sign by hand, same as on paper.
+    cell.value = index === 0 && teacherName ? `${label}: ${teacherName}` : `${label}:`;
+    cell.font = { bold: true };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+  });
+
+  row.height = 30;
+};
+
 const styleHeaderCell = (cell) => {
   cell.fill = HEADER_FILL;
   cell.font = HEADER_FONT;
@@ -65,6 +124,8 @@ const average = (values) => {
 };
 
 exports.buildWeeklyRegisterWorkbook = ({
+  schoolName,
+  teacherName,
   subjectName,
   classroomName,
   weekStart,
@@ -75,6 +136,7 @@ exports.buildWeeklyRegisterWorkbook = ({
   const sheet = baseSheet(workbook, "سجل الأسبوع");
 
   const columns = [
+    "م",
     "الاسم",
     "مواظبة وسلوك (5)",
     "تقييم أسبوعي (10)",
@@ -83,16 +145,17 @@ exports.buildWeeklyRegisterWorkbook = ({
     "الإجمالي (25)",
   ];
 
-  sheet.columns = columns.map((_, i) => ({ width: i === 0 ? 28 : 18 }));
+  sheet.columns = columns.map((_, i) => ({
+    width: i === 0 ? 5 : i === 1 ? 28 : 18,
+  }));
 
-  sheet.mergeCells(1, 1, 1, columns.length);
-  const titleCell = sheet.getCell(1, 1);
-  titleCell.value = `سجل رصد درجات فصل ${classroomName} — مادة ${subjectName} — أسبوع ${formatDateAr(weekStart)}`;
-  titleCell.font = { bold: true, size: 13 };
-  titleCell.alignment = { horizontal: "center" };
-  sheet.getRow(1).height = 26;
+  const headerRowNumber = writeHeaderBlock(sheet, columns.length, {
+    schoolName,
+    title: `سجل رصد درجات ${withLabel("فصل", classroomName)}`,
+    subtitle: `المادة: ${subjectName} — أسبوع ${formatDateAr(weekStart)}`,
+  });
 
-  const headerRow = sheet.getRow(2);
+  const headerRow = sheet.getRow(headerRowNumber);
   columns.forEach((header, i) => {
     const cell = headerRow.getCell(i + 1);
     cell.value = header;
@@ -101,9 +164,10 @@ exports.buildWeeklyRegisterWorkbook = ({
   headerRow.height = 26;
 
   students.forEach((student, index) => {
-    const row = sheet.getRow(index + 3);
+    const row = sheet.getRow(headerRowNumber + 1 + index);
     const entry = scores[student._id.toString()] || {};
     const values = [
+      index + 1,
       `${student.firstName} ${student.lastName}`,
       entry.attendanceScore ?? "-",
       entry.weeklyEvalScore ?? "-",
@@ -115,16 +179,25 @@ exports.buildWeeklyRegisterWorkbook = ({
     values.forEach((value, i) => {
       const cell = row.getCell(i + 1);
       cell.value = value;
-      styleDataCell(cell, { bold: i === 0 || i === values.length - 1 });
+      styleDataCell(cell, { bold: i === 1 || i === values.length - 1 });
     });
 
     row.height = 20;
   });
 
+  writeSignatureBlock(
+    sheet,
+    columns.length,
+    headerRowNumber + students.length,
+    teacherName,
+  );
+
   return workbook;
 };
 
 exports.buildMonthlyRegisterWorkbook = ({
+  schoolName,
+  teacherName,
   subjectName,
   classroomName,
   month,
@@ -137,35 +210,44 @@ exports.buildMonthlyRegisterWorkbook = ({
   const sheet = baseSheet(workbook, "سجل الشهر");
 
   const subCols = ["مواظبة", "تقييم", "واجب", "كراسة", "إجمالي"];
-  // RTL layout, rightmost first: الاسم | week1(4) | week2(4) | ... |
-  // متوسط الأسابيع(4) | الجموع
-  const totalCols = 1 + weekStarts.length * subCols.length + subCols.length + 1;
+  // RTL layout, rightmost first: م | الاسم | week1(5) | week2(5) | ... |
+  // متوسط الأسابيع(5) | المجموع
+  const totalCols =
+    2 + weekStarts.length * subCols.length + subCols.length + 1;
 
   sheet.columns = Array.from({ length: totalCols }, (_, i) => ({
-    width: i === 0 ? 26 : 11,
+    width: i === 0 ? 5 : i === 1 ? 26 : 11,
   }));
 
-  sheet.mergeCells(1, 1, 1, totalCols);
-  const titleCell = sheet.getCell(1, 1);
-  titleCell.value = `سجل رصد درجات فصل ${classroomName} — مادة ${subjectName} — شهر ${MONTH_NAMES[month]} ${year}`;
-  titleCell.font = { bold: true, size: 13 };
-  titleCell.alignment = { horizontal: "center" };
-  sheet.getRow(1).height = 26;
+  // Two rows of column headings, so the table starts one row lower than the
+  // weekly sheet's single header row.
+  const headerTop = writeHeaderBlock(sheet, totalCols, {
+    schoolName,
+    title: `سجل رصد درجات ${withLabel("فصل", classroomName)}`,
+    subtitle: `المادة: ${subjectName} — شهر ${MONTH_NAMES[month]} ${year}`,
+  });
+  const headerBottom = headerTop + 1;
+  const firstDataRow = headerTop + 2;
 
-  sheet.mergeCells(2, 1, 3, 1);
-  const nameCell = sheet.getCell(2, 1);
+  sheet.mergeCells(headerTop, 1, headerBottom, 1);
+  const serialCell = sheet.getCell(headerTop, 1);
+  serialCell.value = "م";
+  styleHeaderCell(serialCell);
+
+  sheet.mergeCells(headerTop, 2, headerBottom, 2);
+  const nameCell = sheet.getCell(headerTop, 2);
   nameCell.value = "الاسم";
   styleHeaderCell(nameCell);
 
-  let col = 2;
+  let col = 3;
   weekStarts.forEach((weekStart, wIdx) => {
-    sheet.mergeCells(2, col, 2, col + subCols.length - 1);
-    const groupCell = sheet.getCell(2, col);
+    sheet.mergeCells(headerTop, col, headerTop, col + subCols.length - 1);
+    const groupCell = sheet.getCell(headerTop, col);
     groupCell.value = `الأسبوع ${wIdx + 1} (${formatDateAr(weekStart)})`;
     styleHeaderCell(groupCell);
 
     subCols.forEach((label, i) => {
-      const cell = sheet.getCell(3, col + i);
+      const cell = sheet.getCell(headerBottom, col + i);
       cell.value = label;
       styleHeaderCell(cell);
     });
@@ -173,30 +255,34 @@ exports.buildMonthlyRegisterWorkbook = ({
     col += subCols.length;
   });
 
-  sheet.mergeCells(2, col, 2, col + subCols.length - 1);
-  const avgGroupCell = sheet.getCell(2, col);
+  sheet.mergeCells(headerTop, col, headerTop, col + subCols.length - 1);
+  const avgGroupCell = sheet.getCell(headerTop, col);
   avgGroupCell.value = "متوسط الأسابيع";
   styleHeaderCell(avgGroupCell);
 
   subCols.forEach((label, i) => {
-    const cell = sheet.getCell(3, col + i);
+    const cell = sheet.getCell(headerBottom, col + i);
     cell.value = label;
     styleHeaderCell(cell);
   });
   col += subCols.length;
 
-  sheet.mergeCells(2, col, 3, col);
-  const totalHeaderCell = sheet.getCell(2, col);
-  totalHeaderCell.value = "الجموع";
+  sheet.mergeCells(headerTop, col, headerBottom, col);
+  const totalHeaderCell = sheet.getCell(headerTop, col);
+  totalHeaderCell.value = "المجموع";
   styleHeaderCell(totalHeaderCell);
 
-  sheet.getRow(2).height = 26;
-  sheet.getRow(3).height = 20;
+  sheet.getRow(headerTop).height = 26;
+  sheet.getRow(headerBottom).height = 20;
 
   students.forEach((student, sIdx) => {
     const key = student._id.toString();
-    const row = sheet.getRow(sIdx + 4);
+    const row = sheet.getRow(firstDataRow + sIdx);
     let c = 1;
+
+    const serial = row.getCell(c++);
+    serial.value = sIdx + 1;
+    styleDataCell(serial);
 
     const nameCell = row.getCell(c++);
     nameCell.value = `${student.firstName} ${student.lastName}`;
@@ -250,6 +336,13 @@ exports.buildMonthlyRegisterWorkbook = ({
 
     row.height = 20;
   });
+
+  writeSignatureBlock(
+    sheet,
+    totalCols,
+    firstDataRow + students.length - 1,
+    teacherName,
+  );
 
   return workbook;
 };
