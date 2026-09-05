@@ -19,7 +19,13 @@ router.post("/", protect, authorize("admin", "teacher"), createNotification);
 router.get("/parent", protect, authorize("parent"), requireUserFeature("notifications"), getParentNotifications);
 
 // Placed before the "/:id" routes below so "read" is never swallowed as an id.
-router.patch("/read", protect, authorize("parent"), markNotificationsRead);
+router.patch(
+  "/read",
+  protect,
+  authorize("parent"),
+  requireUserFeature("notifications"),
+  markNotificationsRead,
+);
 
 router.get("/mine", protect, authorize("teacher"), getMyNotifications);
 
