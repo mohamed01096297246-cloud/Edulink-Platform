@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   createNotification,
   getParentNotifications,
+  markNotificationsRead,
   getAllNotifications,
   getMyNotifications,
   getTeacherParentsList,
@@ -16,6 +17,9 @@ const { protect, authorize, requireUserFeature } = require("../middleware/authMi
 router.post("/", protect, authorize("admin", "teacher"), createNotification);
 
 router.get("/parent", protect, authorize("parent"), requireUserFeature("notifications"), getParentNotifications);
+
+// Placed before the "/:id" routes below so "read" is never swallowed as an id.
+router.patch("/read", protect, authorize("parent"), markNotificationsRead);
 
 router.get("/mine", protect, authorize("teacher"), getMyNotifications);
 

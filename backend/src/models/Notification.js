@@ -51,6 +51,16 @@ const notificationSchema = new mongoose.Schema({
     default: "broadcast"
   },
 
+  // Who has already seen this. A list rather than a single flag because a
+  // target: "all" broadcast is one document shared by every parent in the
+  // school — one parent reading it must not mark it read for everyone.
+  readBy: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    }
+  ],
+
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",

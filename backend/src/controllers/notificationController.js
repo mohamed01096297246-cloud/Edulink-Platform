@@ -163,11 +163,53 @@ exports.getParentNotifications = async (req, res) => {
       $or: [{ target: "all" }, { target: "parent", parent: req.user._id }],
     })
       .sort({ createdAt: -1 })
-      .populate("createdBy", "name role");
+      .populate("createdBy", "name role")
+      .lean();
 
-    res.json(notifications);
+    // `readBy` is a per-school list that could name any parent; the client
+    // only ever needs to know about the one asking, so flatten it to a
+    // boolean here rather than shipping other parents' ids to the app.
+    const userId = req.user._id.toString();
+    const withReadState = notifications.map(({ readBy, ...rest }) => ({
+      ...rest,
+      read: (readBy || []).some((id) => id.toString() === userId),
+    }));
+
+    res.json(withReadState);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+// Marks notifications as read for the calling user. Takes a list of ids so
+// opening the screen can settle everything currently on it in one request
+// instead of one call per row.
+exports.markNotificationsRead = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "لا يوجد إشعارات لتحديدها كمقروءة." });
+    }
+
+    await Notification.updateMany(
+      {
+        _id: { $in: ids },
+        school: req.user.school,
+        // Same visibility rule as the list above — a user can only mark
+        // something read if it was addressed to them in the first place.
+        $or: [{ target: "all" }, { target: "parent", parent: req.user._id }],
+      },
+      // addToSet, not push: re-opening the screen must not append the same
+      // user id over and over.
+      { $addToSet: { readBy: req.user._id } },
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 exports.getAllNotifications = async (req, res) => {
