@@ -12,9 +12,16 @@ const boardNoteSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
-    imageUrl: {
-      type: String,
-      required: true,
+    // The photo lives in the document itself, not on disk. App Platform
+    // containers are ephemeral and run more than one instance, so a file
+    // written to local disk is wiped by the next deploy and invisible to
+    // the sibling instance — an uploaded photo simply disappeared. Stored
+    // here it survives deploys and is covered by the database's own daily
+    // backups. `select: false` keeps the bytes out of every list query;
+    // only the dedicated image endpoint asks for them.
+    image: {
+      data: { type: Buffer, select: false },
+      contentType: { type: String },
     },
     classroom: {
       type: mongoose.Schema.Types.ObjectId,
@@ -37,7 +44,18 @@ const boardNoteSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
 );
+
+// Clients only ever need the address of the image, never the bytes inline.
+// Serving it from under /api matters: that's the only path the deployment
+// routes to this backend at all.
+boardNoteSchema.virtual("imageUrl").get(function getImageUrl() {
+  return `/api/board-notes/${this._id}/image`;
+});
 
 module.exports = mongoose.model("BoardNote", boardNoteSchema);

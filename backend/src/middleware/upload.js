@@ -1,14 +1,9 @@
-const fs = require("fs");
-const path = require("path");
 const multer = require("multer");
 
-// Local disk storage — no cloud storage provider is configured for this
-// project yet, so uploaded photos live under backend/uploads/<subfolder>
-// and are served back via express.static (see app.js). Moving to a cloud
-// provider later only means swapping this file's storage engine —
-// nothing else references the disk path directly.
-const UPLOADS_ROOT = path.join(__dirname, "..", "..", "uploads");
-
+// Uploads are held in memory and then written into MongoDB by the
+// controller — never to the container's disk. App Platform containers are
+// ephemeral and more than one runs at a time, so a file saved to disk is
+// erased by the next deploy and invisible to the sibling instance.
 const imageFileFilter = (req, file, cb) => {
   if (!file.mimetype.startsWith("image/")) {
     return cb(new Error("الملف المرفوع لازم يكون صورة."));
@@ -16,27 +11,15 @@ const imageFileFilter = (req, file, cb) => {
   cb(null, true);
 };
 
-// Builds a single-image-upload middleware scoped to its own subfolder
-// (e.g. "board-notes") — every feature that accepts a photo gets its own
-// call to this instead of sharing one giant uploads directory.
-const createImageUpload = (subfolder) => {
-  const dir = path.join(UPLOADS_ROOT, subfolder);
-  fs.mkdirSync(dir, { recursive: true });
+// 5MB keeps a phone photo comfortably within a single MongoDB document
+// (16MB hard limit) with room to spare for the rest of the document.
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-  const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, dir),
-    filename: (req, file, cb) => {
-      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-      cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
-    },
-  });
-
-  // 8MB is generous for a phone-camera photo while still keeping the
-  // server's disk usage sane.
+const createImageUpload = () => {
   const upload = multer({
-    storage,
+    storage: multer.memoryStorage(),
     fileFilter: imageFileFilter,
-    limits: { fileSize: 8 * 1024 * 1024 },
+    limits: { fileSize: MAX_IMAGE_BYTES },
   }).single("image");
 
   // Multer reports file-too-large/wrong-type errors to Express's default
@@ -48,7 +31,7 @@ const createImageUpload = (subfolder) => {
       if (err instanceof multer.MulterError) {
         const message =
           err.code === "LIMIT_FILE_SIZE"
-            ? "حجم الصورة أكبر من المسموح به (8 ميجا)."
+            ? "حجم الصورة أكبر من المسموح به (5 ميجا)."
             : "فشل رفع الصورة.";
         return res.status(400).json({ success: false, message });
       }
@@ -60,4 +43,4 @@ const createImageUpload = (subfolder) => {
   };
 };
 
-exports.uploadBoardNoteImage = createImageUpload("board-notes");
+exports.uploadBoardNoteImage = createImageUpload();

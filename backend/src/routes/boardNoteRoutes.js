@@ -5,6 +5,7 @@ const {
   createBoardNote,
   getClassroomBoardNotes,
   getStudentBoardNotes,
+  getBoardNoteImage,
   deleteBoardNote,
 } = require("../controllers/boardNoteController");
 
@@ -33,6 +34,11 @@ router.get(
   requireUserFeature("homework"),
   getStudentBoardNotes,
 );
+
+// Any signed-in member of the school can fetch the bytes; the controller
+// enforces that it is *their* school. Teachers, parents and admins all
+// legitimately view these images.
+router.get("/:id/image", protect, getBoardNoteImage);
 
 router.delete("/:id", protect, authorize("teacher", "admin"), deleteBoardNote);
 

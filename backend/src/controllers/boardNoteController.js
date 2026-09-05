@@ -33,7 +33,10 @@ exports.createBoardNote = async (req, res) => {
 
     const note = await BoardNote.create({
       caption: (caption || "").trim(),
-      imageUrl: `/uploads/board-notes/${req.file.filename}`,
+      image: {
+        data: req.file.buffer,
+        contentType: req.file.mimetype,
+      },
       classroom: classroomId,
       teacher: req.user.id,
       subject: teacher.subject,
@@ -115,6 +118,38 @@ exports.getStudentBoardNotes = async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, data: notes });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Serves the stored photo itself. Scoped to the school rather than to one
+// classroom: a teacher legitimately views notes for classrooms they teach
+// and a parent for their child's, but neither should be able to read
+// another school's images by guessing an id.
+exports.getBoardNoteImage = async (req, res) => {
+  try {
+    const note = await BoardNote.findById(req.params.id).select(
+      "+image.data image.contentType school",
+    );
+
+    if (!note || !note.image?.data) {
+      return res
+        .status(404)
+        .json({ success: false, message: "الصورة غير موجودة" });
+    }
+
+    if (!sameSchool(req, note)) {
+      return res
+        .status(403)
+        .json({ success: false, message: "غير مصرح لك بعرض هذه الصورة" });
+    }
+
+    res.set("Content-Type", note.image.contentType || "image/jpeg");
+    // The bytes for a given note never change, so let the phone keep them
+    // instead of re-downloading the photo on every screen visit.
+    res.set("Cache-Control", "private, max-age=31536000, immutable");
+    res.send(note.image.data);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

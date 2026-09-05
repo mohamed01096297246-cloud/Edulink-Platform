@@ -1,5 +1,4 @@
 const express = require("express");
-const path = require("path");
 const cors = require("cors");
 const helmet = require("helmet");
 const compression = require("compression");
@@ -12,19 +11,6 @@ app.use(helmet());
 app.use(cors());
 app.use(compression());
 app.use(express.json());
-
-// Uploaded homework photos (see src/middleware/upload.js) — served with a
-// relaxed CORP header since these are plain public images fetched by
-// whichever client (mobile app, future web dashboard) needs to show them,
-// not the app's authenticated JSON API.
-app.use(
-  "/uploads",
-  (req, res, next) => {
-    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-    next();
-  },
-  express.static(path.join(__dirname, "uploads")),
-);
 
 if (process.env.NODE_ENV === "development") {
   app.use((req, res, next) => {
