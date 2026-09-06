@@ -51,19 +51,22 @@ const baseSheet = (workbook, title) =>
 // better an obvious blank to fill in by hand than a wrong name in print.
 const SIGNATURE_LABELS = ["معلم المادة", "موجه المادة", "مدير المدرسة"];
 
-// Schools and classrooms are often already named "مدرسة النور" / "فصل 1/1",
-// so blindly prefixing the label produced "مدرسة مدرسة النور" in print.
-const withLabel = (label, value, fallback = "....................") => {
+// A classroom is often already named "فصل 1/1", so blindly prefixing the
+// label produced "فصل فصل 1/1" in print.
+const withLabel = (label, value) => {
   const text = (value || "").trim();
 
-  if (!text) return `${label} ${fallback}`;
+  if (!text) return `${label} ....................`;
 
   return text.startsWith(label) ? text : `${label} ${text}`;
 };
 
+// A blank the teacher fills in by hand.
+const BLANK = "....................";
+
 // Writes the two identifying lines above the table and returns the row the
 // table itself should start on.
-const writeHeaderBlock = (sheet, totalCols, { schoolName, title, subtitle }) => {
+const writeHeaderBlock = (sheet, totalCols, { title, subtitle }) => {
   const line = (rowNumber, value, options = {}) => {
     sheet.mergeCells(rowNumber, 1, rowNumber, totalCols);
     const cell = sheet.getCell(rowNumber, 1);
@@ -74,15 +77,16 @@ const writeHeaderBlock = (sheet, totalCols, { schoolName, title, subtitle }) => 
   };
 
   line(1, "إدارة .................... التعليمية", { align: "right" });
-  line(2, withLabel("مدرسة", schoolName), { align: "right" });
+  line(2, `مدرسة ${BLANK}`, { align: "right" });
   line(3, title, { size: 14, height: 26 });
   line(4, subtitle, { size: 11 });
 
   return 6;
 };
 
-// The three signature lines the paper register ends with.
-const writeSignatureBlock = (sheet, totalCols, lastDataRow, teacherName) => {
+// The three signature lines the paper register ends with — all left blank,
+// since they are signed by hand once the sheet is printed.
+const writeSignatureBlock = (sheet, totalCols, lastDataRow) => {
   const rowNumber = lastDataRow + 2;
   const row = sheet.getRow(rowNumber);
   const span = Math.max(1, Math.floor(totalCols / SIGNATURE_LABELS.length));
@@ -94,9 +98,7 @@ const writeSignatureBlock = (sheet, totalCols, lastDataRow, teacherName) => {
     if (to > from) sheet.mergeCells(rowNumber, from, rowNumber, to);
 
     const cell = sheet.getCell(rowNumber, from);
-    // Only the subject teacher is known to the system; the supervisor and
-    // principal sign by hand, same as on paper.
-    cell.value = index === 0 && teacherName ? `${label}: ${teacherName}` : `${label}:`;
+    cell.value = `${label}: ${BLANK}`;
     cell.font = { bold: true };
     cell.alignment = { horizontal: "center", vertical: "middle" };
   });
@@ -124,8 +126,6 @@ const average = (values) => {
 };
 
 exports.buildWeeklyRegisterWorkbook = ({
-  schoolName,
-  teacherName,
   subjectName,
   classroomName,
   weekStart,
@@ -150,7 +150,6 @@ exports.buildWeeklyRegisterWorkbook = ({
   }));
 
   const headerRowNumber = writeHeaderBlock(sheet, columns.length, {
-    schoolName,
     title: `سجل رصد درجات ${withLabel("فصل", classroomName)}`,
     subtitle: `المادة: ${subjectName} — أسبوع ${formatDateAr(weekStart)}`,
   });
@@ -185,19 +184,12 @@ exports.buildWeeklyRegisterWorkbook = ({
     row.height = 20;
   });
 
-  writeSignatureBlock(
-    sheet,
-    columns.length,
-    headerRowNumber + students.length,
-    teacherName,
-  );
+  writeSignatureBlock(sheet, columns.length, headerRowNumber + students.length);
 
   return workbook;
 };
 
 exports.buildMonthlyRegisterWorkbook = ({
-  schoolName,
-  teacherName,
   subjectName,
   classroomName,
   month,
@@ -222,7 +214,6 @@ exports.buildMonthlyRegisterWorkbook = ({
   // Two rows of column headings, so the table starts one row lower than the
   // weekly sheet's single header row.
   const headerTop = writeHeaderBlock(sheet, totalCols, {
-    schoolName,
     title: `سجل رصد درجات ${withLabel("فصل", classroomName)}`,
     subtitle: `المادة: ${subjectName} — شهر ${MONTH_NAMES[month]} ${year}`,
   });
@@ -337,12 +328,7 @@ exports.buildMonthlyRegisterWorkbook = ({
     row.height = 20;
   });
 
-  writeSignatureBlock(
-    sheet,
-    totalCols,
-    firstDataRow + students.length - 1,
-    teacherName,
-  );
+  writeSignatureBlock(sheet, totalCols, firstDataRow + students.length - 1);
 
   return workbook;
 };
