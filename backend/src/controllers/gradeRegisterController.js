@@ -1,31 +1,14 @@
 const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
-const Attendance = require("../models/Attendance");
-const Homework = require("../models/Homework");
-const HomeworkResult = require("../models/HomeworkResult");
 const WeeklyEvaluation = require("../models/WeeklyEvaluation");
-const ClassworkNotebook = require("../models/ClassworkNotebook");
 const User = require("../models/User");
 const {
   buildWeeklyRegisterWorkbook,
   buildMonthlyRegisterWorkbook,
 } = require("../utils/gradeRegisterExcel");
-
-const round1 = (n) =>
-  n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
-
-const normalizeDate = (value) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-};
-
-const weekEnd = (weekStart) => {
-  const end = new Date(weekStart);
-  end.setUTCDate(end.getUTCDate() + 6);
-  end.setUTCHours(23, 59, 59, 999);
-  return end;
-};
+// Shared with the weekly-evaluation screen, so what the teacher edits on
+// screen is literally the same number that lands in the printed register.
+const { computeWeekScores, normalizeDate } = require("../utils/weekScores");
 
 const sortByArabicName = (students) =>
   [...students].sort((a, b) =>
@@ -34,126 +17,6 @@ const sortByArabicName = (students) =>
       "ar",
     ),
   );
-
-// The same three "أعمال السنة" ingredients courseworkController rolls up
-// for the whole term, computed for just one [weekStart, weekStart+6 days]
-// window instead — one register column-group per week.
-const computeWeekScores = async (classroomId, subjectId, studentIds, weekStart) => {
-  const rangeEnd = weekEnd(weekStart);
-
-  const [attendanceRecords, homeworks, weeklyEvaluations, classworkEntries] =
-    await Promise.all([
-      Attendance.find({
-        student: { $in: studentIds },
-        subject: subjectId,
-        date: { $gte: weekStart, $lte: rangeEnd },
-      }).select("student status excused"),
-      // A homework belongs to the week it was *set* in, not the week it
-      // happens to fall due. Matching on dueDate silently dropped any
-      // homework a teacher assigned on, say, Thursday for the following
-      // week — it landed in a week the register wasn't printing, so the
-      // column came out empty even though the marks were entered.
-      Homework.find({
-        classroom: classroomId,
-        subject: subjectId,
-        createdAt: { $gte: weekStart, $lte: rangeEnd },
-      }).select("_id totalMarks"),
-      WeeklyEvaluation.find({
-        classroom: classroomId,
-        subject: subjectId,
-        weekStart,
-      }).select("student score"),
-      ClassworkNotebook.find({
-        classroom: classroomId,
-        subject: subjectId,
-        weekStart,
-      }).select("student score"),
-    ]);
-
-  const attendanceByStudent = new Map();
-  attendanceRecords.forEach((record) => {
-    // An excused absence is left out of the calculation entirely, matching
-    // the attendance rate shown to parents — it neither earns nor costs
-    // the student marks here.
-    if (record.status === "absent" && record.excused) return;
-
-    const key = record.student.toString();
-    if (!attendanceByStudent.has(key)) {
-      attendanceByStudent.set(key, { total: 0, attended: 0 });
-    }
-    const bucket = attendanceByStudent.get(key);
-    bucket.total += 1;
-    if (record.status === "present" || record.status === "late") {
-      bucket.attended += 1;
-    }
-  });
-
-  const homeworkIds = homeworks.map((h) => h._id);
-  const weekHomeworkMax = homeworks.reduce((sum, h) => sum + h.totalMarks, 0);
-
-  const homeworkResults = homeworkIds.length
-    ? await HomeworkResult.find({
-        homework: { $in: homeworkIds },
-        student: { $in: studentIds },
-      }).select("student score status")
-    : [];
-
-  const homeworkByStudent = new Map();
-  homeworkResults.forEach((record) => {
-    const key = record.student.toString();
-    const earned = record.status === "missing" ? 0 : record.score || 0;
-    homeworkByStudent.set(key, (homeworkByStudent.get(key) || 0) + earned);
-  });
-
-  const weeklyByStudent = new Map();
-  weeklyEvaluations.forEach((record) => {
-    weeklyByStudent.set(record.student.toString(), record.score);
-  });
-
-  const classworkByStudent = new Map();
-  classworkEntries.forEach((record) => {
-    classworkByStudent.set(record.student.toString(), record.score);
-  });
-
-  const scores = {};
-  studentIds.forEach((id) => {
-    const key = id.toString();
-
-    const attendance = attendanceByStudent.get(key);
-    const attendanceRate =
-      attendance && attendance.total > 0 ? attendance.attended / attendance.total : null;
-    const attendanceScore = attendanceRate === null ? null : round1(attendanceRate * 3 + 2);
-
-    const homeworkEarned = homeworkByStudent.get(key) || 0;
-    const homeworkScore =
-      weekHomeworkMax > 0 ? round1((homeworkEarned / weekHomeworkMax) * 5) : null;
-
-    const weeklyEvalScore = weeklyByStudent.has(key) ? weeklyByStudent.get(key) : null;
-
-    const classworkScore = classworkByStudent.has(key)
-      ? classworkByStudent.get(key)
-      : null;
-
-    const total = [
-      attendanceScore,
-      homeworkScore,
-      weeklyEvalScore,
-      classworkScore,
-    ]
-      .filter((v) => v !== null && !Number.isNaN(v))
-      .reduce((a, b) => a + b, 0);
-
-    scores[key] = {
-      attendanceScore,
-      homeworkScore,
-      weeklyEvalScore,
-      classworkScore,
-      total: round1(total),
-    };
-  });
-
-  return scores;
-};
 
 exports.exportWeeklyRegister = async (req, res) => {
   try {
