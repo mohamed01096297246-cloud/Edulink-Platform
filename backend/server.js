@@ -2,6 +2,7 @@ require("dotenv").config(); // 1. تأكد إنها في أول سطر لتحم�
 const mongoose = require("mongoose");
 const app = require("./app");
 const connectDB = require("./src/config/db");
+const { startAttendanceReminders } = require("./src/jobs/attendanceReminder");
 
 // دالة لبدء السيرفر بشكل منظم
 const startServer = async () => {
@@ -16,6 +17,11 @@ const startServer = async () => {
       console.log(`🚀 Server is flying on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
     });
 
+    // Warns a teacher whose lesson just ended that the register is still
+    // empty. Safe to run in every instance — the send is claimed through a
+    // unique index, so only one instance actually notifies.
+    const stopReminders = startAttendanceReminders();
+
     // 3. معالجة الأخطاء غير المتوقعة (للأمان الشديد)
     process.on("unhandledRejection", (err) => {
       console.log(`❌ Error: ${err.message}`);
@@ -28,6 +34,7 @@ const startServer = async () => {
     // ما نقفل الاتصال بالسيرفر وقاعدة البيانات، بدل ما يتقطع في نصه.
     const shutdown = (signal) => {
       console.log(`\n${signal} received — shutting down gracefully...`);
+      stopReminders();
       server.close(async () => {
         console.log("HTTP server closed (in-flight requests finished).");
         await mongoose.connection.close();

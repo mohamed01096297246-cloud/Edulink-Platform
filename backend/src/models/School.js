@@ -36,6 +36,17 @@ const schoolSchema = new mongoose.Schema(
       default: true,
     },
 
+    // Lesson times on Schedule are wall-clock strings ("10:00") with no zone
+    // of their own, and the server runs in UTC — so anything that compares a
+    // lesson time against "now" (the attendance window, the end-of-lesson
+    // reminder) needs to know which clock the school reads. An IANA name
+    // rather than a fixed offset, so daylight saving is followed on its own.
+    timezone: {
+      type: String,
+      default: "Africa/Cairo",
+      trim: true,
+    },
+
     // Per-school module toggles — lets the platform owner match what a
     // school can use to their subscription tier without a code change.
     // Enforced server-side (see requireFeature in tenant.js), not just
