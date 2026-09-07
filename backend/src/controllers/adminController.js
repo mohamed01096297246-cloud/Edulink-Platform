@@ -86,7 +86,13 @@ exports.createSubAdmin = async (req, res) => {
       active: true,
     });
     if (email) {
-      await sendCredentialsEmail(email, username, password, "Admin");
+      await sendCredentialsEmail(
+        email,
+        username,
+        password,
+        "Admin",
+        `${newAdmin.firstName} ${newAdmin.lastName}`,
+      );
     }
     res.status(201).json({
       message: "new admin added successfully",

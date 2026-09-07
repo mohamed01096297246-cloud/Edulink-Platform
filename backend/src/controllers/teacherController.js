@@ -52,7 +52,14 @@ exports.createTeacher = async (req, res) => {
       active: true,
     });
 
-    if (email) await sendCredentialsEmail(email, username, password, "Teacher");
+    if (email)
+      await sendCredentialsEmail(
+        email,
+        username,
+        password,
+        "Teacher",
+        `${teacher.firstName} ${teacher.lastName}`,
+      );
 
     res.status(201).json({
       message: "Teacher created successfully",

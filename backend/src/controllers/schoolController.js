@@ -181,7 +181,13 @@ exports.createSchoolAdmin = async (req, res) => {
     });
 
     if (email) {
-      await sendCredentialsEmail(email, username, password, "Admin");
+      await sendCredentialsEmail(
+        email,
+        username,
+        password,
+        "Admin",
+        `${admin.firstName} ${admin.lastName}`,
+      );
     }
 
     res.status(201).json({

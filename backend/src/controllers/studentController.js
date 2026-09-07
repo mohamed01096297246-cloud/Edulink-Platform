@@ -166,6 +166,7 @@ exports.createStudent = async (req, res) => {
           generatedUser,
           generatedPass,
           "ولي أمر",
+          `${parentFirstName || lastName} ${parentLastName || "Family"}`,
         );
       } catch (emailErr) {
         throw new Error(
