@@ -2,6 +2,7 @@ const WeeklyEvaluation = require("../models/WeeklyEvaluation");
 const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
 const User = require("../models/User");
+const { requireTeacherSubject } = require("../utils/teacherSubject");
 
 // Normalizes any date string/Date to UTC midnight, so "the week starting
 // 2026-09-07" always matches regardless of what time of day it was saved.
@@ -24,6 +25,12 @@ exports.getClassroomWeeklyEvaluation = async (req, res) => {
     }
 
     const teacher = await User.findById(req.user.id);
+    const subjectId = await requireTeacherSubject(res, {
+      teacher,
+      classroomId,
+      requestedSubjectId: req.query.subjectId,
+    });
+    if (!subjectId) return undefined;
 
     const students = await Student.find({ classroom: classroomId, active: true })
       .select("firstName lastName gender")
@@ -31,7 +38,7 @@ exports.getClassroomWeeklyEvaluation = async (req, res) => {
 
     const evaluations = await WeeklyEvaluation.find({
       classroom: classroomId,
-      subject: teacher.subject,
+      subject: subjectId,
       weekStart,
     });
 
@@ -95,12 +102,18 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
     }
 
     const teacher = await User.findById(req.user.id);
+    const subjectId = await requireTeacherSubject(res, {
+      teacher,
+      classroomId,
+      requestedSubjectId: req.body.subjectId,
+    });
+    if (!subjectId) return undefined;
 
     const bulkOps = gradesList.map((record) => ({
       updateOne: {
         filter: {
           student: record.studentId,
-          subject: teacher.subject,
+          subject: subjectId,
           weekStart,
         },
         update: {

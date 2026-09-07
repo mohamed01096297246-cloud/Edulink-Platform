@@ -3,6 +3,7 @@ const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
 const Subject = require("../models/Subject");
 const User = require("../models/User");
+const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { sameSchool } = require("../utils/tenant");
 const { notifyParentsOfStudents } = require("../utils/notify");
 
@@ -30,6 +31,12 @@ exports.createBoardNote = async (req, res) => {
     }
 
     const teacher = await User.findById(req.user.id);
+    const subjectId = await requireTeacherSubject(res, {
+      teacher,
+      classroomId,
+      requestedSubjectId: req.body.subjectId,
+    });
+    if (!subjectId) return undefined;
 
     const note = await BoardNote.create({
       caption: (caption || "").trim(),
@@ -39,11 +46,11 @@ exports.createBoardNote = async (req, res) => {
       },
       classroom: classroomId,
       teacher: req.user.id,
-      subject: teacher.subject,
+      subject: subjectId,
       school: req.user.school,
     });
 
-    const subjectDoc = await Subject.findById(teacher.subject).select("name");
+    const subjectDoc = await Subject.findById(subjectId).select("name");
     const students = await Student.find({
       classroom: classroomId,
       active: true,
@@ -79,10 +86,16 @@ exports.getClassroomBoardNotes = async (req, res) => {
   try {
     const { classroomId } = req.params;
     const teacher = await User.findById(req.user.id);
+    const subjectId = await requireTeacherSubject(res, {
+      teacher,
+      classroomId,
+      requestedSubjectId: req.query.subjectId,
+    });
+    if (!subjectId) return undefined;
 
     const notes = await BoardNote.find({
       classroom: classroomId,
-      subject: teacher.subject,
+      subject: subjectId,
     }).sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, data: notes });

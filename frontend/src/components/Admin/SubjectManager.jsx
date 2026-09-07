@@ -33,10 +33,14 @@ const SubjectManagement = () => {
 
   const [deleteId, setDeleteId] = useState(null);
 
+  // A subject covers a set of grades now — "علوم" for grades 4 to 6 is one
+  // subject, not three. `allGrades` is stored as the intent "every grade",
+  // so a grade added next year is included without anyone editing this.
   const [formData, setFormData] = useState({
     name: "",
     code: "",
-    grade: "",
+    grades: [],
+    allGrades: false,
   });
   const [editingId, setEditingId] = useState(null);
 
@@ -79,17 +83,33 @@ const SubjectManagement = () => {
   const closeModal = () => {
     setShowModal(false);
     setEditingId(null);
-    setFormData({ name: "", code: "", grade: "" });
+    setFormData({ name: "", code: "", grades: [], allGrades: false });
+  };
+
+  const toggleGrade = (gradeId) => {
+    setFormData((prev) => ({
+      ...prev,
+      grades: prev.grades.includes(gradeId)
+        ? prev.grades.filter((id) => id !== gradeId)
+        : [...prev.grades, gradeId],
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.allGrades && formData.grades.length === 0) {
+      showToast("اختر مرحلة واحدة على الأقل، أو فعّل «كل المراحل»", "error");
+      return;
+    }
+
     setActionLoading(true);
 
     const payload = {
       name: formData.name,
       code: formData.code.trim().toUpperCase(),
-      grade: formData.grade,
+      grades: formData.allGrades ? [] : formData.grades,
+      allGrades: formData.allGrades,
     };
 
     try {
@@ -132,16 +152,20 @@ const SubjectManagement = () => {
     setFormData({
       name: subject.name,
       code: subject.code,
-      grade: subject.grade?._id || subject.grade,
+      grades: (subject.grades || []).map((g) => g?._id || g),
+      allGrades: Boolean(subject.allGrades),
     });
     setShowModal(true);
   };
 
-  // منطق الفلترة: تصفية المصفوفة الأصلية بناءً على الصف المختار
+  // A school-wide subject matches every grade filter, since it is genuinely
+  // taught to all of them.
   const filteredSubjects = subjects.filter((sub) => {
-    if (!selectedGradeFilter) return true; // إذا لم يتم اختيار صف، اعرض كل المواد
-    const subjectGradeId = sub.grade?._id || sub.grade;
-    return subjectGradeId === selectedGradeFilter;
+    if (!selectedGradeFilter) return true;
+    if (sub.allGrades) return true;
+    return (sub.grades || []).some(
+      (g) => (g?._id || g) === selectedGradeFilter,
+    );
   });
 
   return (
@@ -268,12 +292,30 @@ const SubjectManagement = () => {
                         </div>
                       </td>
                       <td className="p-6">
-                        <div className="inline-flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-slate-100 shadow-sm">
-                          <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                          <span className="text-sm font-black text-slate-600">
-                            {sub.grade?.name || "غير محدد"}
+                        {sub.allGrades ? (
+                          <div className="inline-flex items-center gap-3 bg-emerald-50 px-4 py-2 rounded-2xl border border-emerald-200">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                            <span className="text-sm font-black text-emerald-700">
+                              كل المراحل
+                            </span>
+                          </div>
+                        ) : (sub.grades || []).length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {sub.grades.map((g) => (
+                              <span
+                                key={g?._id || g}
+                                className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-100 shadow-sm text-xs font-black text-slate-600"
+                              >
+                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                                {g?.name || "—"}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm font-black text-slate-400">
+                            غير محدد
                           </span>
-                        </div>
+                        )}
                       </td>
                       <td className="p-6">
                         <div className="flex items-center justify-center gap-2">
@@ -363,31 +405,92 @@ const SubjectManagement = () => {
                 </div>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-3 md:col-span-2">
                 <label className="text-xs font-black text-slate-400 mr-2 uppercase">
-                  المرحلة الدراسية
+                  المراحل التي تُدرَّس لها المادة
                 </label>
-                <div className="relative">
-                  <Layers
-                    className="absolute right-4 top-4 text-slate-300"
-                    size={18}
-                  />
-                  <select
-                    required
-                    className="w-full p-4 pr-12 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-slate-700 transition-all appearance-none cursor-pointer"
-                    value={formData.grade}
-                    onChange={(e) =>
-                      setFormData({ ...formData, grade: e.target.value })
-                    }
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData({
+                      ...formData,
+                      allGrades: !formData.allGrades,
+                    })
+                  }
+                  className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-right ${
+                    formData.allGrades
+                      ? "bg-emerald-50 border-emerald-500"
+                      : "bg-slate-50 border-transparent hover:border-slate-200"
+                  }`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                      formData.allGrades
+                        ? "bg-emerald-500"
+                        : "bg-white border-2 border-slate-300"
+                    }`}
                   >
-                    <option value="">اختر المرحلة...</option>
-                    {grades.map((g) => (
-                      <option key={g._id} value={g._id}>
-                        {g.name} - {g.academicYear}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    {formData.allGrades && (
+                      <CheckCircle2 size={14} className="text-white" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-black text-slate-700 text-sm">
+                      كل المراحل
+                    </div>
+                    <div className="text-xs font-bold text-slate-400 mt-0.5">
+                      المادة دي بتتدرّس لكل مراحل المدرسة، وأي مرحلة جديدة
+                      هتتضاف لها تلقائيًا
+                    </div>
+                  </div>
+                </button>
+
+                {!formData.allGrades && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto p-1">
+                    {grades.map((g) => {
+                      const selected = formData.grades.includes(g._id);
+                      return (
+                        <button
+                          type="button"
+                          key={g._id}
+                          onClick={() => toggleGrade(g._id)}
+                          className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-right ${
+                            selected
+                              ? "bg-indigo-50 border-indigo-500"
+                              : "bg-slate-50 border-transparent hover:border-slate-200"
+                          }`}
+                        >
+                          <div
+                            className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                              selected
+                                ? "bg-indigo-600"
+                                : "bg-white border-2 border-slate-300"
+                            }`}
+                          >
+                            {selected && (
+                              <CheckCircle2 size={14} className="text-white" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-black text-slate-700 text-sm truncate">
+                              {g.name}
+                            </div>
+                            <div className="text-[11px] font-bold text-slate-400">
+                              {g.academicYear}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {!formData.allGrades && grades.length === 0 && (
+                  <p className="text-xs font-bold text-slate-400 p-3">
+                    لا توجد مراحل مسجّلة بعد — أضف المراحل أولًا.
+                  </p>
+                )}
               </div>
 
               <button

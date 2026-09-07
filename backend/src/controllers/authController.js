@@ -64,7 +64,7 @@ exports.login = async (req, res) => {
         role: user.role,
         firstName: user.firstName,
         lastName: user.lastName,
-        subject: user.subject || null,
+        subjects: user.subjects || [],
         school: user.school || null,
         isSuperAdmin: user.isSuperAdmin || false,
         isPrimaryAdmin: user.isPrimaryAdmin || false,

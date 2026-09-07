@@ -12,11 +12,25 @@ const subjectSchema = new mongoose.Schema({
     trim: true,
     uppercase: true
   },
-  grade: {
+  // A subject is taught to a set of grades, not to one. "علوم" for grades 4
+  // through 6 is a single subject, so a teacher, a mark and a timetable slot
+  // all point at the same row no matter which grade the class is in — before
+  // this, the same subject had to be duplicated per grade and its records
+  // could never be read together.
+  grades: [
+    {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Grade",
-      required:[true, "المستوي الدراسي مطلوب"],
     },
+  ],
+
+  // "عربي للكل". Stored as an intent rather than as a snapshot of every
+  // grade that exists today, so a grade added next year is covered without
+  // anyone remembering to come back and tick it.
+  allGrades: {
+    type: Boolean,
+    default: false,
+  },
   school: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "School",
@@ -28,6 +42,25 @@ const subjectSchema = new mongoose.Schema({
 // could never both use, say, "MATH101" — now scoped per school like every
 // other uniqueness rule here.
 subjectSchema.index({ code: 1, school: 1 }, { unique: true });
-subjectSchema.index({ name: 1, grade: 1, school: 1 }, { unique: true });
+
+// One row per subject name per school. This replaces the old
+// { name, grade, school } index, which was what forced a school to invent
+// "علوم 1", "علوم 2", "علوم 3" — one subject per grade, each with its own
+// code, none of them able to see the others' records.
+subjectSchema.index({ name: 1, school: 1 }, { unique: true });
+
+// True when this subject is taught to the given grade. `allGrades` wins on
+// its own, so a school-wide subject needs no grade list to maintain.
+subjectSchema.methods.coversGrade = function (gradeId) {
+  if (this.allGrades) return true;
+  if (!gradeId) return false;
+  return this.grades.some((g) => String(g._id || g) === String(gradeId));
+};
+
+// The Mongo filter for "subjects taught to this grade", used wherever a list
+// is narrowed to one grade.
+subjectSchema.statics.coveringGrade = (gradeId) => ({
+  $or: [{ allGrades: true }, { grades: gradeId }],
+});
 
 module.exports = mongoose.model("Subject", subjectSchema);

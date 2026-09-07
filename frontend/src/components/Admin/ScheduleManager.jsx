@@ -40,6 +40,7 @@ const SchedulesPage = () => {
   const [deleteId, setDeleteId] = useState(null);
   const [formData, setFormData] = useState({
     teacher: "",
+    subjectId: "",
     classroom: "",
     day: "sun",
     startTime: "",
@@ -60,6 +61,11 @@ const SchedulesPage = () => {
   // وده صح لأنه مفيش حصص أصلًا في يوم إجازة).
   const jsDayToKey = ["sun", "mon", "tue", "wed", "thu", null, null];
   const todayKey = jsDayToKey[new Date().getDay()];
+
+  // Only the chosen teacher's own subjects are offered — the backend rejects
+  // anything else, so the form must not present it as a choice either.
+  const selectedTeacherSubjects =
+    teachers.find((t) => t._id === formData.teacher)?.subjects || [];
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -130,6 +136,7 @@ const SchedulesPage = () => {
     setErrorMessage("");
     setFormData({
       teacher: "",
+      subjectId: "",
       classroom: "",
       day: "sun",
       startTime: "",
@@ -317,6 +324,7 @@ const SchedulesPage = () => {
                         setEditingId(s._id);
                         setFormData({
                           teacher: s.teacher?._id || "",
+                          subjectId: s.subject?._id || "",
                           classroom: s.classroom?._id || "",
                           day: s.day,
                           startTime: s.startTime,
@@ -375,9 +383,19 @@ const SchedulesPage = () => {
                   required
                   className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 bg-white outline-none font-bold text-slate-700 transition-all"
                   value={formData.teacher}
-                  onChange={(e) =>
-                    setFormData({ ...formData, teacher: e.target.value })
-                  }
+                  onChange={(e) => {
+                    // Changing teacher invalidates the chosen subject; if the
+                    // new teacher has exactly one, pick it for them.
+                    const nextTeacher = e.target.value;
+                    const theirs =
+                      teachers.find((t) => t._id === nextTeacher)?.subjects ||
+                      [];
+                    setFormData({
+                      ...formData,
+                      teacher: nextTeacher,
+                      subjectId: theirs.length === 1 ? theirs[0]._id : "",
+                    });
+                  }}
                 >
                   <option value="">اختر معلمًا...</option>
                   {teachers.map((t) => (
@@ -387,6 +405,37 @@ const SchedulesPage = () => {
                   ))}
                 </select>
               </div>
+
+              {/* A teacher may hold several subjects, and the timetable is
+                  where the school says which one this slot is for — every
+                  teacher screen later reads it from here. */}
+              {selectedTeacherSubjects.length > 0 && (
+                <div className="md:col-span-2 lg:col-span-3 space-y-1">
+                  <label className="text-xs font-black text-slate-400 mr-2 uppercase">
+                    المادة
+                  </label>
+                  <select
+                    required
+                    className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 bg-white outline-none font-bold text-slate-700 transition-all"
+                    value={formData.subjectId}
+                    onChange={(e) =>
+                      setFormData({ ...formData, subjectId: e.target.value })
+                    }
+                  >
+                    <option value="">اختر المادة...</option>
+                    {selectedTeacherSubjects.map((sub) => (
+                      <option key={sub._id} value={sub._id}>
+                        {sub.name}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedTeacherSubjects.length === 1 && (
+                    <p className="text-[11px] font-bold text-slate-400 mr-2 pt-1">
+                      المعلم ده بيدرّس مادة واحدة بس.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="text-xs font-black text-slate-400 mr-2 uppercase">

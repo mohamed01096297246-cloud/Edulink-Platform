@@ -1,11 +1,12 @@
 const Schedule = require("../models/Schedule");
 const User = require("../models/User");
 const Classroom = require("../models/Classroom");
+const Subject = require("../models/Subject");
 const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
 
 exports.createSchedule = async (req, res) => {
   try {
-    const { teacher, classroom, day, startTime, endTime } = req.body;
+    const { teacher, classroom, day, startTime, endTime, subjectId } = req.body;
     const school = creationSchool(req);
 
     if (!school) {
@@ -34,6 +35,41 @@ exports.createSchedule = async (req, res) => {
           "teacher is not authorized to teach this grade, please check the teacher's teaching grades and the classroom's grade.",
       });
     }
+    // The timetable is where a school states which subject a teacher takes
+    // for a given class, and it is what every teacher screen later reads to
+    // know what it is looking at — so the slot has to name one.
+    const teacherSubjects = (teacherData.subjects || []).map(String);
+
+    if (teacherSubjects.length === 0) {
+      return res.status(400).json({
+        message: "لم يتم إسناد أي مادة لهذا المعلم. عدّل بيانات المعلم أولًا.",
+      });
+    }
+
+    let subject = subjectId;
+
+    if (subject) {
+      if (!teacherSubjects.includes(String(subject))) {
+        return res
+          .status(400)
+          .json({ message: "المادة المختارة ليست من مواد هذا المعلم." });
+      }
+    } else if (teacherSubjects.length === 1) {
+      subject = teacherSubjects[0];
+    } else {
+      return res.status(400).json({
+        message: "هذا المعلم يُدرّس أكثر من مادة — حدّد مادة الحصة.",
+        needsSubject: true,
+      });
+    }
+
+    const subjectDoc = await Subject.findById(subject);
+    if (!subjectDoc || !subjectDoc.coversGrade(classroomData.grade)) {
+      return res.status(400).json({
+        message: "هذه المادة لا تُدرَّس للمرحلة الخاصة بهذا الفصل.",
+      });
+    }
+
     const [newStartH, newStartM] = startTime.split(":").map(Number);
     const [newEndH, newEndM] = endTime.split(":").map(Number);
     const newStartMinutes = newStartH * 60 + newStartM;
@@ -68,7 +104,7 @@ exports.createSchedule = async (req, res) => {
 
     const schedule = await Schedule.create({
       teacher,
-      subject: teacherData.subject,
+      subject,
       classroom,
       day,
       startTime,
@@ -131,9 +167,29 @@ exports.updateSchedule = async (req, res) => {
       }
     }
 
+    // The form posts `subjectId`; the document's field is `subject`. Checked
+    // against the teacher who will own the slot after this edit, so moving a
+    // slot to another teacher cannot leave it stamped with a subject that
+    // teacher does not hold.
+    const nextSubject = req.body.subjectId || subject;
+
+    if (nextSubject) {
+      const ownerId = teacher || existingSchedule.teacher;
+      const owner = await User.findById(ownerId).select("subjects");
+      const holds = (owner?.subjects || []).some(
+        (id) => String(id) === String(nextSubject),
+      );
+
+      if (!holds) {
+        return res
+          .status(400)
+          .json({ message: "المادة المختارة ليست من مواد هذا المعلم." });
+      }
+    }
+
     const updatedSchedule = await Schedule.findByIdAndUpdate(
       scheduleId,
-      req.body,
+      { ...req.body, ...(nextSubject ? { subject: nextSubject } : {}) },
       { new: true, runValidators: true },
     )
       .populate("teacher", "firstName lastName")

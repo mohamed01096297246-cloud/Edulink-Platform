@@ -8,6 +8,7 @@ const WeeklyEvaluation = require("../models/WeeklyEvaluation");
 const ClassworkNotebook = require("../models/ClassworkNotebook");
 const CourseworkOverride = require("../models/CourseworkOverride");
 const User = require("../models/User");
+const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { getCurrentTermWindow } = require("../utils/termWindow");
 const {
   computeWeekScores,
@@ -36,7 +37,12 @@ exports.getClassroomCoursework = async (req, res) => {
     }
 
     const teacher = await User.findById(req.user.id);
-    const subjectId = teacher.subject;
+    const subjectId = await requireTeacherSubject(res, {
+      teacher,
+      classroomId,
+      requestedSubjectId: req.query.subjectId,
+    });
+    if (!subjectId) return undefined;
 
     const { dateStart, dateEnd, monthYearPairs } = getCurrentTermWindow(
       classroom.academicYear,
@@ -246,6 +252,12 @@ exports.getClassroomWeekCoursework = async (req, res) => {
     }
 
     const teacher = await User.findById(req.user.id);
+    const subjectId = await requireTeacherSubject(res, {
+      teacher,
+      classroomId,
+      requestedSubjectId: req.query.subjectId,
+    });
+    if (!subjectId) return undefined;
 
     const students = await Student.find({ classroom: classroomId, active: true })
       .select("firstName lastName")
@@ -253,7 +265,7 @@ exports.getClassroomWeekCoursework = async (req, res) => {
 
     const scores = await computeWeekScores(
       classroomId,
-      teacher.subject,
+      subjectId,
       students.map((s) => s._id),
       weekStart,
     );
@@ -345,12 +357,18 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
     }
 
     const teacher = await User.findById(req.user.id);
+    const subjectId = await requireTeacherSubject(res, {
+      teacher,
+      classroomId,
+      requestedSubjectId: req.body.subjectId,
+    });
+    if (!subjectId) return undefined;
 
     const overrideOps = [];
     const classworkOps = [];
 
     list.forEach((entry) => {
-      const key = { student: entry.studentId, subject: teacher.subject, weekStart };
+      const key = { student: entry.studentId, subject: subjectId, weekStart };
 
       const set = {};
       const unset = {};

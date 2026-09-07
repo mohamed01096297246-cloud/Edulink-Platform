@@ -11,6 +11,12 @@ const { protect, authorize } = require("../middleware/authMiddleware");
 router.post("/", protect, authorize("admin"), teacherController.createTeacher);
 router.get("/", protect, authorize("admin"), teacherController.getAllTeachers);
 router.get("/dashboard", protect, authorize("teacher"), getTeacherDashboard);
+router.get(
+  "/my-subjects",
+  protect,
+  authorize("teacher"),
+  teacherController.getMySubjects,
+);
 router.put("/:id", protect, authorize("admin"), updateTeacher);
 router.delete("/:id", protect, authorize("admin", "sub-admin"), deleteTeacher);
 

@@ -1,6 +1,7 @@
 const Homework = require("../models/Homework");
 const Classroom = require("../models/Classroom");
 const User = require("../models/User");
+const { requireTeacherSubject } = require("../utils/teacherSubject");
 const Student = require("../models/Student");
 const Schedule = require("../models/Schedule");
 const Subject = require("../models/Subject");
@@ -40,6 +41,15 @@ exports.createHomework = async (req, res) => {
   try {
     const { title, pageNumber, totalMarks, grade, classroomId } = req.body;
     const teacher = await User.findById(req.user.id);
+
+    const subjectId = await requireTeacherSubject(res, {
+      teacher,
+      classroomId,
+      gradeId: grade,
+      requestedSubjectId: req.body.subjectId,
+    });
+    if (!subjectId) return undefined;
+
     const isAuthorized = teacher.teachingGrades.some(
       (gId) => gId.toString() === grade.toString(),
     );
@@ -88,7 +98,7 @@ exports.createHomework = async (req, res) => {
     // whichever schedule row happened to be read last.
     const schedules = await Schedule.find({
       teacher: req.user.id,
-      subject: teacher.subject,
+      subject: subjectId,
       classroom: { $in: classrooms.map((c) => c._id) },
     });
     const daysByClassroom = new Map();
@@ -118,7 +128,7 @@ exports.createHomework = async (req, res) => {
         dueDate,
         classroom: cls._id,
         teacher: req.user.id,
-        subject: teacher.subject,
+        subject: subjectId,
         school: req.user.school,
         _dayCode: nearestDayCode,
       };
@@ -128,7 +138,7 @@ exports.createHomework = async (req, res) => {
       homeworkEntries.map(({ _dayCode, ...entry }) => entry),
     );
 
-    const subjectDoc = await Subject.findById(teacher.subject).select("name");
+    const subjectDoc = await Subject.findById(subjectId).select("name");
 
     // Best-effort notice to parents — never blocks the homework save if it
     // fails partway through.

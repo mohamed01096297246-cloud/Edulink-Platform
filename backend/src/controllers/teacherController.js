@@ -9,6 +9,16 @@ const {
 } = require("../utils/generateCredentials");
 const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
 const { friendlyDuplicateKeyMessage } = require("../utils/formatDbError");
+const { resolveTeacherSubject } = require("../utils/teacherSubject");
+
+// A teacher may hold several subjects now. `subjectId` is still read so an
+// admin build that hasn't been redeployed yet keeps working.
+const readSubjectIds = (body) => {
+  if (Array.isArray(body.subjectIds)) return body.subjectIds.filter(Boolean);
+  if (Array.isArray(body.subjects)) return body.subjects.filter(Boolean);
+  if (body.subjectId) return [body.subjectId];
+  return [];
+};
 
 exports.createTeacher = async (req, res) => {
   try {
@@ -18,7 +28,6 @@ exports.createTeacher = async (req, res) => {
       phoneNumber,
       nationalId,
       email,
-      subjectId,
       teachingGrades,
     } = req.body;
 
@@ -29,12 +38,24 @@ exports.createTeacher = async (req, res) => {
       });
     }
 
-    const existingSubject = await Subject.findById(subjectId);
-    if (!existingSubject || existingSubject.school.toString() !== school.toString()) {
+    const subjectIds = readSubjectIds(req.body);
+
+    if (subjectIds.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "اختر مادة واحدة على الأقل لهذا المعلم." });
+    }
+
+    const found = await Subject.countDocuments({
+      _id: { $in: subjectIds },
+      school,
+    });
+    if (found !== subjectIds.length) {
       return res
         .status(400)
         .json({ message: "sorry, the selected subject does not exist" });
     }
+
     const username = generateUsername(phoneNumber);
     const password = generatePassword();
     const teacher = await User.create({
@@ -44,7 +65,7 @@ exports.createTeacher = async (req, res) => {
       nationalId,
       email,
       role: "teacher",
-      subject: subjectId,
+      subjects: subjectIds,
       teachingGrades,
       school,
       username,
@@ -88,10 +109,10 @@ exports.getAllTeachers = async (req, res) => {
     }
 
     const teachers = await User.find(filter)
-      .populate("subject", "name code")
+      .populate("subjects", "name code")
       .populate("teachingGrades", "name academicYear")
       .select(
-        "firstName lastName phoneNumber email nationalId teachingGrades subject",
+        "firstName lastName phoneNumber email nationalId teachingGrades subjects",
       );
 
     res.status(200).json({
@@ -106,6 +127,49 @@ exports.getAllTeachers = async (req, res) => {
     });
   }
 };
+// The subjects this teacher holds, optionally narrowed to one classroom.
+// The app calls this to decide whether to show a subject picker at all: one
+// subject back means there is nothing to choose, so no picker appears.
+exports.getMySubjects = async (req, res) => {
+  try {
+    const teacher = await User.findById(req.user.id).populate(
+      "subjects",
+      "name code",
+    );
+
+    const all = teacher.subjects || [];
+    let current = all;
+
+    // Narrowed the same way the write endpoints narrow, so the picker never
+    // offers a subject that a save would then reject.
+    if ((req.query.classroomId || req.query.gradeId) && all.length > 1) {
+      const outcome = await resolveTeacherSubject({
+        teacher,
+        classroomId: req.query.classroomId,
+        gradeId: req.query.gradeId,
+      });
+
+      if (outcome.subjectId) {
+        current = all.filter((s) => String(s._id) === outcome.subjectId);
+      } else if (outcome.ambiguous) {
+        const ids = outcome.options.map((o) => String(o._id));
+        current = all.filter((s) => ids.includes(String(s._id)));
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        subjects: current,
+        all,
+        needsChoice: current.length > 1,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 exports.getTeacherDashboard = async (req, res) => {
   try {
     if (req.user.role !== "teacher") {
@@ -172,7 +236,6 @@ exports.updateTeacher = async (req, res) => {
       phoneNumber,
       nationalId,
       email,
-      subjectId,
       teachingGrades,
     } = req.body;
 
@@ -185,17 +248,21 @@ exports.updateTeacher = async (req, res) => {
 
     const updateData = { firstName, lastName, phoneNumber, nationalId, email };
 
-    if (subjectId) {
-      const existingSubject = await Subject.findById(subjectId);
-      if (
-        !existingSubject ||
-        existingSubject.school.toString() !== teacher.school.toString()
-      ) {
+    const subjectIds = readSubjectIds(req.body);
+
+    // Only rewritten when the request names subjects — an edit that just
+    // changes a phone number must not strip the teacher of their subjects.
+    if (subjectIds.length > 0) {
+      const found = await Subject.countDocuments({
+        _id: { $in: subjectIds },
+        school: teacher.school,
+      });
+      if (found !== subjectIds.length) {
         return res
           .status(400)
           .json({ message: "sorry, the selected subject does not exist" });
       }
-      updateData.subject = subjectId;
+      updateData.subjects = subjectIds;
     }
 
     if (teachingGrades) {
@@ -206,7 +273,7 @@ exports.updateTeacher = async (req, res) => {
       new: true,
       runValidators: true,
     })
-      .populate("subject", "name code")
+      .populate("subjects", "name code")
       .populate("teachingGrades", "name academicYear")
       .select("-password");
 

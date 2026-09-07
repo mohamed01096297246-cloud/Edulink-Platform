@@ -57,15 +57,24 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
-    subject: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Subject",
-      default: null 
-    },
-teachingGrades: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Grade"
-  }],
+    // Every subject this teacher is qualified to teach. Which one a given
+    // action belongs to is decided per lesson (see resolveTeacherSubject),
+    // never by reading a single field off the teacher — a teacher who takes
+    // both علوم and رياضيات for the same class has two answers here, and the
+    // timetable is what tells them apart.
+    subjects: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Subject",
+      },
+    ],
+
+    teachingGrades: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Grade",
+      },
+    ],
     username: {
       type: String,
       unique: true,

@@ -4,6 +4,7 @@ const Schedule = require("../models/Schedule");
 const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
 const User = require("../models/User");
+const { requireTeacherSubject } = require("../utils/teacherSubject");
 
 // The school year's real teaching months, in chronological order — Term 1
 // runs September through January, Term 2 runs February through May. A
@@ -83,6 +84,13 @@ exports.getClassroomMonthlyGrades = async (req, res) => {
     }
 
     const teacher = await User.findById(req.user.id);
+    const subjectId = await requireTeacherSubject(res, {
+      teacher,
+      classroomId,
+      requestedSubjectId: req.query.subjectId,
+    });
+    if (!subjectId) return undefined;
+
     const year = yearForMonth(Number(month), classroom.academicYear);
 
     const students = await Student.find({ classroom: classroomId })
@@ -91,7 +99,7 @@ exports.getClassroomMonthlyGrades = async (req, res) => {
 
     const grades = await MonthlyGrade.find({
       classroom: classroomId,
-      subject: teacher.subject,
+      subject: subjectId,
       month: Number(month),
       year,
     });
@@ -152,13 +160,20 @@ exports.saveBulkMonthlyGrades = async (req, res) => {
     }
 
     const teacher = await User.findById(req.user.id);
+    const subjectId = await requireTeacherSubject(res, {
+      teacher,
+      classroomId,
+      requestedSubjectId: req.body.subjectId,
+    });
+    if (!subjectId) return undefined;
+
     const year = yearForMonth(Number(month), classroom.academicYear);
 
     const bulkOps = gradesList.map((record) => ({
       updateOne: {
         filter: {
           student: record.studentId,
-          subject: teacher.subject,
+          subject: subjectId,
           month: Number(month),
           year,
         },

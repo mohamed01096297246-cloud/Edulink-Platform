@@ -294,7 +294,7 @@ exports.getAllUsers = async (req, res) => {
     }
 
     const users = await User.find(filter)
-      .populate("subject", "name")
+      .populate("subjects", "name")
       .populate("teachingGrades", "name academicYear")
       .select("-password")
       .sort({ createdAt: -1 });
@@ -320,7 +320,7 @@ exports.getUserById = async (req, res) => {
     }
 
     const user = await User.findById(id)
-      .populate("subject", "name")
+      .populate("subjects", "name")
       .populate("teachingGrades", "name academicYear")
       .select("-password");
 

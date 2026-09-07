@@ -7,6 +7,7 @@ import {
   X,
   Search,
   Layers,
+  BookOpen,
   Trash2,
   Edit3,
   ChevronLeft,
@@ -44,7 +45,7 @@ const TeacherManagement = () => {
     email: "",
     phoneNumber: "",
     nationalId: "",
-    subjectId: "",
+    subjectIds: [],
     teachingGrades: [],
   });
 
@@ -92,7 +93,7 @@ const TeacherManagement = () => {
       email: "",
       phoneNumber: "",
       nationalId: "",
-      subjectId: "",
+      subjectIds: [],
       teachingGrades: [],
     });
   };
@@ -101,11 +102,10 @@ const TeacherManagement = () => {
     setEditMode(true);
     setSelectedTeacherId(teacher._id);
 
-    // استخراج الـ ID الخاص بالمادة بشكل آمن لأنها تأتي كـ Object من الـ populate
-    const extractedSubjectId =
-      teacher.subject && typeof teacher.subject === "object"
-        ? teacher.subject._id
-        : teacher.subject || "";
+    // المواد بترجع populated من السيرفر، فبناخد الـ IDs بس
+    const extractedSubjectIds = (teacher.subjects || []).map((s) =>
+      s && typeof s === "object" ? s._id : s,
+    );
 
     setFormData({
       firstName: teacher.firstName || "",
@@ -114,7 +114,7 @@ const TeacherManagement = () => {
       email: teacher.email || "",
       phoneNumber: teacher.phoneNumber || "",
       nationalId: teacher.nationalId || "",
-      subjectId: extractedSubjectId,
+      subjectIds: extractedSubjectIds,
       teachingGrades:
         teacher.teachingGrades?.map((g) =>
           g && typeof g === "object" ? g._id : g,
@@ -148,6 +148,15 @@ const TeacherManagement = () => {
     }
   };
 
+  const handleSubjectToggle = (subjectId) => {
+    setFormData((prev) => ({
+      ...prev,
+      subjectIds: prev.subjectIds.includes(subjectId)
+        ? prev.subjectIds.filter((id) => id !== subjectId)
+        : [...prev.subjectIds, subjectId],
+    }));
+  };
+
   const handleGradeToggle = (gradeId) => {
     setFormData((prev) => ({
       ...prev,
@@ -159,6 +168,12 @@ const TeacherManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (formData.subjectIds.length === 0) {
+      showToastMessage("اختر مادة واحدة على الأقل للمعلم", "error");
+      return;
+    }
+
     setActionLoading(true);
     try {
       if (editMode) {
@@ -321,7 +336,10 @@ const TeacherManagement = () => {
                       </td>
                       <td className="p-6">
                         <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg text-[10px] font-black border border-emerald-100">
-                          {teacher.subject?.name || "غير محدد"}
+                          {(teacher.subjects || [])
+                            .map((s) => s?.name)
+                            .filter(Boolean)
+                            .join("، ") || "غير محدد"}
                         </span>
                       </td>
                       <td className="p-6">
@@ -510,24 +528,32 @@ const TeacherManagement = () => {
                     }
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="label-style">المادة</label>
-                  <select
-                    required
-                    value={formData.subjectId}
-                    className="modal-input bg-white"
-                    onChange={(e) =>
-                      setFormData({ ...formData, subjectId: e.target.value })
-                    }
-                  >
-                    <option value="">اختر المادة</option>
-                    {subjects.map((s) => (
-                      <option key={s._id} value={s._id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
+              </div>
+
+              <div className="space-y-4">
+                <label className="label-style flex items-center gap-2 border-b border-slate-100 pb-2">
+                  <BookOpen size={14} /> المواد التي يُدرّسها
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {subjects.map((subject) => (
+                    <div
+                      key={subject._id}
+                      onClick={() => handleSubjectToggle(subject._id)}
+                      className={`p-3 rounded-xl border-2 cursor-pointer transition-all text-center text-[10px] font-black ${
+                        formData.subjectIds.includes(subject._id)
+                          ? "border-indigo-600 bg-indigo-50 text-indigo-700"
+                          : "border-slate-100 bg-slate-50 text-slate-400"
+                      }`}
+                    >
+                      {subject.name}
+                    </div>
+                  ))}
                 </div>
+                {subjects.length === 0 && (
+                  <p className="text-xs font-bold text-slate-400">
+                    لا توجد مواد مسجّلة بعد — أضف المواد أولًا.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-4">

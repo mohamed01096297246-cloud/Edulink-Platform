@@ -2,6 +2,8 @@ const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
 const WeeklyEvaluation = require("../models/WeeklyEvaluation");
 const User = require("../models/User");
+const Subject = require("../models/Subject");
+const { requireTeacherSubject } = require("../utils/teacherSubject");
 const {
   buildWeeklyRegisterWorkbook,
   buildMonthlyRegisterWorkbook,
@@ -35,7 +37,17 @@ exports.exportWeeklyRegister = async (req, res) => {
       return res.status(404).json({ success: false, message: "الفصل غير موجود." });
     }
 
-    const teacher = await User.findById(req.user.id).populate("subject", "name");
+    const teacher = await User.findById(req.user.id);
+    const subjectId = await requireTeacherSubject(res, {
+      teacher,
+      classroomId,
+      requestedSubjectId: req.query.subjectId,
+    });
+    if (!subjectId) return undefined;
+
+    // The register prints the subject on its header, so the name is fetched
+    // for the sheet the resolver just settled on rather than off the teacher.
+    const subjectDoc = await Subject.findById(subjectId).select("name");
 
     const students = sortByArabicName(
       await Student.find({ classroom: classroomId, active: true }).select(
@@ -53,13 +65,13 @@ exports.exportWeeklyRegister = async (req, res) => {
     const studentIds = students.map((s) => s._id);
     const scores = await computeWeekScores(
       classroomId,
-      teacher.subject._id,
+      subjectId,
       studentIds,
       weekStart,
     );
 
     const workbook = buildWeeklyRegisterWorkbook({
-      subjectName: teacher.subject?.name || "",
+      subjectName: subjectDoc?.name || "",
       classroomName: classroom.name,
       weekStart,
       students,
@@ -99,7 +111,17 @@ exports.exportMonthlyRegister = async (req, res) => {
       return res.status(404).json({ success: false, message: "الفصل غير موجود." });
     }
 
-    const teacher = await User.findById(req.user.id).populate("subject", "name");
+    const teacher = await User.findById(req.user.id);
+    const subjectId = await requireTeacherSubject(res, {
+      teacher,
+      classroomId,
+      requestedSubjectId: req.query.subjectId,
+    });
+    if (!subjectId) return undefined;
+
+    // The register prints the subject on its header, so the name is fetched
+    // for the sheet the resolver just settled on rather than off the teacher.
+    const subjectDoc = await Subject.findById(subjectId).select("name");
 
     const monthStart = new Date(Date.UTC(Number(year), Number(month) - 1, 1));
     const monthEnd = new Date(
@@ -113,7 +135,7 @@ exports.exportMonthlyRegister = async (req, res) => {
     const weekStarts = (
       await WeeklyEvaluation.find({
         classroom: classroomId,
-        subject: teacher.subject._id,
+        subject: subjectId,
         weekStart: { $gte: monthStart, $lte: monthEnd },
       }).distinct("weekStart")
     ).sort((a, b) => new Date(a) - new Date(b));
@@ -146,7 +168,7 @@ exports.exportMonthlyRegister = async (req, res) => {
       // handful of weeks per month at most.
       const scores = await computeWeekScores(
         classroomId,
-        teacher.subject._id,
+        subjectId,
         studentIds,
         weekStart,
       );
@@ -154,7 +176,7 @@ exports.exportMonthlyRegister = async (req, res) => {
     }
 
     const workbook = buildMonthlyRegisterWorkbook({
-      subjectName: teacher.subject?.name || "",
+      subjectName: subjectDoc?.name || "",
       classroomName: classroom.name,
       month: Number(month),
       year: Number(year),
