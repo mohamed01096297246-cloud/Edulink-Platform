@@ -127,6 +127,10 @@ exports.getAdminDashboard = async (req, res) => {
     const attendanceToday = await Attendance.find({
       ...filter,
       date: { $gte: todayUTC },
+      // A student supervised in a cover lesson is already counted through
+      // their own timetabled lessons; including both would inflate the day's
+      // present/absent totals.
+      ...Attendance.GRADED_ONLY,
     });
     const studentsPresent = attendanceToday.filter(
       (a) => a.status === "present",

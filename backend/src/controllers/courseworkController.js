@@ -56,6 +56,9 @@ exports.getClassroomCoursework = async (req, res) => {
       student: { $in: studentIds },
       subject: subjectId,
       date: { $gte: dateStart, $lte: dateEnd },
+      // Cover lessons never carry a subject, so they are already out — kept
+      // explicit because this figure becomes a mark.
+      ...Attendance.GRADED_ONLY,
     }).select("student status");
 
     const attendanceByStudent = new Map();

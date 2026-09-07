@@ -10,9 +10,20 @@ const mongoose = require("mongoose");
 // something the database enforces rather than something the schedule hopes for.
 const attendanceReminderSchema = new mongoose.Schema(
   {
-    schedule: {
+    // The lesson the reminder is about — a Schedule for a timetabled lesson,
+    // a CoverSession for a cover one. Held as one field with `kind` naming
+    // the collection rather than two nullable ones: two fields would make the
+    // uniqueness index below collapse every cover reminder in a school onto
+    // the same { null, date } key, and only the first would ever be sent.
+    session: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Schedule",
+      required: true,
+      refPath: "kind",
+    },
+
+    kind: {
+      type: String,
+      enum: ["Schedule", "CoverSession"],
       required: true,
     },
 
@@ -38,6 +49,6 @@ const attendanceReminderSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-attendanceReminderSchema.index({ schedule: 1, date: 1 }, { unique: true });
+attendanceReminderSchema.index({ session: 1, date: 1 }, { unique: true });
 
 module.exports = mongoose.model("AttendanceReminder", attendanceReminderSchema);

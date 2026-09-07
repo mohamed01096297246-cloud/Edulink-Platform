@@ -23,7 +23,14 @@ exports.getParentDashboard = async (req, res) => {
 
     const childrenData = await Promise.all(
       students.map(async (student) => {
-        const attendance = await Attendance.find({ student: student._id });
+        // Cover-lesson records are excluded here for the same reason they are
+        // excluded from the report: they say nothing about the child's work
+        // in any subject, so they must not shift the present/absent counts a
+        // parent reads on the home screen.
+        const attendance = await Attendance.find({
+          student: student._id,
+          ...Attendance.GRADED_ONLY,
+        });
         const present = attendance.filter((a) => a.status === "present").length;
         const absent = attendance.filter((a) => a.status === "absent").length;
 

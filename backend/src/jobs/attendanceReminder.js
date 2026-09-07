@@ -1,6 +1,7 @@
 const Attendance = require("../models/Attendance");
 const AttendanceReminder = require("../models/AttendanceReminder");
 const Schedule = require("../models/Schedule");
+const CoverSession = require("../models/CoverSession");
 const School = require("../models/School");
 // Required for their side effect: the sweep populates teacher/subject/
 // classroom, and Mongoose throws if those models were never registered. The
@@ -51,13 +52,27 @@ const remindForSchool = async (school, now) => {
 
   if (!today) return 0;
 
-  const schedules = await Schedule.find({ school: school._id, day: today })
-    .populate("teacher", "pushToken")
-    .populate("subject", "name")
-    .populate("classroom", "name");
+  const date = utcMidnight(dateStr);
 
-  const justEnded = schedules.filter((schedule) => {
-    const endsAt = zonedTimeToInstant(dateStr, schedule.endTime, timeZone);
+  // A cover lesson closes on the same rule as a timetabled one, so it is
+  // chased the same way. Both are reduced to the shape this sweep needs.
+  const [schedules, coverSessions] = await Promise.all([
+    Schedule.find({ school: school._id, day: today })
+      .populate("teacher", "pushToken")
+      .populate("subject", "name")
+      .populate("classroom", "name"),
+    CoverSession.find({ school: school._id, date })
+      .populate("teacher", "pushToken")
+      .populate("classroom", "name"),
+  ]);
+
+  const candidates = [
+    ...schedules.map((s) => ({ session: s, isCover: false })),
+    ...coverSessions.map((s) => ({ session: s, isCover: true })),
+  ];
+
+  const justEnded = candidates.filter(({ session }) => {
+    const endsAt = zonedTimeToInstant(dateStr, session.endTime, timeZone);
     if (!endsAt) return false;
 
     const sinceBell = now.getTime() - endsAt.getTime();
@@ -66,13 +81,16 @@ const remindForSchool = async (school, now) => {
 
   if (justEnded.length === 0) return 0;
 
-  const date = utcMidnight(dateStr);
   let sent = 0;
 
-  for (const schedule of justEnded) {
+  for (const { session: schedule, isCover } of justEnded) {
     // Nothing to chase if the register is already filed.
     // eslint-disable-next-line no-await-in-loop
-    const recorded = await Attendance.exists({ schedule: schedule._id, date });
+    const recorded = await Attendance.exists(
+      isCover
+        ? { coverSession: schedule._id }
+        : { schedule: schedule._id, date },
+    );
     if (recorded) continue;
 
     const token = schedule.teacher?.pushToken;
@@ -83,7 +101,8 @@ const remindForSchool = async (school, now) => {
     try {
       // eslint-disable-next-line no-await-in-loop
       await AttendanceReminder.create({
-        schedule: schedule._id,
+        session: schedule._id,
+        kind: isCover ? "CoverSession" : "Schedule",
         date,
         teacher: schedule.teacher._id,
         school: school._id,
@@ -96,19 +115,21 @@ const remindForSchool = async (school, now) => {
     const endsAt = zonedTimeToInstant(dateStr, schedule.endTime, timeZone);
     const closesAt = new Date(endsAt.getTime() + GRACE_MINUTES * 60 * 1000);
 
-    const subject = schedule.subject?.name || "الحصة";
+    const label = isCover ? "حصة احتياط" : `حصة ${schedule.subject?.name || ""}`.trim();
     const classroom = schedule.classroom?.name || "";
 
     // eslint-disable-next-line no-await-in-loop
     await sendPushNotifications(
       [token],
       `⏰ سجّل الحضور خلال ${GRACE_MINUTES} دقيقة`,
-      `حصة ${subject}${classroom ? ` — ${classroom}` : ""} خلصت ولسه الحضور ` +
+      `${label}${classroom ? ` — ${classroom}` : ""} خلصت ولسه الحضور ` +
         `ما اتسجلش. السجل بيتقفل نهائيًا الساعة ${formatClock(closesAt, timeZone)}، ` +
         "وعدم التسجيل في الوقت بيعرّضك للمساءلة.",
       {
         type: "attendanceReminder",
-        scheduleId: String(schedule._id),
+        ...(isCover
+          ? { coverSessionId: String(schedule._id) }
+          : { scheduleId: String(schedule._id) }),
         date: dateStr,
         closesAt: closesAt.toISOString(),
       },

@@ -1,5 +1,6 @@
 const Attendance = require("../models/Attendance");
 const Schedule = require("../models/Schedule");
+const CoverSession = require("../models/CoverSession");
 const School = require("../models/School");
 const Student = require("../models/Student");
 const mongoose = require("mongoose");
@@ -22,8 +23,9 @@ const schoolTimezone = async (schoolId) => {
 
 exports.recordBulkAttendance = async (req, res) => {
   try {
-    const { scheduleId, records, selectedDate } = req.body;
-    if (!selectedDate || !scheduleId) {
+    const { scheduleId, coverSessionId, records, selectedDate } = req.body;
+
+    if (!scheduleId && !coverSessionId) {
       return res.status(400).json({
         success: false,
         message:
@@ -39,23 +41,59 @@ exports.recordBulkAttendance = async (req, res) => {
       });
     }
 
-    const validScheduleId = new mongoose.Types.ObjectId(scheduleId);
+    // A cover lesson carries its own date and times; a timetabled one is
+    // filed against the date the teacher is looking at.
+    let session = null;
+    let targetSchedule = null;
+    let dateStr = selectedDate;
 
-    const targetSchedule = await Schedule.findById(validScheduleId);
-    if (!targetSchedule) {
-      return res.status(404).json({
-        success: false,
-        message: "عذرًا، الحصة المختارة غير موجودة.",
-      });
+    if (coverSessionId) {
+      session = await CoverSession.findById(coverSessionId);
+
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: "حصة الاحتياط غير موجودة.",
+        });
+      }
+
+      if (String(session.teacher) !== String(req.user.id)) {
+        return res.status(403).json({
+          success: false,
+          message: "حصة الاحتياط دي مش بتاعتك.",
+        });
+      }
+
+      dateStr = session.date.toISOString().slice(0, 10);
+    } else {
+      if (!selectedDate) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "عذرًا، رقم الحصة والتاريخ مطلوبان لتسجيل الحضور.",
+        });
+      }
+
+      targetSchedule = await Schedule.findById(
+        new mongoose.Types.ObjectId(scheduleId),
+      );
+
+      if (!targetSchedule) {
+        return res.status(404).json({
+          success: false,
+          message: "عذرًا، الحصة المختارة غير موجودة.",
+        });
+      }
     }
 
-    // The register closes for good 15 minutes after the bell. Enforced here
-    // and not only in the app: the app's countdown runs off the phone's own
-    // clock, which a teacher can wind back, so the app's lock is a courtesy
-    // and this is the rule.
+    // The register closes for good 15 minutes after the bell — the same rule
+    // for a cover lesson as for a timetabled one. Enforced here and not only
+    // in the app: the app's countdown runs off the phone's own clock, which a
+    // teacher can wind back, so the app's lock is a courtesy and this is the
+    // rule.
     const window = getAttendanceWindow({
-      schedule: targetSchedule,
-      dateStr: selectedDate,
+      schedule: session || targetSchedule,
+      dateStr,
       timeZone: await schoolTimezone(req.user.school),
     });
 
@@ -67,13 +105,14 @@ exports.recordBulkAttendance = async (req, res) => {
       });
     }
 
-    const [year, month, day] = selectedDate.split("-").map(Number);
+    const [year, month, day] = dateStr.split("-").map(Number);
     const pureDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 
-    const existingAttendance = await Attendance.findOne({
-      schedule: validScheduleId,
-      date: pureDate,
-    });
+    const existingAttendance = await Attendance.findOne(
+      session
+        ? { coverSession: session._id }
+        : { schedule: targetSchedule._id, date: pureDate },
+    );
 
     if (existingAttendance) {
       return res.status(409).json({
@@ -87,8 +126,13 @@ exports.recordBulkAttendance = async (req, res) => {
       insertOne: {
         document: {
           student: new mongoose.Types.ObjectId(record.student),
-          schedule: validScheduleId,
-          subject: targetSchedule.subject,
+          // Exactly one of these is set. A cover record deliberately carries
+          // no subject: it is supervision outside the teacher's own subject,
+          // and every grade calculation keys off `subject`, so leaving it
+          // unset is what keeps it out of the marks.
+          ...(session
+            ? { coverSession: session._id }
+            : { schedule: targetSchedule._id, subject: targetSchedule.subject }),
           date: pureDate,
           status: record.status,
           // Only an absence can carry an excuse — ignore the flag on a
@@ -132,7 +176,14 @@ exports.getStudentAttendance = async (req, res) => {
           "عذرًا، لا يمكنك عرض سجل حضور طالب ليس ابنك.",
       });
     }
-    const data = await Attendance.find({ student: studentId })
+    // The parent's attendance list drives the rate they see, so it shows
+    // timetabled lessons only — a cover lesson is a colleague's class the
+    // teacher was standing in for, and counting it would change a number it
+    // has no bearing on.
+    const data = await Attendance.find({
+      student: studentId,
+      ...Attendance.GRADED_ONLY,
+    })
       .populate("subject", "name")
       .populate({
         path: "schedule",
@@ -161,7 +212,11 @@ exports.getAllAttendance = async (req, res) => {
       });
     }
 
-    const data = await Attendance.find(filter)
+    // Timetabled lessons only: every row in this list is rendered through
+    // its schedule (subject, classroom, grade), which a cover record does not
+    // have. Cover attendance is read back through the cover-session roster
+    // instead.
+    const data = await Attendance.find({ ...filter, ...Attendance.GRADED_ONLY })
       .populate("student", "firstName lastName")
       .populate({
         path: "schedule",

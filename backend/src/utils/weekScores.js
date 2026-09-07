@@ -47,6 +47,10 @@ const computeWeekScores = async (classroomId, subjectId, studentIds, weekStart) 
       student: { $in: studentIds },
       subject: subjectId,
       date: { $gte: weekStart, $lte: rangeEnd },
+      // Filtering on `subject` already excludes cover lessons, which carry
+      // none — this states the rule outright rather than leaving the marks
+      // resting on that side effect.
+      ...Attendance.GRADED_ONLY,
     }).select("student status excused"),
     // A homework belongs to the week it was *set* in, not the week it
     // happens to fall due. Matching on dueDate silently dropped any

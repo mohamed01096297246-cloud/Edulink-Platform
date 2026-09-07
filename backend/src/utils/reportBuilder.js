@@ -31,6 +31,10 @@ const buildAttendanceSummary = async (studentId, start, end) => {
   const records = await Attendance.find({
     student: studentId,
     date: { $gte: start, $lte: end },
+    // Cover lessons are supervision by a teacher standing in for a colleague,
+    // outside their own subject and often outside the student's own grade —
+    // they must not move the attendance rate or the progress level.
+    ...Attendance.GRADED_ONLY,
   });
 
   const present = records.filter((r) => r.status === "present").length;
