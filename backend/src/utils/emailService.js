@@ -51,33 +51,12 @@ const sendCredentialsEmail = async (
     console.log("Email Error:", error);
   }
 };
-const sendAlertEmail = async (email, subjectTitle, messageBody) => {
-  try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    const mailOptions = {
-      from: `"EduLink" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: subjectTitle,
-      html: `
-        <h3>تنبيه من إدارة المدرسة</h3>
-        <p>${messageBody}</p>
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
-  } catch (error) {
-    console.log("Email Error:", error);
-  }
-};
+// Handing over login credentials is the only thing EduLink emails about.
+// Everything else a parent or teacher needs to hear reaches them as a push
+// notification and as a row in the app's notifications list — the alert-mail
+// helper that used to live here was removed on purpose, so that a future
+// change has to make a deliberate decision instead of finding it lying about.
 module.exports = {
   sendCredentialsEmail,
-  sendAlertEmail,
 };
 

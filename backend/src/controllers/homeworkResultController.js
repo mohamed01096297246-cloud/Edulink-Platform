@@ -1,7 +1,6 @@
 const HomeworkResult = require("../models/HomeworkResult");
 const Homework = require("../models/Homework");
 const Student = require("../models/Student");
-const { sendAlertEmail } = require("../utils/emailService");
 const { sameSchool } = require("../utils/tenant");
 const { notifyParent } = require("../utils/notify");
 
@@ -58,20 +57,6 @@ exports.gradeBulkHomework = async (req, res) => {
       grades.map(async (record) => {
         const student = studentById.get(record.studentId.toString());
         if (!student?.parent) return;
-
-        if (record.status === "missing") {
-          if (student.parent.email) {
-            try {
-              await sendAlertEmail(
-                student.parent.email,
-                "تنبيه: عدم تسليم واجب مدرسي",
-                `عزيزي ولي الأمر، نود إبلاغكم بأن الطالب ${student.firstName} لم يسلّم الواجب (${homework.title}) في مادة ${homework.subject.name}. برجاء المتابعة.`,
-              );
-            } catch (e) {
-              console.log("Error sending assignment email:", e.message);
-            }
-          }
-        }
 
         const scoreText =
           record.status === "missing"

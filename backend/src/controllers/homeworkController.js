@@ -5,7 +5,6 @@ const Student = require("../models/Student");
 const Schedule = require("../models/Schedule");
 const Subject = require("../models/Subject");
 const { scopeFilter, sameSchool } = require("../utils/tenant");
-const { sendAlertEmail } = require("../utils/emailService");
 const { notifyParentsOfStudents } = require("../utils/notify");
 
 const DAY_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
@@ -164,20 +163,6 @@ async function notifyParents(homeworkEntries, subjectName, title) {
       classroom: entry.classroom,
       active: true,
     }).populate("parent", "email pushToken");
-
-    const parentsMap = new Map();
-    students.forEach((student) => {
-      if (student.parent) {
-        parentsMap.set(student.parent._id.toString(), student.parent);
-      }
-    });
-    const parents = Array.from(parentsMap.values());
-
-    for (const parent of parents) {
-      if (parent.email) {
-        await sendAlertEmail(parent.email, "واجب مدرسي جديد", message);
-      }
-    }
 
     await notifyParentsOfStudents({
       students,

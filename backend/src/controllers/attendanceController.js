@@ -4,7 +4,6 @@ const CoverSession = require("../models/CoverSession");
 const School = require("../models/School");
 const Student = require("../models/Student");
 const mongoose = require("mongoose");
-const sendCredentialsEmail = require("../utils/emailService.js");
 const { scopeFilter } = require("../utils/tenant");
 const {
   getAttendanceWindow,

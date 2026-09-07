@@ -2,7 +2,6 @@ const Notification = require("../models/Notification");
 const User = require("../models/User");
 const Student = require("../models/Student");
 const Schedule = require("../models/Schedule");
-const { sendCredentialsEmail } = require("../utils/emailService");
 const { sendPushNotifications } = require("../utils/pushNotifications");
 const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
 
@@ -105,12 +104,9 @@ exports.createNotification = async (req, res) => {
       school,
     });
 
+    // Notifications go out by push only. Email is reserved for handing over
+    // login credentials; a parent's inbox is not a second notification feed.
     if (req.user.role === "teacher") {
-      for (let p of recipients) {
-        if (p.email) {
-          await sendCredentialsEmail(p.email, title, message);
-        }
-      }
       await sendPushNotifications(
         recipients.map((p) => p.pushToken),
         title,
@@ -120,11 +116,6 @@ exports.createNotification = async (req, res) => {
     } else if (target === "all" || !target) {
       const parents = await User.find({ role: "parent", school });
 
-      for (let p of parents) {
-        if (p.email) {
-          await sendCredentialsEmail(p.email, title, message);
-        }
-      }
       await sendPushNotifications(
         parents.map((p) => p.pushToken),
         title,
@@ -134,9 +125,6 @@ exports.createNotification = async (req, res) => {
     } else if (target === "parent") {
       const parentUser = await User.findById(parentId);
 
-      if (parentUser && parentUser.email) {
-        await sendCredentialsEmail(parentUser.email, title, message);
-      }
       if (parentUser) {
         await sendPushNotifications(
           [parentUser.pushToken],
