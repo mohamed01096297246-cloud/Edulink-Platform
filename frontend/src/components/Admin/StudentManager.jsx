@@ -668,18 +668,17 @@ const StudentManagement = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="label-style !text-rose-500 italic underline">
-                      الرقم القومي (مطلوب)
+                    <label className="label-style">
+                      الرقم القومي (اختياري)
                     </label>
                     <input
                       type="text"
                       pattern="[0-9]{14}"
                       maxLength={14}
                       minLength={14}
-                      required
                       value={formData.parentNationalId}
-                      className="modal-input border-rose-100 focus:border-rose-400"
-                      placeholder="الرقم القومي"
+                      className="modal-input"
+                      placeholder="لو مش متوفر، سيبه فاضي"
                       onChange={(e) =>
                         setFormData({
                           ...formData,
@@ -687,6 +686,9 @@ const StudentManagement = () => {
                         })
                       }
                     />
+                    <p className="text-[11px] font-bold text-slate-400 mr-2">
+                      لو سبته فاضي، هاتف ولي الأمر هو اللي هيربط بين أولاده.
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <label className="label-style">

@@ -6,10 +6,16 @@ const userSchema = new mongoose.Schema(
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, required: true, trim: true },
 
+    // Required for staff (admin/teacher) — their identity has to be
+    // verifiable. Optional for a parent: some schools register a family
+    // without one on hand, and a parent account still needs to exist so the
+    // student can be created. When it's missing, phoneNumber is what links
+    // that parent's other children together instead (see studentController).
     nationalId: {
       type: String,
-      required: true,
-      unique: true,
+      required: function () {
+        return this.role !== "parent";
+      },
       trim: true,
     },
 
@@ -132,6 +138,18 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+
+// A plain `unique: true` would only ever let ONE user in the whole system
+// have no national ID — MongoDB's default unique index treats every missing
+// field as the same null value, so the second parent registered without one
+// would fail with a duplicate-key error. Partial index instead: uniqueness
+// is enforced only among documents where the field actually exists, so any
+// number of parents can go without one and staff (which always sets it)
+// stays exactly as unique as before.
+userSchema.index(
+  { nationalId: 1 },
+  { unique: true, partialFilterExpression: { nationalId: { $type: "string" } } },
+);
 
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
