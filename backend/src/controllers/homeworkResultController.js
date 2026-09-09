@@ -132,14 +132,19 @@ exports.getParentHomeworkDashboard = async (req, res) => {
       });
     }
 
-    const allHomeworks = await Homework.find({ classroom: student.classroom })
-      .populate("subject", "name")
-      .populate("teacher", "firstName lastName")
-      .populate({
-        path: "classroom",
-        select: "name grade",
-        populate: { path: "grade", select: "name academicYear" },
-      });
+    // Same guard as homeworkController's student-homework endpoint: a
+    // classroom-less student must get an empty list, not Homework.find({})
+    // — which is what an undefined `classroom` key silently becomes.
+    const allHomeworks = student.classroom
+      ? await Homework.find({ classroom: student.classroom })
+          .populate("subject", "name")
+          .populate("teacher", "firstName lastName")
+          .populate({
+            path: "classroom",
+            select: "name grade",
+            populate: { path: "grade", select: "name academicYear" },
+          })
+      : [];
     const studentResults = await HomeworkResult.find({
       student: studentId,
     }).populate("homework", "title totalMarks");

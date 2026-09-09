@@ -12,6 +12,8 @@ import {
   Filter,
   X,
   Save,
+  Users,
+  UserCheck,
 } from "lucide-react";
 
 const ClassroomManagement = () => {
@@ -31,6 +33,16 @@ const ClassroomManagement = () => {
   });
 
   const [deleteId, setDeleteId] = useState(null);
+
+  // Distributing newly-registered students (grade set, no classroom yet)
+  // into a chosen classroom. Registration itself no longer asks for a
+  // classroom — this is where an admin now does that, one classroom at a
+  // time, picking several students in one action.
+  const [assignModal, setAssignModal] = useState({ show: false, classroom: null });
+  const [unassignedStudents, setUnassignedStudents] = useState([]);
+  const [loadingUnassigned, setLoadingUnassigned] = useState(false);
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [assigning, setAssigning] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -129,6 +141,66 @@ const ClassroomManagement = () => {
     setShowModal(false);
     setEditingId(null);
     setFormData({ name: "", grade: "", academicYear: "", capacity: 30 });
+  };
+
+  const openAssignModal = async (cls) => {
+    setAssignModal({ show: true, classroom: cls });
+    setSelectedStudentIds([]);
+    setLoadingUnassigned(true);
+    try {
+      const gradeId = cls.grade?._id || cls.grade;
+      const res = await API.get("/students/unassigned", {
+        params: { grade: gradeId },
+      });
+      setUnassignedStudents(res.data.data || []);
+    } catch (err) {
+      showToast(
+        err.response?.data?.message || "فشل تحميل الطلاب بانتظار التوزيع",
+        "error",
+      );
+      setUnassignedStudents([]);
+    } finally {
+      setLoadingUnassigned(false);
+    }
+  };
+
+  const closeAssignModal = () => {
+    setAssignModal({ show: false, classroom: null });
+    setUnassignedStudents([]);
+    setSelectedStudentIds([]);
+  };
+
+  const toggleStudentSelection = (studentId) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(studentId)
+        ? prev.filter((id) => id !== studentId)
+        : [...prev, studentId],
+    );
+  };
+
+  const seatsLeft = assignModal.classroom
+    ? assignModal.classroom.capacity - (assignModal.classroom.currentStudents || 0)
+    : 0;
+
+  const handleAssignStudents = async () => {
+    if (selectedStudentIds.length === 0) return;
+    setAssigning(true);
+    try {
+      const res = await API.post("/students/assign-classroom", {
+        classroomId: assignModal.classroom._id,
+        studentIds: selectedStudentIds,
+      });
+      showToast(res.data.message || "تم توزيع الطلاب بنجاح", "success");
+      closeAssignModal();
+      refreshData();
+    } catch (err) {
+      showToast(
+        err.response?.data?.message || "فشل توزيع الطلاب على الفصل",
+        "error",
+      );
+    } finally {
+      setAssigning(false);
+    }
   };
 
   // تصفية الفصول في فرونت-إند بناءً على الصف المختار
@@ -276,6 +348,13 @@ const ClassroomManagement = () => {
                       </td>
                       <td className="p-6">
                         <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => openAssignModal(cls)}
+                            title="توزيع طلاب على الفصل"
+                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                          >
+                            <Users size={18} />
+                          </button>
                           <button
                             onClick={() => startEdit(cls)}
                             className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
@@ -432,6 +511,115 @@ const ClassroomManagement = () => {
                 حذف
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {assignModal.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                  <UserCheck size={22} className="text-emerald-600" />
+                  توزيع طلاب على فصل {assignModal.classroom?.name}
+                </h2>
+                <p className="text-slate-400 font-bold text-xs mt-2">
+                  {assignModal.classroom?.grade?.name} — مقاعد فاضية:{" "}
+                  <span className={seatsLeft <= 0 ? "text-rose-500" : "text-emerald-600"}>
+                    {seatsLeft}
+                  </span>{" "}
+                  من {assignModal.classroom?.capacity}
+                </p>
+              </div>
+              <button
+                onClick={closeAssignModal}
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X />
+              </button>
+            </div>
+
+            <div className="p-8 overflow-y-auto flex-1 space-y-2">
+              {loadingUnassigned ? (
+                <div className="text-center py-12">
+                  <Loader2 className="animate-spin mx-auto text-emerald-500" size={32} />
+                </div>
+              ) : unassignedStudents.length === 0 ? (
+                <p className="text-center text-slate-400 font-bold py-12">
+                  مفيش طلاب بانتظار التوزيع في هذه المرحلة حاليًا.
+                </p>
+              ) : (
+                unassignedStudents.map((student) => {
+                  const selected = selectedStudentIds.includes(student._id);
+                  return (
+                    <button
+                      type="button"
+                      key={student._id}
+                      onClick={() => toggleStudentSelection(student._id)}
+                      className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-right ${
+                        selected
+                          ? "bg-emerald-50 border-emerald-500"
+                          : "bg-slate-50 border-transparent hover:border-slate-200"
+                      }`}
+                    >
+                      <div
+                        className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                          selected
+                            ? "bg-emerald-500"
+                            : "bg-white border-2 border-slate-300"
+                        }`}
+                      >
+                        {selected && (
+                          <CheckCircle2 size={14} className="text-white" />
+                        )}
+                      </div>
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                          student.gender === "male"
+                            ? "bg-indigo-100 text-indigo-600"
+                            : "bg-rose-100 text-rose-600"
+                        }`}
+                      >
+                        {student.firstName?.[0]}
+                        {student.lastName?.[0]}
+                      </div>
+                      <span className="font-black text-slate-700 text-sm">
+                        {student.firstName} {student.lastName}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {unassignedStudents.length > 0 && (
+              <div className="p-8 border-t border-slate-100 bg-slate-50/50 space-y-3">
+                {selectedStudentIds.length > seatsLeft && (
+                  <p className="text-xs font-bold text-rose-600">
+                    اخترت {selectedStudentIds.length} طالب، بس فاضل بس{" "}
+                    {seatsLeft} مقعد في الفصل ده.
+                  </p>
+                )}
+                <button
+                  disabled={
+                    assigning ||
+                    selectedStudentIds.length === 0 ||
+                    selectedStudentIds.length > seatsLeft
+                  }
+                  onClick={handleAssignStudents}
+                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 transition-colors text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-xl shadow-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {assigning ? (
+                    <Loader2 className="animate-spin" size={20} />
+                  ) : (
+                    <UserCheck size={20} />
+                  )}
+                  إضافة {selectedStudentIds.length || ""} إلى فصل{" "}
+                  {assignModal.classroom?.name}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

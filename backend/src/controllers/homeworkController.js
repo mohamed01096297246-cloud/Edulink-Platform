@@ -233,15 +233,21 @@ exports.getStudentHomeworks = async (req, res) => {
           message: "غير مصرح لك بعرض واجبات هذا الطالب",
         });
     }
-    const homeworks = await Homework.find({ classroom: student.classroom })
-      .populate("subject", "name")
-      .populate("teacher", "firstName lastName")
-      .populate({
-        path: "classroom",
-        select: "name grade",
-        populate: { path: "grade", select: "name academicYear" },
-      })
-      .sort({ createdAt: -1 });
+    // A student not yet placed in a classroom has no homework to show — and
+    // must never reach Homework.find with an undefined `classroom`, which
+    // Mongoose would silently drop from the filter and return every
+    // classroom's homework instead of none.
+    const homeworks = student.classroom
+      ? await Homework.find({ classroom: student.classroom })
+          .populate("subject", "name")
+          .populate("teacher", "firstName lastName")
+          .populate({
+            path: "classroom",
+            select: "name grade",
+            populate: { path: "grade", select: "name academicYear" },
+          })
+          .sort({ createdAt: -1 })
+      : [];
 
     res.status(200).json({
       success: true,

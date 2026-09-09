@@ -438,7 +438,7 @@ const StudentManagement = () => {
                 <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">
                   {editMode
                     ? "تحديث بيانات الطالب الحالية"
-                    : "اختيار الفصل يدوي"}
+                    : "حدد المرحلة فقط — توزيع الطلاب على الفصول من صفحة الفصول"}
                 </p>
               </div>
               <button
@@ -536,40 +536,46 @@ const StudentManagement = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="label-style">
-                      الفصل
-                    </label>
-                    <select
-                      required
-                      disabled={!formData.grade}
-                      value={formData.classroom}
-                      className="modal-input disabled:opacity-50 disabled:cursor-not-allowed"
-                      onChange={(e) =>
-                        setFormData({ ...formData, classroom: e.target.value })
-                      }
-                    >
-                      <option value="">
-                        {formData.grade ? "اختر الفصل" : "اختر المرحلة أولاً"}
-                      </option>
-                      {classrooms
-                        .filter((c) => c.grade?._id === formData.grade)
-                        .map((c) => {
-                          const isFull = c.currentStudents >= c.capacity;
-                          const isCurrent = c._id === formData.classroom;
-                          return (
-                            <option
-                              key={c._id}
-                              value={c._id}
-                              disabled={isFull && !isCurrent}
-                            >
-                              {c.name} ({c.currentStudents}/{c.capacity}
-                              {isFull ? " — مكتمل" : ""})
-                            </option>
-                          );
-                        })}
-                    </select>
-                  </div>
+                  {/* Classroom is only ever picked here when fixing up an
+                      existing student's placement. A new registration never
+                      asks for it — the admin distributes freshly-registered
+                      students into their classroom later, in bulk, from the
+                      classroom's own screen (see UnassignedStudentsPanel). */}
+                  {editMode && (
+                    <div className="space-y-2">
+                      <label className="label-style">
+                        الفصل
+                      </label>
+                      <select
+                        disabled={!formData.grade}
+                        value={formData.classroom}
+                        className="modal-input disabled:opacity-50 disabled:cursor-not-allowed"
+                        onChange={(e) =>
+                          setFormData({ ...formData, classroom: e.target.value })
+                        }
+                      >
+                        <option value="">
+                          {formData.grade ? "بدون فصل حاليًا" : "اختر المرحلة أولاً"}
+                        </option>
+                        {classrooms
+                          .filter((c) => c.grade?._id === formData.grade)
+                          .map((c) => {
+                            const isFull = c.currentStudents >= c.capacity;
+                            const isCurrent = c._id === formData.classroom;
+                            return (
+                              <option
+                                key={c._id}
+                                value={c._id}
+                                disabled={isFull && !isCurrent}
+                              >
+                                {c.name} ({c.currentStudents}/{c.capacity}
+                                {isFull ? " — مكتمل" : ""})
+                              </option>
+                            );
+                          })}
+                      </select>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <label className="label-style">
                       هاتف الطالب

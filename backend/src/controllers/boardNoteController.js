@@ -125,10 +125,16 @@ exports.getStudentBoardNotes = async (req, res) => {
       });
     }
 
-    const notes = await BoardNote.find({ classroom: student.classroom })
-      .populate("subject", "name")
-      .populate("teacher", "firstName lastName")
-      .sort({ createdAt: -1 });
+    // A student not yet placed in a classroom has no notes to show — and
+    // must never reach BoardNote.find with an undefined `classroom`, which
+    // Mongoose would silently drop from the filter and return every
+    // classroom's notes instead of none.
+    const notes = student.classroom
+      ? await BoardNote.find({ classroom: student.classroom })
+          .populate("subject", "name")
+          .populate("teacher", "firstName lastName")
+          .sort({ createdAt: -1 })
+      : [];
 
     res.status(200).json({ success: true, data: notes });
   } catch (err) {

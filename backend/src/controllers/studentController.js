@@ -37,28 +37,38 @@ exports.createStudent = async (req, res) => {
       );
     }
 
-    if (!classroomId) {
-      throw new Error("برجاء اختيار الفصل الذي سينضم إليه الطالب.");
+    if (!grade) {
+      throw new Error("برجاء اختيار المرحلة الدراسية للطالب.");
     }
 
-    // Classroom assignment is manual now, not auto-picked — verify the admin's
-    // choice actually belongs to this grade/school and still has room,
-    // rather than silently overriding it with whatever classroom happens to
-    // have space.
-    const availableClassroom = await Classroom.findOne({
-      _id: classroomId,
-      grade: grade,
-      school,
-    }).session(session);
+    // The classroom is no longer chosen at registration — a school signs a
+    // student up knowing their grade long before it has decided which room
+    // they sit in. Distributing students into classrooms is a separate step
+    // (see assignStudentsToClassroom) done from the classroom's own screen,
+    // so a student created here simply waits with a grade and no classroom
+    // until an admin picks them for one.
+    //
+    // A classroomId is still honoured when the caller does send one — kept
+    // for any older client still posting the old shape — with the same
+    // validation this used to always run.
+    let availableClassroom = null;
 
-    if (!availableClassroom) {
-      throw new Error("الفصل المختار غير موجود ضمن هذه المرحلة الدراسية.");
-    }
+    if (classroomId) {
+      availableClassroom = await Classroom.findOne({
+        _id: classroomId,
+        grade: grade,
+        school,
+      }).session(session);
 
-    if (availableClassroom.currentStudents >= availableClassroom.capacity) {
-      throw new Error(
-        `عذرًا، فصل (${availableClassroom.name}) وصل للحد الأقصى من الطلاب (${availableClassroom.capacity}). اختر فصلًا آخر.`,
-      );
+      if (!availableClassroom) {
+        throw new Error("الفصل المختار غير موجود ضمن هذه المرحلة الدراسية.");
+      }
+
+      if (availableClassroom.currentStudents >= availableClassroom.capacity) {
+        throw new Error(
+          `عذرًا، فصل (${availableClassroom.name}) وصل للحد الأقصى من الطلاب (${availableClassroom.capacity}). اختر فصلًا آخر.`,
+        );
+      }
     }
 
     if (!parentNationalId) {
@@ -138,7 +148,7 @@ exports.createStudent = async (req, res) => {
           gender,
           grade,
           parent: finalParentId,
-          classroom: availableClassroom._id,
+          classroom: availableClassroom ? availableClassroom._id : undefined,
           school,
         },
       ],
@@ -147,11 +157,13 @@ exports.createStudent = async (req, res) => {
 
     const student = studentResult[0];
 
-    await Classroom.findByIdAndUpdate(
-      availableClassroom._id,
-      { $inc: { currentStudents: 1 } },
-      { session },
-    );
+    if (availableClassroom) {
+      await Classroom.findByIdAndUpdate(
+        availableClassroom._id,
+        { $inc: { currentStudents: 1 } },
+        { session },
+      );
+    }
 
     await User.findByIdAndUpdate(
       finalParentId,
@@ -179,11 +191,15 @@ exports.createStudent = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    const placementNote = availableClassroom
+      ? `assigned to classroom (${availableClassroom.name})`
+      : "registered — not yet assigned to a classroom";
+
     res.status(201).json({
       success: true,
       message: isNewParent
-        ? `sorry, the student has been created and assigned to classroom (${availableClassroom.name}) successfully, and login credentials have been sent to the parent.`
-        : `sorry, the student has been created and assigned to classroom (${availableClassroom.name}) successfully, and linked to the existing parent account.`,
+        ? `sorry, the student has been ${placementNote} successfully, and login credentials have been sent to the parent.`
+        : `sorry, the student has been ${placementNote} successfully, and linked to the existing parent account.`,
       data: student,
     });
   } catch (err) {
@@ -255,6 +271,13 @@ exports.updateStudent = async (req, res) => {
       });
 
       req.body.classroom = targetClassroom._id;
+    } else if (req.body.classroom === "") {
+      // The edit form now lets an admin leave a student unplaced ("بدون فصل
+      // حاليًا"), which submits classroom as an empty string. Left in
+      // req.body, Mongoose would try to cast "" to an ObjectId below and
+      // throw — drop the key instead so a field the admin didn't actually
+      // change is simply left alone.
+      delete req.body.classroom;
     }
 
     if (req.body.parent && req.body.parent !== student.parent.toString()) {
@@ -429,6 +452,130 @@ exports.getStudent = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+// Students who have a grade but no classroom yet — the pool an admin picks
+// from when populating a classroom (see assignStudentsToClassroom). Scoped
+// to one grade because that's how the classroom-assignment screen works:
+// open a classroom, see only the students who could actually belong there.
+exports.getUnassignedStudents = async (req, res) => {
+  try {
+    const { grade } = req.query;
+
+    if (!grade) {
+      return res.status(400).json({
+        success: false,
+        message: "برجاء تحديد المرحلة الدراسية.",
+      });
+    }
+
+    const filter = scopeFilter(req, { grade, classroom: null, active: true });
+    if (!filter) {
+      return res.status(400).json({
+        success: false,
+        message: "Please specify a school (?school=id) to list its students.",
+      });
+    }
+
+    const students = await Student.find(filter)
+      .select("firstName lastName gender phoneNumber")
+      .sort({ firstName: 1 });
+
+    res.status(200).json({ success: true, count: students.length, data: students });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Places a batch of previously-unassigned students into one classroom in a
+// single action — the counterpart to registration no longer asking for a
+// classroom. Every student must already be grade-matched and currently
+// unassigned; re-assigning a student who already has a classroom goes
+// through updateStudent instead, which handles moving them out of the old
+// one.
+exports.assignStudentsToClassroom = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { classroomId, studentIds } = req.body;
+
+    if (!classroomId) {
+      throw new Error("برجاء اختيار الفصل.");
+    }
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+      throw new Error("برجاء اختيار طالب واحد على الأقل.");
+    }
+
+    const classroom = await Classroom.findById(classroomId).session(session);
+    if (!classroom || !sameSchool(req, classroom)) {
+      throw new Error("الفصل غير موجود.");
+    }
+
+    const students = await Student.find({
+      _id: { $in: studentIds },
+    }).session(session);
+
+    if (students.length !== studentIds.length) {
+      throw new Error("بعض الطلاب المحددين غير موجودين.");
+    }
+
+    const notInSchool = students.find(
+      (s) => s.school.toString() !== classroom.school.toString(),
+    );
+    if (notInSchool) {
+      throw new Error("بعض الطلاب المحددين ليسوا في نفس المدرسة.");
+    }
+
+    const wrongGrade = students.find(
+      (s) => s.grade.toString() !== classroom.grade.toString(),
+    );
+    if (wrongGrade) {
+      throw new Error(
+        `الطالب ${wrongGrade.firstName} ${wrongGrade.lastName} من مرحلة مختلفة عن مرحلة هذا الفصل.`,
+      );
+    }
+
+    const alreadyPlaced = students.find((s) => s.classroom);
+    if (alreadyPlaced) {
+      throw new Error(
+        `الطالب ${alreadyPlaced.firstName} ${alreadyPlaced.lastName} منضم بالفعل لفصل آخر — استخدم تعديل بيانات الطالب لنقله.`,
+      );
+    }
+
+    const seats = classroom.capacity - classroom.currentStudents;
+    if (studentIds.length > seats) {
+      throw new Error(
+        `عذرًا، فصل (${classroom.name}) فيه ${seats} مقعد فاضي بس، وانت بتحاول تضيف ${studentIds.length} طالب.`,
+      );
+    }
+
+    await Student.updateMany(
+      { _id: { $in: studentIds } },
+      { $set: { classroom: classroomId } },
+      { session },
+    );
+
+    await Classroom.findByIdAndUpdate(
+      classroomId,
+      { $inc: { currentStudents: studentIds.length } },
+      { session },
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      success: true,
+      message: `تم إضافة ${studentIds.length} طالب إلى فصل (${classroom.name}) بنجاح.`,
+    });
+  } catch (err) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+    session.endSession();
+    res.status(400).json({ success: false, message: err.message });
   }
 };
 
