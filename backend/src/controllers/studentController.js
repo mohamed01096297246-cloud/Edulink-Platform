@@ -25,7 +25,6 @@ exports.createStudent = async (req, res) => {
       classroom: classroomId,
       parentFirstName,
       parentLastName,
-      parentNationalId,
       parentEmail,
       parentPhone,
     } = req.body;
@@ -71,58 +70,32 @@ exports.createStudent = async (req, res) => {
       }
     }
 
-    // The national ID is the preferred way to recognise "this is the same
-    // parent as their other child" — it can't be mistyped into someone
-    // else's number the way a phone occasionally can. But not every family
-    // has one on hand at registration time, so a parent may instead be
-    // identified by phone number alone. At least one of the two is required
-    // either way, since something has to link siblings together.
-    const trimmedNationalId = parentNationalId ? parentNationalId.trim() : "";
-
-    if (!trimmedNationalId && !parentPhone) {
-      throw new Error(
-        "برجاء إدخال الرقم القومي لولي الأمر، أو رقم هاتفه على الأقل.",
-      );
+    // A parent's phone number is the one thing every family reliably has on
+    // hand at registration, and it's what identifies "this is the same
+    // parent as their other child" — a second child registered with the
+    // same parent phone links to the existing account instead of creating a
+    // duplicate one.
+    if (!parentPhone) {
+      throw new Error("برجاء إدخال رقم هاتف ولي الأمر.");
     }
 
     let finalParentId;
     let isNewParent = false;
     let generatedUser, generatedPass;
 
-    let existingParent = trimmedNationalId
-      ? await User.findOne({
-          nationalId: trimmedNationalId,
-          role: "parent",
-        }).session(session)
-      : null;
-
-    // Only fall back to a phone match when no national ID was given at
-    // all — once an ID is entered, it is the sole source of truth for who
-    // this parent is, so a phone that happens to match someone else must
-    // not silently link the student to them instead.
-    if (!existingParent && !trimmedNationalId && parentPhone) {
-      existingParent = await User.findOne({
-        phoneNumber: parentPhone,
-        role: "parent",
-      }).session(session);
-    }
+    let existingParent = await User.findOne({
+      phoneNumber: parentPhone,
+      role: "parent",
+    }).session(session);
 
     if (existingParent) {
       if (existingParent.school.toString() !== school.toString()) {
         throw new Error(
-          trimmedNationalId
-            ? "sorry, a parent with this national ID is already registered at a different school and cannot be linked here."
-            : "sorry, a parent with this phone number is already registered at a different school and cannot be linked here.",
+          "sorry, a parent with this phone number is already registered at a different school and cannot be linked here.",
         );
       }
       finalParentId = existingParent._id;
     } else {
-      if (!parentPhone) {
-        throw new Error(
-          "sorry, phone number for the parent is required to create a new account",
-        );
-      }
-
       // Username is derived from the phone number (see generateCredentials.js),
       // and phoneNumber is unique across every account (parent/teacher/admin) —
       // so a phone already in use anywhere would otherwise fail as a raw
@@ -133,9 +106,7 @@ exports.createStudent = async (req, res) => {
       }).session(session);
       if (phoneInUse) {
         throw new Error(
-          trimmedNationalId
-            ? "عذرًا، رقم هاتف ولي الأمر هذا مسجّل بالفعل بحساب آخر. تأكد من الرقم أو تحقق من الرقم القومي المدخل إذا كان هذا هو نفس ولي الأمر."
-            : "عذرًا، رقم هاتف ولي الأمر هذا مسجّل بالفعل بحساب آخر. لو ده نفس ولي الأمر، أدخل رقمه القومي عشان نربطهم صح.",
+          "عذرًا، رقم هاتف ولي الأمر هذا مسجّل بالفعل بحساب آخر (مش كولي أمر). تأكد من الرقم.",
         );
       }
 
@@ -147,10 +118,6 @@ exports.createStudent = async (req, res) => {
           {
             firstName: parentFirstName || lastName,
             lastName: parentLastName || "Family",
-            // Omitted entirely (not set to "" or null) when absent, so the
-            // partial unique index on nationalId never sees this document —
-            // a second parent with no ID must not collide with the first.
-            ...(trimmedNationalId ? { nationalId: trimmedNationalId } : {}),
             phoneNumber: parentPhone,
             email: parentEmail,
             role: "parent",

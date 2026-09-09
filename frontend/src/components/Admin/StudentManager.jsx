@@ -53,7 +53,6 @@ const StudentManagement = () => {
     classroom: "",
     parentFirstName: "",
     parentLastName: "",
-    parentNationalId: "",
     parentEmail: "",
     parentPhone: "",
   });
@@ -101,7 +100,6 @@ const StudentManagement = () => {
       classroom: "",
       parentFirstName: "",
       parentLastName: "",
-      parentNationalId: "",
       parentEmail: "",
       parentPhone: "",
     });
@@ -118,7 +116,6 @@ const StudentManagement = () => {
       gender: student.gender || "male",
       grade: student.grade?._id || "",
       classroom: student.classroom?._id || "",
-      parentNationalId: student.parent?.nationalId || "",
       parentFirstName: student.parent?.firstName || "",
       parentLastName: student.parent?.lastName || "",
       parentPhone: student.parent?.phoneNumber || "",
@@ -666,29 +663,6 @@ const StudentManagement = () => {
                         })
                       }
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="label-style">
-                      الرقم القومي (اختياري)
-                    </label>
-                    <input
-                      type="text"
-                      pattern="[0-9]{14}"
-                      maxLength={14}
-                      minLength={14}
-                      value={formData.parentNationalId}
-                      className="modal-input"
-                      placeholder="لو مش متوفر، سيبه فاضي"
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          parentNationalId: e.target.value,
-                        })
-                      }
-                    />
-                    <p className="text-[11px] font-bold text-slate-400 mr-2">
-                      لو سبته فاضي، هاتف ولي الأمر هو اللي هيربط بين أولاده.
-                    </p>
                   </div>
                   <div className="space-y-2">
                     <label className="label-style">
