@@ -174,6 +174,18 @@ const TeacherManagement = () => {
       return;
     }
 
+    // Login credentials are mailed to this address and nowhere else — a
+    // non-Gmail or mistyped domain loses the teacher's password silently.
+    if (!/^[a-z0-9](?:[a-z0-9._%+-]*[a-z0-9])?@gmail\.com$/i.test(
+      formData.email.trim(),
+    )) {
+      showToastMessage(
+        "البريد الإلكتروني لازم يكون حساب Gmail صحيح (ينتهي بـ @gmail.com)",
+        "error",
+      );
+      return;
+    }
+
     setActionLoading(true);
     try {
       if (editMode) {
@@ -499,18 +511,25 @@ const TeacherManagement = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="label-style">البريد الإلكتروني</label>
+                  <label className="label-style">
+                    البريد الإلكتروني (Gmail)
+                  </label>
                   <input
                     required
                     type="email"
-                    placeholder="أدخل البريد الإلكتروني"
-                    pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                    placeholder="example@gmail.com"
+                    pattern="[a-zA-Z0-9]([a-zA-Z0-9._%+\-]*[a-zA-Z0-9])?@gmail\.com"
+                    title="لازم يكون حساب Gmail صحيح ينتهي بـ @gmail.com"
                     value={formData.email}
                     className="modal-input"
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
                     }
                   />
+                  <p className="text-[11px] font-bold text-slate-400 mr-2">
+                    كلمة السر واسم المستخدم بيتبعتوا على الإيميل ده — لازم يكون
+                    صحيح.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <label className="label-style">رقم الهاتف</label>

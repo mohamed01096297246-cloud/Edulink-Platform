@@ -10,6 +10,10 @@ const {
 const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
 const { friendlyDuplicateKeyMessage } = require("../utils/formatDbError");
 const { resolveTeacherSubject } = require("../utils/teacherSubject");
+const {
+  isGmailAddress,
+  GMAIL_REQUIRED_MESSAGE,
+} = require("../utils/validateEmail");
 
 // A teacher may hold several subjects now. `subjectId` is still read so an
 // admin build that hasn't been redeployed yet keeps working.
@@ -36,6 +40,12 @@ exports.createTeacher = async (req, res) => {
       return res.status(400).json({
         message: "Please specify a school (?school=id) to create a teacher for.",
       });
+    }
+
+    // The teacher's login credentials are mailed to this address and nowhere
+    // else, so a bad one loses the account's password with no trace.
+    if (!isGmailAddress(email)) {
+      return res.status(400).json({ message: GMAIL_REQUIRED_MESSAGE });
     }
 
     const subjectIds = readSubjectIds(req.body);
@@ -244,6 +254,13 @@ exports.updateTeacher = async (req, res) => {
       return res
         .status(404)
         .json({ message: "sorry, the requested teacher was not found." });
+    }
+
+    // Same rule as creation: if an email is being set, it has to be a real
+    // gmail.com one — a corrected address is exactly what an admin comes
+    // here to fix after a credentials mail bounced.
+    if (email !== undefined && !isGmailAddress(email)) {
+      return res.status(400).json({ message: GMAIL_REQUIRED_MESSAGE });
     }
 
     const updateData = { firstName, lastName, phoneNumber, nationalId, email };
