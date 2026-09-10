@@ -200,8 +200,13 @@ const TeacherManagement = () => {
       resetForm();
       fetchData();
     } catch (err) {
+      // createTeacher returns a duplicate-key message (phone/national ID
+      // already in use) under `error`, validation errors under `message` —
+      // read both so the admin sees the real reason, not a generic string.
       showToastMessage(
-        err.response?.data?.message || "حدث خطأ أثناء حفظ البيانات",
+        err.response?.data?.message ||
+          err.response?.data?.error ||
+          "حدث خطأ أثناء حفظ البيانات",
         "error",
       );
     } finally {

@@ -300,7 +300,11 @@ exports.updateTeacher = async (req, res) => {
       data: updatedTeacher,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    // Editing a teacher's phone or national ID to one already in use throws
+    // a raw E11000 — name the field instead of leaking the driver string.
+    res
+      .status(500)
+      .json({ message: friendlyDuplicateKeyMessage(err) || err.message });
   }
 };
 
