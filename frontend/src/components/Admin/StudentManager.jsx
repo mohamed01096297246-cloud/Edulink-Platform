@@ -19,6 +19,13 @@ import {
   XCircle,
 } from "lucide-react";
 
+// Many parents don't have an email of their own. Registration defaults to
+// this shared inbox — the admin reads the credentials there and relays them
+// to the parent personally (phone/WhatsApp) — instead of leaving the field
+// blank and typing it fresh for every student. Still editable per student
+// for the parents who do have their own address.
+const DEFAULT_PARENT_EMAIL = "awlyaamwr8@gmail.com";
+
 const StudentManagement = () => {
   const [students, setStudents] = useState([]);
   const [grades, setGrades] = useState([]);
@@ -53,7 +60,7 @@ const StudentManagement = () => {
     classroom: "",
     parentFirstName: "",
     parentLastName: "",
-    parentEmail: "",
+    parentEmail: DEFAULT_PARENT_EMAIL,
     parentPhone: "",
   });
 
@@ -100,7 +107,7 @@ const StudentManagement = () => {
       classroom: "",
       parentFirstName: "",
       parentLastName: "",
-      parentEmail: "",
+      parentEmail: DEFAULT_PARENT_EMAIL,
       parentPhone: "",
     });
   };
@@ -680,6 +687,13 @@ const StudentManagement = () => {
                         })
                       }
                     />
+                    {!editMode && (
+                      <p className="text-[11px] font-bold text-slate-400 mr-2">
+                        اتحدد افتراضيًا على إيميلك الموحّد — بتبعت بيانات
+                        الدخول لولي الأمر بنفسك. لو ولي الأمر عنده إيميل
+                        خاص بيه، اكتبه هنا بدل ده.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
