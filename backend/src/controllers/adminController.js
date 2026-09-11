@@ -7,8 +7,8 @@ const StaffAttendance = require("../models/StaffAttendance");
 const Notification = require("../models/Notification");
 const { sendCredentialsEmail } = require("../utils/emailService");
 const {
-  generateUsername,
   generatePassword,
+  resolveUsername,
 } = require("../utils/generateCredentials");
 
 const mongoose = require("mongoose");
@@ -70,7 +70,10 @@ exports.createSubAdmin = async (req, res) => {
       });
     }
 
-    const username = generateUsername(phoneNumber);
+    // See resolveUsername: a phone is unique per role now, so an admin
+    // sharing a phone with an existing teacher/parent at this school is
+    // fine — only the derived username needs to stay unique.
+    const username = await resolveUsername(phoneNumber, User);
     const password = generatePassword();
 
     const newAdmin = await User.create({

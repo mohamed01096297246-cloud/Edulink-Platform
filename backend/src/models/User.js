@@ -19,10 +19,15 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // Unique per role, not globally — see the compound index below. A
+    // phone number identifies a real person, and a real person can
+    // legitimately need two accounts here: a teacher whose own child
+    // attends the same school also needs a parent account, both tied to
+    // the same phone. What must stay unique is "this phone as a teacher"
+    // and separately "this phone as a parent", not the phone on its own.
     phoneNumber: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
     },
 
@@ -150,6 +155,10 @@ userSchema.index(
   { nationalId: 1 },
   { unique: true, partialFilterExpression: { nationalId: { $type: "string" } } },
 );
+
+// One account per phone number per role — see the comment on `phoneNumber`
+// above for why this isn't a bare unique index.
+userSchema.index({ phoneNumber: 1, role: 1 }, { unique: true });
 
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;

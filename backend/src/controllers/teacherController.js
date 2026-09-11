@@ -4,8 +4,8 @@ const Schedule = require("../models/Schedule");
 const Student = require("../models/Student");
 const { sendCredentialsEmail } = require("../utils/emailService");
 const {
-  generateUsername,
   generatePassword,
+  resolveUsername,
 } = require("../utils/generateCredentials");
 const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
 const { friendlyDuplicateKeyMessage } = require("../utils/formatDbError");
@@ -66,7 +66,11 @@ exports.createTeacher = async (req, res) => {
         .json({ message: "sorry, the selected subject does not exist" });
     }
 
-    const username = generateUsername(phoneNumber);
+    // A phone number is unique per role now, not globally — a teacher whose
+    // phone already belongs to a parent (or admin) account at this school
+    // is expected, not an error. Only the username needs to be resolved to
+    // something free, since both would otherwise derive the same digits.
+    const username = await resolveUsername(phoneNumber, User);
     const password = generatePassword();
     const teacher = await User.create({
       firstName,

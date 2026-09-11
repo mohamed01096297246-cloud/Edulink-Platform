@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const {
-  generateUsername,
   generatePassword,
+  resolveUsername,
 } = require("../utils/generateCredentials");
 const { sendCredentialsEmail } = require("../utils/emailService");
 const { friendlyDuplicateKeyMessage } = require("../utils/formatDbError");
@@ -96,21 +96,14 @@ exports.createStudent = async (req, res) => {
       }
       finalParentId = existingParent._id;
     } else {
-      // Username is derived from the phone number (see generateCredentials.js),
-      // and phoneNumber is unique across every account (parent/teacher/admin) —
-      // so a phone already in use anywhere would otherwise fail as a raw
-      // duplicate-key error at the insert below. Check it up front instead,
-      // with a message that actually explains what happened.
-      const phoneInUse = await User.findOne({
-        phoneNumber: parentPhone,
-      }).session(session);
-      if (phoneInUse) {
-        throw new Error(
-          "عذرًا، رقم هاتف ولي الأمر هذا مسجّل بالفعل بحساب آخر (مش كولي أمر). تأكد من الرقم.",
-        );
-      }
-
-      generatedUser = generateUsername(parentPhone);
+      // No parent account on this phone — but the same phone may still
+      // belong to a teacher or admin at this school (a staff member whose
+      // own child is being registered). That's allowed: phoneNumber is
+      // unique per role, not globally, so a second account for the same
+      // person is expected here, not an error. Only the username needs
+      // resolving, since it would otherwise collide with that other
+      // account's (both derive from the same digits).
+      generatedUser = await resolveUsername(parentPhone, User);
       generatedPass = generatePassword();
 
       const newParentResult = await User.create(

@@ -2,8 +2,8 @@ const School = require("../models/School");
 const User = require("../models/User");
 const Student = require("../models/Student");
 const {
-  generateUsername,
   generatePassword,
+  resolveUsername,
 } = require("../utils/generateCredentials");
 const { sendCredentialsEmail } = require("../utils/emailService");
 const { friendlyDuplicateKeyMessage } = require("../utils/formatDbError");
@@ -163,7 +163,9 @@ exports.createSchoolAdmin = async (req, res) => {
       return res.status(404).json({ success: false, message: "School not found" });
     }
 
-    const username = generateUsername(phoneNumber);
+    // See resolveUsername: phone is unique per role now, so this can share
+    // a phone with an existing account of a different role.
+    const username = await resolveUsername(phoneNumber, User);
     const password = generatePassword();
 
     const admin = await User.create({
