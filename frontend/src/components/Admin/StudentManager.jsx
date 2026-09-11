@@ -64,6 +64,14 @@ const StudentManagement = () => {
     parentPhone: "",
   });
 
+  // Suggestions from the imported household-contact directory (see
+  // ContactDirectory / import-contact-directory.js), keyed off the NEW
+  // student's own name as it's typed — that's what the admin already
+  // knows, not the parent's name. Only relevant during registration; an
+  // existing student's parent phone is already on file.
+  const [directoryMatches, setDirectoryMatches] = useState([]);
+  const [directoryLoading, setDirectoryLoading] = useState(false);
+
   const showToastMessage = (message, type = "success") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -110,6 +118,41 @@ const StudentManagement = () => {
       parentEmail: DEFAULT_PARENT_EMAIL,
       parentPhone: "",
     });
+    setDirectoryMatches([]);
+  };
+
+  // Looks the new student up in the imported household-contact directory as
+  // their name is typed, so the admin can pick a suggested phone instead of
+  // calling to ask for it. Debounced, and skipped entirely while editing an
+  // existing student — that student's parent phone is already on file.
+  useEffect(() => {
+    if (editMode) return;
+
+    const query = `${formData.firstName} ${formData.lastName}`.trim();
+    if (query.length < 3) {
+      setDirectoryMatches([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setDirectoryLoading(true);
+      try {
+        const res = await API.get("/contact-directory/search", {
+          params: { q: query },
+        });
+        setDirectoryMatches(res.data?.data || []);
+      } catch {
+        setDirectoryMatches([]);
+      } finally {
+        setDirectoryLoading(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [formData.firstName, formData.lastName, editMode]);
+
+  const applyDirectoryPhone = (phone) => {
+    setFormData((prev) => ({ ...prev, parentPhone: phone }));
   };
 
   const handleEdit = (student) => {
@@ -603,6 +646,66 @@ const StudentManagement = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Suggestions from the imported household-contact directory,
+                  matched by the student's own name as it's typed. Hidden
+                  entirely once nothing plausible is found — this is a
+                  convenience on top of manual entry, never a requirement. */}
+              {!editMode && (directoryLoading || directoryMatches.length > 0) && (
+                <div className="bg-indigo-50/60 border border-indigo-100 rounded-3xl p-5 space-y-3">
+                  <div className="flex items-center gap-2 text-indigo-600">
+                    <Phone size={16} />
+                    <span className="text-xs font-black uppercase tracking-widest">
+                      {directoryLoading
+                        ? "بندوّر في ملف بيانات الاتصال..."
+                        : "لقينا الطالب ده في ملف بيانات الاتصال"}
+                    </span>
+                  </div>
+
+                  {directoryMatches.map((entry) => (
+                    <div
+                      key={entry._id}
+                      className="bg-white rounded-2xl border border-indigo-100 p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between"
+                    >
+                      <div>
+                        <p className="font-black text-slate-700 text-sm">
+                          {entry.studentName}
+                        </p>
+                        {entry.address && (
+                          <p className="text-[11px] font-bold text-slate-400 mt-0.5">
+                            {entry.address}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {entry.fatherPhone && (
+                          <button
+                            type="button"
+                            onClick={() => applyDirectoryPhone(entry.fatherPhone)}
+                            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black transition-colors"
+                          >
+                            استخدم رقم الأب ({entry.fatherPhone})
+                          </button>
+                        )}
+                        {entry.motherPhone && (
+                          <button
+                            type="button"
+                            onClick={() => applyDirectoryPhone(entry.motherPhone)}
+                            className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-black transition-colors"
+                          >
+                            استخدم رقم الأم ({entry.motherPhone})
+                          </button>
+                        )}
+                        {!entry.fatherPhone && !entry.motherPhone && (
+                          <span className="text-[11px] font-bold text-slate-400">
+                            مفيش رقم متسجّل في الملف
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="space-y-6 pt-6 border-t border-slate-100">
                 <div className="flex items-center gap-3 text-indigo-600">

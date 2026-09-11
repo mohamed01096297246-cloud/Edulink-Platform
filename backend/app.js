@@ -47,6 +47,7 @@ const coverSessionRoutes = require("./src/routes/coverSessionRoutes");
 const gradeRegisterRoutes = require("./src/routes/gradeRegisterRoutes");
 const classworkNotebookRoutes = require("./src/routes/classworkNotebookRoutes");
 const boardNoteRoutes = require("./src/routes/boardNoteRoutes");
+const contactDirectoryRoutes = require("./src/routes/contactDirectoryRoutes");
 
 
 app.use("/api/auth", authRoutes);
@@ -76,6 +77,7 @@ app.use("/api/cover-sessions", coverSessionRoutes);
 app.use("/api/grade-register", gradeRegisterRoutes);
 app.use("/api/classwork-notebook", classworkNotebookRoutes);
 app.use("/api/board-notes", boardNoteRoutes);
+app.use("/api/contact-directory", contactDirectoryRoutes);
 
 
 
