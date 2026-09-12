@@ -14,6 +14,8 @@ import {
   Save,
   Users,
   UserCheck,
+  Eye,
+  Phone,
 } from "lucide-react";
 
 const ClassroomManagement = () => {
@@ -43,6 +45,13 @@ const ClassroomManagement = () => {
   const [loadingUnassigned, setLoadingUnassigned] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [assigning, setAssigning] = useState(false);
+
+  // Read-only roster view — "what students are already IN this classroom
+  // right now", separate from the assignment modal above (which only ever
+  // shows students waiting to be placed).
+  const [rosterModal, setRosterModal] = useState({ show: false, classroom: null });
+  const [rosterStudents, setRosterStudents] = useState([]);
+  const [loadingRoster, setLoadingRoster] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -168,6 +177,30 @@ const ClassroomManagement = () => {
     setAssignModal({ show: false, classroom: null });
     setUnassignedStudents([]);
     setSelectedStudentIds([]);
+  };
+
+  const openRosterModal = async (cls) => {
+    setRosterModal({ show: true, classroom: cls });
+    setLoadingRoster(true);
+    try {
+      const res = await API.get("/students", {
+        params: { classroomId: cls._id },
+      });
+      setRosterStudents(res.data.data || []);
+    } catch (err) {
+      showToast(
+        err.response?.data?.message || "فشل تحميل طلاب الفصل",
+        "error",
+      );
+      setRosterStudents([]);
+    } finally {
+      setLoadingRoster(false);
+    }
+  };
+
+  const closeRosterModal = () => {
+    setRosterModal({ show: false, classroom: null });
+    setRosterStudents([]);
   };
 
   const toggleStudentSelection = (studentId) => {
@@ -321,15 +354,20 @@ const ClassroomManagement = () => {
                       className="hover:bg-indigo-50/30 transition-colors"
                     >
                       <td className="p-6">
-                        <div className="flex flex-col">
-                          <span className="font-black text-slate-700 uppercase">
+                        <button
+                          type="button"
+                          onClick={() => openRosterModal(cls)}
+                          title="عرض طلاب الفصل"
+                          className="flex flex-col text-right hover:opacity-70 transition-opacity"
+                        >
+                          <span className="font-black text-slate-700 uppercase underline decoration-dotted decoration-slate-300 underline-offset-4">
                             {cls.name}
                           </span>
                           <span className="text-[10px] font-bold text-indigo-500 flex items-center gap-1">
                             <GraduationCap size={12} /> {cls.grade?.name} (
                             {cls.academicYear})
                           </span>
-                        </div>
+                        </button>
                       </td>
                       <td className="p-6">
                         <div className="flex flex-col">
@@ -348,6 +386,13 @@ const ClassroomManagement = () => {
                       </td>
                       <td className="p-6">
                         <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => openRosterModal(cls)}
+                            title="عرض طلاب الفصل"
+                            className="p-2 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-all"
+                          >
+                            <Eye size={18} />
+                          </button>
                           <button
                             onClick={() => openAssignModal(cls)}
                             title="توزيع طلاب على الفصل"
@@ -620,6 +665,77 @@ const ClassroomManagement = () => {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {rosterModal.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                  <Eye size={22} className="text-sky-600" />
+                  طلاب فصل {rosterModal.classroom?.name}
+                </h2>
+                <p className="text-slate-400 font-bold text-xs mt-2">
+                  {rosterModal.classroom?.grade?.name} —{" "}
+                  {rosterModal.classroom?.currentStudents || 0} من{" "}
+                  {rosterModal.classroom?.capacity} طالب
+                </p>
+              </div>
+              <button
+                onClick={closeRosterModal}
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X />
+              </button>
+            </div>
+
+            <div className="p-8 overflow-y-auto flex-1 space-y-2">
+              {loadingRoster ? (
+                <div className="text-center py-12">
+                  <Loader2 className="animate-spin mx-auto text-sky-500" size={32} />
+                </div>
+              ) : rosterStudents.length === 0 ? (
+                <p className="text-center text-slate-400 font-bold py-12">
+                  مفيش طلاب في الفصل ده لسه.
+                </p>
+              ) : (
+                rosterStudents.map((student) => (
+                  <div
+                    key={student._id}
+                    className="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50/50"
+                  >
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                        student.gender === "male"
+                          ? "bg-indigo-100 text-indigo-600"
+                          : "bg-rose-100 text-rose-600"
+                      }`}
+                    >
+                      {student.firstName?.[0]}
+                      {student.lastName?.[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-slate-700 text-sm truncate">
+                        {student.firstName} {student.lastName}
+                      </p>
+                      <p className="text-[11px] font-bold text-slate-400">
+                        ولي الأمر: {student.parent?.firstName}{" "}
+                        {student.parent?.lastName}
+                      </p>
+                    </div>
+                    {student.parent?.phoneNumber && (
+                      <div className="flex items-center gap-1 text-[11px] font-black text-slate-500 bg-white px-3 py-1.5 rounded-xl border border-slate-100 shrink-0">
+                        <Phone size={12} />
+                        {student.parent.phoneNumber}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
