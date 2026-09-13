@@ -72,6 +72,7 @@ const SchoolManager = () => {
       homeworkGrades: "إدخال درجات الواجبات",
     },
     parent: {
+      home: "الصفحة الرئيسية",
       schedule: "الجدول الدراسي",
       attendance: "الحضور",
       homework: "الواجبات",

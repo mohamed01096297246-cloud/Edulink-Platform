@@ -120,6 +120,7 @@ const userSchema = new mongoose.Schema(
     // (see requireUserFeature in tenant.js) — both have to allow a module
     // for it to actually be reachable.
     appFeatures: {
+      home: { type: Boolean, default: true },
       homework: { type: Boolean, default: true },
       exams: { type: Boolean, default: true },
       grades: { type: Boolean, default: true },
