@@ -72,6 +72,8 @@ const SchoolManager = () => {
       homeworkGrades: "إدخال درجات الواجبات",
     },
     parent: {
+      schedule: "الجدول الدراسي",
+      attendance: "الحضور",
       homework: "الواجبات",
       exams: "الامتحانات",
       grades: "الدرجات",
@@ -85,6 +87,9 @@ const SchoolManager = () => {
   const [usersLoading, setUsersLoading] = useState(false);
   const [editUserTarget, setEditUserTarget] = useState(null);
   const [editUserForm, setEditUserForm] = useState({ active: true, appFeatures: {} });
+  const [userSearch, setUserSearch] = useState("");
+  const [userGradeFilter, setUserGradeFilter] = useState("");
+  const [schoolGrades, setSchoolGrades] = useState([]);
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -233,10 +238,18 @@ const SchoolManager = () => {
 
   const openManageUsers = async (school, role) => {
     setManageUsers({ school, role });
+    setUserSearch("");
+    setUserGradeFilter("");
     setUsersLoading(true);
     try {
-      const res = await API.get(`/admin/users?role=${role}&school=${school._id}`);
-      setUsersList(res.data.data || []);
+      const [usersRes, gradesRes] = await Promise.all([
+        API.get(`/admin/users?role=${role}&school=${school._id}`),
+        role === "parent"
+          ? API.get(`/grades?school=${school._id}`)
+          : Promise.resolve({ data: { data: [] } }),
+      ]);
+      setUsersList(usersRes.data.data || []);
+      setSchoolGrades(gradesRes.data.data || []);
     } catch (err) {
       showToast(
         err.response?.data?.message ||
@@ -252,7 +265,20 @@ const SchoolManager = () => {
     setManageUsers(null);
     setUsersList([]);
     setEditUserTarget(null);
+    setUserSearch("");
+    setUserGradeFilter("");
+    setSchoolGrades([]);
   };
+
+  const filteredUsersList = usersList.filter((user) => {
+    const nameMatch =
+      !userSearch.trim() ||
+      `${user.firstName} ${user.lastName}`.includes(userSearch.trim());
+    const gradeMatch =
+      !userGradeFilter ||
+      (user.children || []).some((c) => c.grade?._id === userGradeFilter);
+    return nameMatch && gradeMatch;
+  });
 
   const openEditUser = (user) => {
     const featureSet = APP_FEATURE_SETS[manageUsers.role];
@@ -769,7 +795,29 @@ const SchoolManager = () => {
                 <X />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto space-y-3">
+            <div className="p-6 pb-3 flex flex-col sm:flex-row gap-3 flex-shrink-0 border-b border-slate-100">
+              <input
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                placeholder={manageUsers.role === "teacher" ? "بحث باسم المعلم..." : "بحث باسم ولي الأمر..."}
+                className="flex-1 p-3.5 bg-slate-50 rounded-xl font-bold text-sm text-slate-700 outline-none border-2 border-transparent focus:border-blue-500 transition-all"
+              />
+              {manageUsers.role === "parent" && (
+                <select
+                  value={userGradeFilter}
+                  onChange={(e) => setUserGradeFilter(e.target.value)}
+                  className="p-3.5 bg-slate-50 rounded-xl font-bold text-sm text-slate-700 outline-none border-2 border-transparent focus:border-blue-500 transition-all"
+                >
+                  <option value="">كل المراحل</option>
+                  {schoolGrades.map((g) => (
+                    <option key={g._id} value={g._id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div className="p-6 pt-3 overflow-y-auto space-y-3">
               {usersLoading ? (
                 <div className="py-12 text-center">
                   <Loader2 className="animate-spin inline text-blue-600" size={32} />
@@ -780,8 +828,12 @@ const SchoolManager = () => {
                     ? "لا يوجد معلمين مسجّلين لهذه المدرسة بعد."
                     : "لا يوجد أولياء أمور مسجّلين لهذه المدرسة بعد."}
                 </p>
+              ) : filteredUsersList.length === 0 ? (
+                <p className="text-slate-400 font-bold text-sm py-8 text-center">
+                  لا يوجد نتائج مطابقة للبحث.
+                </p>
               ) : (
-                usersList.map((user) => (
+                filteredUsersList.map((user) => (
                   <div
                     key={user._id}
                     className="bg-slate-50 rounded-2xl p-5 flex items-center justify-between gap-4"
@@ -793,6 +845,16 @@ const SchoolManager = () => {
                       <p className="text-slate-500 text-xs font-bold mt-1" dir="ltr">
                         {user.username}
                       </p>
+                      {manageUsers.role === "parent" && (user.children || []).length > 0 && (
+                        <p className="text-teal-600 text-[11px] font-bold mt-1.5 flex flex-wrap gap-1">
+                          {user.children.map((c, i) => (
+                            <span key={i} className="bg-teal-50 px-2 py-0.5 rounded-full">
+                              {c.firstName} {c.lastName}
+                              {c.grade ? ` · ${c.grade.name}` : ""}
+                            </span>
+                          ))}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <span

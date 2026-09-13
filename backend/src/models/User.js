@@ -126,6 +126,8 @@ const userSchema = new mongoose.Schema(
       behavior: { type: Boolean, default: true },
       notifications: { type: Boolean, default: true },
       report: { type: Boolean, default: true },
+      attendance: { type: Boolean, default: true },
+      schedule: { type: Boolean, default: true },
       examGrades: { type: Boolean, default: true },
       homeworkGrades: { type: Boolean, default: true },
     },

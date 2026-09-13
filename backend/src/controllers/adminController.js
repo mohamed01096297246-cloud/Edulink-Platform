@@ -302,10 +302,37 @@ exports.getAllUsers = async (req, res) => {
       .select("-password")
       .sort({ createdAt: -1 });
 
+    // Parents don't carry a grade/classroom themselves — that lives on
+    // their children — so the platform-owner's parent list (which needs to
+    // filter/search "which stage is this parent's child in") has nothing to
+    // go on without pulling their linked students in too.
+    let data = users;
+    if (req.query.role === "parent" && users.length > 0) {
+      const children = await Student.find({ parent: { $in: users.map((u) => u._id) } })
+        .select("firstName lastName parent grade")
+        .populate("grade", "name");
+
+      const childrenByParent = new Map();
+      for (const child of children) {
+        const key = child.parent.toString();
+        if (!childrenByParent.has(key)) childrenByParent.set(key, []);
+        childrenByParent.get(key).push({
+          firstName: child.firstName,
+          lastName: child.lastName,
+          grade: child.grade ? { _id: child.grade._id, name: child.grade.name } : null,
+        });
+      }
+
+      data = users.map((u) => ({
+        ...u.toObject(),
+        children: childrenByParent.get(u._id.toString()) || [],
+      }));
+    }
+
     res.status(200).json({
       success: true,
-      count: users.length,
-      data: users,
+      count: data.length,
+      data,
     });
   } catch (err) {
     res.status(500).json({

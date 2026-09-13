@@ -10,7 +10,7 @@ const {
   checkExistingAttendance,
 } = require("../controllers/attendanceController");
 
-const { protect, authorize } = require("../middleware/authMiddleware");
+const { protect, authorize, requireUserFeature } = require("../middleware/authMiddleware");
 
 router.post("/bulk", protect, authorize("teacher"), recordBulkAttendance);
 
@@ -22,6 +22,7 @@ router.get(
   "/student/:studentId",
   protect,
   authorize("parent"),
+  requireUserFeature("attendance"),
   getStudentAttendance,
 );
 
