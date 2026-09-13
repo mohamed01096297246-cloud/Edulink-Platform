@@ -15,19 +15,26 @@ import {
   CheckCircle2,
   Filter,
   BookOpen,
+  Layers,
 } from "lucide-react";
+
+const daysMapping = {
+  sun: "الأحد",
+  mon: "الاثنين",
+  tue: "الثلاثاء",
+  wed: "الأربعاء",
+  thu: "الخميس",
+};
+const dayOrder = Object.keys(daysMapping);
 
 const SchedulesPage = () => {
   const [schedules, setSchedules] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [classrooms, setClassrooms] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [errorMessage, setErrorMessage] = useState("");
 
-  // حالات الفلترة الجديدة (الصف والفصل)
+  // حالات الفلترة (الصف والفصل) لعرض الكروت
   const [selectedClassroom, setSelectedClassroom] = useState("");
   const [todayOnly, setTodayOnly] = useState(false);
 
@@ -38,22 +45,23 @@ const SchedulesPage = () => {
   });
 
   const [deleteId, setDeleteId] = useState(null);
-  const [formData, setFormData] = useState({
-    teacher: "",
-    subjectId: "",
-    classroom: "",
-    day: "sun",
+
+  // ---- منشئ جدول الفصل — الأساس هنا الفصل، مش المعلم ----
+  // تختار المرحلة والفصل مرة واحدة، وبعدها تضيف كل حصص الفصل ده يوم بيوم
+  // من غير ما تعيد اختيار الفصل تاني في كل مرة.
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [builderGrade, setBuilderGrade] = useState("");
+  const [builderClassroom, setBuilderClassroom] = useState("");
+  const [addingDay, setAddingDay] = useState(null);
+  const [editingPeriodId, setEditingPeriodId] = useState(null);
+  const [periodForm, setPeriodForm] = useState({
     startTime: "",
     endTime: "",
+    subjectId: "",
+    teacherId: "",
   });
-
-  const daysMapping = {
-    sun: "الأحد",
-    mon: "الاثنين",
-    tue: "الثلاثاء",
-    wed: "الأربعاء",
-    thu: "الخميس",
-  };
+  const [periodSaving, setPeriodSaving] = useState(false);
+  const [periodError, setPeriodError] = useState("");
 
   // ترتيب أيام الأسبوع زي JavaScript's Date.getDay() (0 = الأحد ... 6 = السبت)
   // الجمعة والسبت مش موجودين في daysMapping أصلًا (مفيش حصص فيهم)، فلو النهاردة
@@ -61,11 +69,6 @@ const SchedulesPage = () => {
   // وده صح لأنه مفيش حصص أصلًا في يوم إجازة).
   const jsDayToKey = ["sun", "mon", "tue", "wed", "thu", null, null];
   const todayKey = jsDayToKey[new Date().getDay()];
-
-  // Only the chosen teacher's own subjects are offered — the backend rejects
-  // anything else, so the form must not present it as a choice either.
-  const selectedTeacherSubjects =
-    teachers.find((t) => t._id === formData.teacher)?.subjects || [];
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -81,39 +84,20 @@ const SchedulesPage = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [schRes, teachRes, classRes] = await Promise.all([
+      const [schRes, teachRes, classRes, subjRes] = await Promise.all([
         API.get("/schedules"),
         API.get("/teacher"),
         API.get("/classrooms"),
+        API.get("/subjects"),
       ]);
       setSchedules(Array.isArray(schRes.data) ? schRes.data : []);
       setTeachers(teachRes.data.data || []);
       setClassrooms(Array.isArray(classRes.data) ? classRes.data : []);
+      setSubjects(Array.isArray(subjRes.data) ? subjRes.data : []);
     } catch (err) {
       showToast("حدث خطأ أثناء تحميل البيانات", "error");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrorMessage("");
-    setActionLoading(true);
-    try {
-      if (editingId) {
-        await API.put(`/schedules/${editingId}`, formData);
-        showToast("تم تحديث الحصة بنجاح", "success");
-      } else {
-        await API.post("/schedules", formData);
-        showToast("تم إضافة الحصة الجديدة بنجاح", "success");
-      }
-      closeModal();
-      fetchInitialData();
-    } catch (err) {
-      setErrorMessage(err.response?.data?.message || "حدث خطأ ما");
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -130,24 +114,152 @@ const SchedulesPage = () => {
     }
   };
 
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingId(null);
-    setErrorMessage("");
-    setFormData({
-      teacher: "",
-      subjectId: "",
-      classroom: "",
-      day: "sun",
-      startTime: "",
-      endTime: "",
-    });
-  };
-
   // تصفية الجداول بناءً على الفصل المختار وحصص اليوم فقط
   const filteredSchedules = schedules
     .filter((s) => !selectedClassroom || s.classroom?._id === selectedClassroom)
     .filter((s) => !todayOnly || s.day === todayKey);
+
+  // ---- منطق منشئ الجدول ----
+
+  // المراحل مُستخرجة من الفصول نفسها (كل فصل معاه grade populated) بدل ما
+  // نجيب endpoint تاني للمراحل.
+  const grades = Array.from(
+    new Map(
+      classrooms
+        .filter((c) => c.grade?._id)
+        .map((c) => [c.grade._id, c.grade]),
+    ).values(),
+  );
+
+  const gradeClassrooms = classrooms.filter(
+    (c) => c.grade?._id === builderGrade,
+  );
+
+  const currentClassroom = classrooms.find((c) => c._id === builderClassroom);
+
+  // المواد اللي بتتدرّس للمرحلة دي بس — سواء محدّدة بالاسم أو "كل المراحل".
+  const gradeSubjects = subjects.filter(
+    (s) =>
+      s.allGrades ||
+      (s.grades || []).some((g) => (g._id || g) === builderGrade),
+  );
+
+  // المعلمين اللي بيدرّسوا المادة المختارة ومسموحلهم بالمرحلة دي.
+  const eligibleTeachers = teachers.filter(
+    (t) =>
+      (t.subjects || []).some((s) => s._id === periodForm.subjectId) &&
+      (t.teachingGrades || []).some((g) => g._id === builderGrade),
+  );
+
+  const classroomSchedules = schedules.filter(
+    (s) => s.classroom?._id === builderClassroom,
+  );
+
+  const periodsForDay = (day) =>
+    classroomSchedules
+      .filter((s) => s.day === day)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  const resetPeriodForm = () => {
+    setPeriodForm({ startTime: "", endTime: "", subjectId: "", teacherId: "" });
+    setPeriodError("");
+    setEditingPeriodId(null);
+  };
+
+  const openBuilder = () => {
+    setBuilderOpen(true);
+    setBuilderGrade("");
+    setBuilderClassroom("");
+    setAddingDay(null);
+    resetPeriodForm();
+  };
+
+  const closeBuilder = () => {
+    setBuilderOpen(false);
+    setAddingDay(null);
+    resetPeriodForm();
+  };
+
+  // "تعديل" على كارت حصة قائمة — يفتح المنشئ على نفس فصلها ومرحلتها، وياخد
+  // بيانات الحصة دي في فورم الإضافة جاهزة للتعديل بدل الإضافة.
+  const openBuilderForEdit = (schedule) => {
+    setBuilderOpen(true);
+    setBuilderGrade(schedule.classroom?.grade?._id || "");
+    setBuilderClassroom(schedule.classroom?._id || "");
+    setAddingDay(schedule.day);
+    setEditingPeriodId(schedule._id);
+    setPeriodForm({
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      subjectId: schedule.subject?._id || "",
+      teacherId: schedule.teacher?._id || "",
+    });
+    setPeriodError("");
+  };
+
+  const startAddingPeriod = (day) => {
+    setAddingDay(day);
+    resetPeriodForm();
+  };
+
+  const handleSubjectChange = (subjectId) => {
+    const teachersForSubject = teachers.filter(
+      (t) =>
+        (t.subjects || []).some((s) => s._id === subjectId) &&
+        (t.teachingGrades || []).some((g) => g._id === builderGrade),
+    );
+    setPeriodForm((prev) => ({
+      ...prev,
+      subjectId,
+      teacherId: teachersForSubject.length === 1 ? teachersForSubject[0]._id : "",
+    }));
+  };
+
+  const handleSavePeriod = async (day) => {
+    setPeriodError("");
+
+    if (
+      !periodForm.subjectId ||
+      !periodForm.teacherId ||
+      !periodForm.startTime ||
+      !periodForm.endTime
+    ) {
+      setPeriodError("استكمل كل الحقول (المادة، المعلم، وقت البداية والنهاية).");
+      return;
+    }
+    if (periodForm.endTime <= periodForm.startTime) {
+      setPeriodError("وقت النهاية لازم يكون بعد وقت البداية.");
+      return;
+    }
+
+    setPeriodSaving(true);
+    try {
+      const payload = {
+        teacher: periodForm.teacherId,
+        subjectId: periodForm.subjectId,
+        classroom: builderClassroom,
+        day,
+        startTime: periodForm.startTime,
+        endTime: periodForm.endTime,
+      };
+
+      if (editingPeriodId) {
+        await API.put(`/schedules/${editingPeriodId}`, payload);
+        showToast("تم تحديث الحصة بنجاح", "success");
+      } else {
+        await API.post("/schedules", payload);
+        showToast("تمت إضافة الحصة بنجاح", "success");
+      }
+
+      setAddingDay(null);
+      resetPeriodForm();
+      fetchInitialData();
+    } catch (err) {
+      setPeriodError(err.response?.data?.message || "حدث خطأ أثناء الحفظ");
+    } finally {
+      setPeriodSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 lg:p-8 font-sans" dir="rtl">
@@ -182,14 +294,14 @@ const SchedulesPage = () => {
             </p>
           </div>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={openBuilder}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white px-6 py-4 rounded-2xl font-black shadow-lg shadow-indigo-100"
           >
-            <Plus size={20} /> إضافة حصة جديدة
+            <Plus size={20} /> بناء جدول فصل
           </button>
         </div>
 
-        {/* شريط الفلترة المطور (Filter Bar) */}
+        {/* شريط الفلترة (Filter Bar) */}
         <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-center gap-4">
           <div className="flex items-center gap-2 text-slate-500 font-bold text-sm bg-slate-50 px-4 py-3 rounded-2xl">
             <Filter size={16} className="text-indigo-500" />
@@ -320,18 +432,7 @@ const SchedulesPage = () => {
                   {/* أزرار التحكم أسفل الكارد */}
                   <div className="flex gap-2 pt-5 mt-4 border-t border-slate-50/60">
                     <button
-                      onClick={() => {
-                        setEditingId(s._id);
-                        setFormData({
-                          teacher: s.teacher?._id || "",
-                          subjectId: s.subject?._id || "",
-                          classroom: s.classroom?._id || "",
-                          day: s.day,
-                          startTime: s.startTime,
-                          endTime: s.endTime,
-                        });
-                        setShowModal(true);
-                      }}
+                      onClick={() => openBuilderForEdit(s)}
                       className="flex-1 py-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
                     >
                       <Edit size={14} /> تعديل
@@ -350,174 +451,281 @@ const SchedulesPage = () => {
         </div>
       </div>
 
-      {showModal && (
+      {/* ---- منشئ جدول الفصل ---- */}
+      {builderOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black text-slate-800">
-                {editingId ? "تعديل الحصة" : "إضافة حصة جديدة"}
-              </h2>
+          <div className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-black text-slate-800">
+                  بناء جدول فصل
+                </h2>
+                <p className="text-slate-400 text-xs font-bold mt-1">
+                  اختار المرحلة والفصل، وبعدين ضيف حصصه يوم بيوم في مكان واحد.
+                </p>
+              </div>
               <button
-                onClick={closeModal}
+                onClick={closeBuilder}
                 className="p-2 hover:bg-slate-100 rounded-full transition-colors"
               >
                 <X />
               </button>
             </div>
 
-            {errorMessage && (
-              <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 text-rose-600 font-bold text-sm">
-                <AlertCircle size={18} /> {errorMessage}
-              </div>
-            )}
-
-            <form
-              onSubmit={handleSubmit}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
-            >
-              <div className="md:col-span-2 lg:col-span-3 space-y-1">
-                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
-                  المعلم
-                </label>
-                <select
-                  required
-                  className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 bg-white outline-none font-bold text-slate-700 transition-all"
-                  value={formData.teacher}
-                  onChange={(e) => {
-                    // Changing teacher invalidates the chosen subject; if the
-                    // new teacher has exactly one, pick it for them.
-                    const nextTeacher = e.target.value;
-                    const theirs =
-                      teachers.find((t) => t._id === nextTeacher)?.subjects ||
-                      [];
-                    setFormData({
-                      ...formData,
-                      teacher: nextTeacher,
-                      subjectId: theirs.length === 1 ? theirs[0]._id : "",
-                    });
-                  }}
-                >
-                  <option value="">اختر معلمًا...</option>
-                  {teachers.map((t) => (
-                    <option key={t._id} value={t._id}>
-                      {t.firstName} {t.lastName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* A teacher may hold several subjects, and the timetable is
-                  where the school says which one this slot is for — every
-                  teacher screen later reads it from here. */}
-              {selectedTeacherSubjects.length > 0 && (
-                <div className="md:col-span-2 lg:col-span-3 space-y-1">
-                  <label className="text-xs font-black text-slate-400 mr-2 uppercase">
-                    المادة
+            <div className="p-8 overflow-y-auto flex-1 space-y-6">
+              {/* اختيار المرحلة والفصل */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-slate-400 mr-2 uppercase flex items-center gap-1">
+                    <Layers size={13} /> المرحلة
                   </label>
                   <select
-                    required
                     className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 bg-white outline-none font-bold text-slate-700 transition-all"
-                    value={formData.subjectId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, subjectId: e.target.value })
-                    }
+                    value={builderGrade}
+                    onChange={(e) => {
+                      setBuilderGrade(e.target.value);
+                      setBuilderClassroom("");
+                      setAddingDay(null);
+                      resetPeriodForm();
+                    }}
                   >
-                    <option value="">اختر المادة...</option>
-                    {selectedTeacherSubjects.map((sub) => (
-                      <option key={sub._id} value={sub._id}>
-                        {sub.name}
+                    <option value="">اختر المرحلة...</option>
+                    {grades.map((g) => (
+                      <option key={g._id} value={g._id}>
+                        {g.name}
                       </option>
                     ))}
                   </select>
-                  {selectedTeacherSubjects.length === 1 && (
-                    <p className="text-[11px] font-bold text-slate-400 mr-2 pt-1">
-                      المعلم ده بيدرّس مادة واحدة بس.
-                    </p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-slate-400 mr-2 uppercase flex items-center gap-1">
+                    <Home size={13} /> الفصل
+                  </label>
+                  <select
+                    disabled={!builderGrade}
+                    className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 bg-white outline-none font-bold text-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    value={builderClassroom}
+                    onChange={(e) => {
+                      setBuilderClassroom(e.target.value);
+                      setAddingDay(null);
+                      resetPeriodForm();
+                    }}
+                  >
+                    <option value="">
+                      {builderGrade ? "اختر الفصل..." : "اختر المرحلة أولاً"}
+                    </option>
+                    {gradeClassrooms.map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* جدول الأيام */}
+              {builderClassroom && (
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center gap-2 text-indigo-600">
+                    <Calendar size={18} />
+                    <h3 className="font-black text-sm">
+                      جدول فصل {currentClassroom?.name} — {currentClassroom?.grade?.name}
+                    </h3>
+                  </div>
+
+                  {gradeSubjects.length === 0 && (
+                    <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl text-amber-700 text-xs font-bold">
+                      لا توجد مواد مُسندة لهذه المرحلة بعد — أضِف مواد من صفحة
+                      "المواد الدراسية" أولًا.
+                    </div>
                   )}
+
+                  {dayOrder.map((day) => (
+                    <div
+                      key={day}
+                      className="bg-slate-50/60 border border-slate-100 rounded-3xl p-5 space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-black text-slate-700">
+                          {daysMapping[day]}
+                        </span>
+                        {addingDay !== day && (
+                          <button
+                            type="button"
+                            onClick={() => startAddingPeriod(day)}
+                            disabled={gradeSubjects.length === 0}
+                            className="flex items-center gap-1.5 text-xs font-black text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Plus size={14} /> إضافة حصة
+                          </button>
+                        )}
+                      </div>
+
+                      {periodsForDay(day).length === 0 && addingDay !== day && (
+                        <p className="text-[11px] font-bold text-slate-400">
+                          مفيش حصص متسجّلة لهذا اليوم لسه.
+                        </p>
+                      )}
+
+                      {periodsForDay(day).map((s) => (
+                        <div
+                          key={s._id}
+                          className="flex items-center justify-between gap-3 bg-white rounded-2xl border border-slate-100 p-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="text-xs font-black text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg shrink-0">
+                              {s.startTime}–{s.endTime}
+                            </span>
+                            <span className="text-sm font-black text-slate-700 truncate">
+                              {s.subject?.name || "بدون مادة"}
+                            </span>
+                            <span className="text-xs font-bold text-slate-400 truncate">
+                              أ. {s.teacher?.firstName} {s.teacher?.lastName}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => openBuilderForEdit(s)}
+                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteId(s._id)}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {addingDay === day && (
+                        <div className="bg-white rounded-2xl border-2 border-indigo-100 p-4 space-y-3">
+                          {periodError && (
+                            <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-2 text-rose-600 font-bold text-xs">
+                              <AlertCircle size={14} /> {periodError}
+                            </div>
+                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black text-slate-400 uppercase">
+                                المادة
+                              </label>
+                              <select
+                                className="w-full p-3 bg-slate-50 rounded-xl border-2 border-slate-100 focus:border-indigo-500 bg-white outline-none font-bold text-slate-700 text-sm transition-all"
+                                value={periodForm.subjectId}
+                                onChange={(e) => handleSubjectChange(e.target.value)}
+                              >
+                                <option value="">اختر المادة...</option>
+                                {gradeSubjects.map((sub) => (
+                                  <option key={sub._id} value={sub._id}>
+                                    {sub.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black text-slate-400 uppercase">
+                                المعلم
+                              </label>
+                              <select
+                                disabled={!periodForm.subjectId}
+                                className="w-full p-3 bg-slate-50 rounded-xl border-2 border-slate-100 focus:border-indigo-500 bg-white outline-none font-bold text-slate-700 text-sm transition-all disabled:opacity-50"
+                                value={periodForm.teacherId}
+                                onChange={(e) =>
+                                  setPeriodForm((prev) => ({
+                                    ...prev,
+                                    teacherId: e.target.value,
+                                  }))
+                                }
+                              >
+                                <option value="">
+                                  {periodForm.subjectId
+                                    ? "اختر المعلم..."
+                                    : "اختر المادة أولاً"}
+                                </option>
+                                {eligibleTeachers.map((t) => (
+                                  <option key={t._id} value={t._id}>
+                                    {t.firstName} {t.lastName}
+                                  </option>
+                                ))}
+                              </select>
+                              {periodForm.subjectId &&
+                                eligibleTeachers.length === 0 && (
+                                  <p className="text-[10px] font-bold text-rose-500">
+                                    مفيش معلم مسند لهذه المادة في هذه المرحلة.
+                                  </p>
+                                )}
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black text-slate-400 uppercase">
+                                وقت البداية
+                              </label>
+                              <input
+                                type="time"
+                                className="w-full p-3 bg-slate-50 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none font-bold text-slate-700 text-sm transition-all"
+                                value={periodForm.startTime}
+                                onChange={(e) =>
+                                  setPeriodForm((prev) => ({
+                                    ...prev,
+                                    startTime: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black text-slate-400 uppercase">
+                                وقت النهاية
+                              </label>
+                              <input
+                                type="time"
+                                className="w-full p-3 bg-slate-50 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none font-bold text-slate-700 text-sm transition-all"
+                                value={periodForm.endTime}
+                                onChange={(e) =>
+                                  setPeriodForm((prev) => ({
+                                    ...prev,
+                                    endTime: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              type="button"
+                              disabled={periodSaving}
+                              onClick={() => handleSavePeriod(day)}
+                              className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white rounded-xl font-black flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                            >
+                              {periodSaving ? (
+                                <Loader2 className="animate-spin" size={16} />
+                              ) : (
+                                <Save size={16} />
+                              )}
+                              {editingPeriodId ? "تحديث الحصة" : "حفظ الحصة"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAddingDay(null);
+                                resetPeriodForm();
+                              }}
+                              className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl font-bold text-sm transition-all"
+                            >
+                              إلغاء
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
-
-              <div className="space-y-1">
-                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
-                  الفصل
-                </label>
-                <select
-                  required
-                  className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 bg-white outline-none font-bold text-slate-700 transition-all"
-                  value={formData.classroom}
-                  onChange={(e) =>
-                    setFormData({ ...formData, classroom: e.target.value })
-                  }
-                >
-                  <option value="">اختر الفصل...</option>
-                  {classrooms.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.grade?.name ? `${c.grade.name} - ` : ""}
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
-                  اليوم
-                </label>
-                <select
-                  className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 bg-white outline-none font-bold text-slate-700 transition-all"
-                  value={formData.day}
-                  onChange={(e) =>
-                    setFormData({ ...formData, day: e.target.value })
-                  }
-                >
-                  {Object.entries(daysMapping).map(([key, val]) => (
-                    <option key={key} value={key}>
-                      {val}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
-                  وقت البداية
-                </label>
-                <input
-                  type="time"
-                  required
-                  className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 outline-none font-bold text-slate-700 transition-all"
-                  value={formData.startTime}
-                  onChange={(e) =>
-                    setFormData({ ...formData, startTime: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
-                  وقت النهاية
-                </label>
-                <input
-                  type="time"
-                  required
-                  className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 outline-none font-bold text-slate-700 transition-all"
-                  value={formData.endTime}
-                  onChange={(e) =>
-                    setFormData({ ...formData, endTime: e.target.value })
-                  }
-                />
-              </div>
-              <button
-                disabled={actionLoading}
-                className="md:col-span-2 lg:col-span-3 mt-4 py-4 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-xl shadow-indigo-100 disabled:opacity-50"
-              >
-                {actionLoading ? (
-                  <Loader2 className="animate-spin" size={20} />
-                ) : (
-                  <Save size={20} />
-                )}
-                {editingId ? "تحديث الحصة" : "تأكيد وحفظ"}
-              </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
