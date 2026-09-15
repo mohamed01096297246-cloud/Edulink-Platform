@@ -182,20 +182,34 @@ exports.createSchoolAdmin = async (req, res) => {
       active: true,
     });
 
+    // Account already exists at this point — see the note in
+    // teacherController: report a mail failure rather than failing the
+    // request and stranding it.
+    let credentialsEmailed = false;
+    let emailError = null;
     if (email) {
-      await sendCredentialsEmail(
-        email,
-        username,
-        password,
-        "Admin",
-        `${admin.firstName} ${admin.lastName}`,
-      );
+      try {
+        await sendCredentialsEmail(
+          email,
+          username,
+          password,
+          "Admin",
+          `${admin.firstName} ${admin.lastName}`,
+        );
+        credentialsEmailed = true;
+      } catch (err) {
+        emailError = err.message;
+      }
     }
 
     res.status(201).json({
       success: true,
-      message: `Admin account created for ${school.name}.`,
+      message: emailError
+        ? `تم إنشاء حساب الإداري لمدرسة ${school.name}، لكن تعذّر إرسال بيانات الدخول على البريد الإلكتروني.`
+        : `Admin account created for ${school.name}.`,
       admin: { id: admin._id, username: admin.username },
+      credentialsEmailed,
+      emailError,
     });
   } catch (err) {
     res

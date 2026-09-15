@@ -9,6 +9,16 @@ const escapeHtml = (value) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
+// Throws if the message could not be handed to Gmail. This used to swallow
+// every failure and log it, which meant a revoked app password went
+// unnoticed for days: accounts kept being created, admins kept being told
+// "credentials sent", and the parents behind them could never log in
+// because nothing was ever delivered. A send failure is not a detail the
+// caller can afford not to know about, so it surfaces — each caller decides
+// whether that should undo the account (see studentController, which
+// creates inside a transaction) or merely be reported back to the admin
+// (the staff-creating controllers, where the account already exists by this
+// point and failing the request would strand it).
 const sendCredentialsEmail = async (
   email,
   username,
@@ -49,6 +59,7 @@ const sendCredentialsEmail = async (
     await transporter.sendMail(mailOptions);
   } catch (error) {
     console.log("Email Error:", error);
+    throw error;
   }
 };
 // Handing over login credentials is the only thing EduLink emails about.

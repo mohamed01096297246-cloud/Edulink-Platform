@@ -88,18 +88,32 @@ exports.createSubAdmin = async (req, res) => {
       school: req.user.school,
       active: true,
     });
+    // Account already exists at this point — see the note in
+    // teacherController: report a mail failure rather than failing the
+    // request and stranding it.
+    let credentialsEmailed = false;
+    let emailError = null;
     if (email) {
-      await sendCredentialsEmail(
-        email,
-        username,
-        password,
-        "Admin",
-        `${newAdmin.firstName} ${newAdmin.lastName}`,
-      );
+      try {
+        await sendCredentialsEmail(
+          email,
+          username,
+          password,
+          "Admin",
+          `${newAdmin.firstName} ${newAdmin.lastName}`,
+        );
+        credentialsEmailed = true;
+      } catch (err) {
+        emailError = err.message;
+      }
     }
     res.status(201).json({
-      message: "new admin added successfully",
+      message: emailError
+        ? "تم إنشاء حساب الإداري، لكن تعذّر إرسال بيانات الدخول على البريد الإلكتروني. سلّم البيانات يدويًا أو أعد الإرسال بعد إصلاح إعدادات البريد."
+        : "new admin added successfully",
       admin: newAdmin.username,
+      credentialsEmailed,
+      emailError,
     });
   } catch (err) {
     res

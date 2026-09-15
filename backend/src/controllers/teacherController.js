@@ -87,17 +87,33 @@ exports.createTeacher = async (req, res) => {
       active: true,
     });
 
-    if (email)
-      await sendCredentialsEmail(
-        email,
-        username,
-        password,
-        "Teacher",
-        `${teacher.firstName} ${teacher.lastName}`,
-      );
+    // The teacher row already exists by this point, so a mail failure must
+    // not fail the request — that would strand an account the admin thinks
+    // was never created. Report it instead, so they know to hand the
+    // credentials over by another route.
+    let credentialsEmailed = false;
+    let emailError = null;
+    if (email) {
+      try {
+        await sendCredentialsEmail(
+          email,
+          username,
+          password,
+          "Teacher",
+          `${teacher.firstName} ${teacher.lastName}`,
+        );
+        credentialsEmailed = true;
+      } catch (err) {
+        emailError = err.message;
+      }
+    }
 
     res.status(201).json({
-      message: "Teacher created successfully",
+      message: emailError
+        ? "تم إنشاء حساب المعلم، لكن تعذّر إرسال بيانات الدخول على البريد الإلكتروني. سلّم البيانات يدويًا أو أعد الإرسال بعد إصلاح إعدادات البريد."
+        : "Teacher created successfully",
+      credentialsEmailed,
+      emailError,
       teacher: {
         id: teacher._id,
         name: `${teacher.firstName} ${teacher.lastName}`,
