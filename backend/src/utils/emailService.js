@@ -25,6 +25,7 @@ const sendCredentialsEmail = async (
   password,
   role,
   fullName,
+  studentName,
 ) => {
   try {
     const transporter = nodemailer.createTransport({
@@ -36,6 +37,7 @@ const sendCredentialsEmail = async (
     });
 
     const name = escapeHtml(fullName).trim();
+    const student = escapeHtml(studentName).trim();
 
     const mailOptions = {
       from: `"EduLink" <${process.env.EMAIL_USER}>`,
@@ -47,6 +49,13 @@ const sendCredentialsEmail = async (
           // Older callers pass no name; the greeting is skipped rather than
           // addressing the reader as "undefined".
           name ? `<p><b>Name:</b> ${name}</p>` : ""
+        }
+        ${
+          // Parents at this school share one mailbox (they often have no
+          // address of their own), so every message lands in the same inbox.
+          // Naming the child is what lets whoever hands these out tell one
+          // message from the next. Staff accounts have no student and skip it.
+          student ? `<p><b>Student:</b> ${student}</p>` : ""
         }
         <p>Your account has been created successfully.</p>
 
