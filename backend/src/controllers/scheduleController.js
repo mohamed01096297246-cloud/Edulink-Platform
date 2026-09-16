@@ -16,7 +16,12 @@ const describeConflict = (period, conflict, classroomId) => {
   if (String(conflict.classroom?._id || conflict.classroom) === String(classroomId)) {
     return `${label}: الفصل عنده حصة بالفعل في الوقت ده.`;
   }
-  const where = conflict.classroom?.name ? ` في فصل ${conflict.classroom.name}` : "";
+  // Classroom names here already read "فصل 1/1", so only add the word when
+  // the name doesn't carry it.
+  const roomName = conflict.classroom?.name || "";
+  const where = roomName
+    ? ` في ${roomName.trim().startsWith("فصل") ? roomName : `فصل ${roomName}`}`
+    : "";
   return `${label}: المعلم عنده حصة تانية${where} في نفس الوقت (${conflict.startTime}–${conflict.endTime}).`;
 };
 
