@@ -21,7 +21,8 @@ const Classroom = require("../src/models/Classroom");
 const Grade = require("../src/models/Grade");
 const Subject = require("../src/models/Subject");
 const Schedule = require("../src/models/Schedule");
-const { periodTimes } = require("../src/utils/periods");
+const BellSchedule = require("../src/models/BellSchedule");
+const { findBellFor, slotFor } = require("../src/utils/periods");
 
 const SCHOOL_NAME = "مدرسة الرحمة الابتدائية الخاصة";
 const GRADE_NAME = "الصف الاول الابتدائي";
@@ -115,8 +116,13 @@ const run = async () => {
 
   // First period every school day, so a reviewer sees a lesson whichever
   // weekday they open the app on.
-  const times = periodTimes(1, grade);
+  const bells = await BellSchedule.find({ school: school._id }).lean();
+  const times = [];
   for (const day of DAYS) {
+    const slot = slotFor(findBellFor(bells, grade._id, day), 1);
+    if (!slot) throw new Error(`no bell schedule gives ${GRADE_NAME} a 1st period on ${day}`);
+    times.push(`${day} ${slot.startTime}-${slot.endTime}`);
+
     const exists = await Schedule.findOne({ classroom: classroom._id, day, period: 1 });
     if (!exists) {
       await Schedule.create({
@@ -125,7 +131,8 @@ const run = async () => {
         classroom: classroom._id,
         day,
         period: 1,
-        ...times,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
         school: school._id,
       });
     }
@@ -133,7 +140,7 @@ const run = async () => {
 
   console.log(`\nclassroom: ${classroom.name}`);
   console.log(`parent  01000000000 -> child ${student.firstName} ${student.lastName}`);
-  console.log(`teacher 01000000002 -> ${subject.name}, period 1 ${times.startTime}-${times.endTime}, ${DAYS.join("/")}`);
+  console.log(`teacher 01000000002 -> ${subject.name}, period 1: ${times.join(", ")}`);
   console.log(`schedules in demo classroom: ${await Schedule.countDocuments({ classroom: classroom._id })}`);
 
   await mongoose.disconnect();

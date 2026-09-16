@@ -3,16 +3,35 @@ const User = require("../models/User");
 const Classroom = require("../models/Classroom");
 const Subject = require("../models/Subject");
 const Grade = require("../models/Grade");
+const BellSchedule = require("../models/BellSchedule");
 const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
-const { isValidPeriod, periodTimes, timesOverlap } = require("../utils/periods");
+const {
+  DAY_NAMES,
+  periodLabel,
+  timesOverlap,
+  findBellFor,
+  slotFor,
+} = require("../utils/periods");
 
-const PERIOD_NAMES = ["", "الأولى", "الثانية", "الثالثة", "الرابعة", "الخامسة", "السادسة", "السابعة"];
+// Resolves the bell schedule that times this classroom on this day, or
+// explains why there isn't one. Returns { bell } or { error }.
+const bellForClassroomDay = async (classroomDoc, day) => {
+  const bells = await BellSchedule.find({ school: classroomDoc.school }).lean();
+  const bell = findBellFor(bells, classroomDoc.grade, day);
+  if (!bell) {
+    const grade = await Grade.findById(classroomDoc.grade).select("name");
+    return {
+      error: `مفيش مواعيد حصص متحددة لـ${grade?.name || "المرحلة دي"} يوم ${DAY_NAMES[day] || day}. حددها من صفحة "مواعيد الحصص" الأول.`,
+    };
+  }
+  return { bell };
+};
 
 // Explains a clash in terms the admin can act on — which period, and
 // whether it's this classroom that's already booked or the teacher who is
 // teaching somewhere else at that moment.
 const describeConflict = (period, conflict, classroomId) => {
-  const label = `الحصة ${PERIOD_NAMES[period] || period}`;
+  const label = periodLabel(period);
   if (String(conflict.classroom?._id || conflict.classroom) === String(classroomId)) {
     return `${label}: الفصل عنده حصة بالفعل في الوقت ده.`;
   }
@@ -41,8 +60,8 @@ exports.createSchedule = async (req, res) => {
     if (periods.length === 0) {
       return res.status(400).json({ message: "اختر حصة واحدة على الأقل." });
     }
-    if (!periods.every(isValidPeriod)) {
-      return res.status(400).json({ message: "رقم الحصة لازم يكون من 1 لـ 7." });
+    if (!periods.every((p) => Number.isInteger(p) && p >= 1)) {
+      return res.status(400).json({ message: "رقم الحصة غير صحيح." });
     }
     const school = creationSchool(req);
 
@@ -107,16 +126,24 @@ exports.createSchedule = async (req, res) => {
       });
     }
 
-    const gradeDoc = await Grade.findById(classroomData.grade);
+    const { bell, error: bellError } = await bellForClassroomDay(classroomData, day);
+    if (bellError) return res.status(400).json({ message: bellError });
 
-    const slots = periods.map((period) => ({
-      period,
-      ...periodTimes(period, gradeDoc),
-    }));
+    const missing = periods.filter((p) => !slotFor(bell, p));
+    if (missing.length > 0) {
+      return res.status(400).json({
+        message: `${missing.map(periodLabel).join(" و")} مش موجودة يوم ${DAY_NAMES[day]} للمرحلة دي.`,
+      });
+    }
 
-    // Compared by TIME, not period number: a teacher's 4th period in a grade
-    // with a break starts later than the 4th period in a grade without one,
-    // and what matters is whether the teacher can physically be in both.
+    const slots = periods.map((period) => {
+      const slot = slotFor(bell, period);
+      return { period, startTime: slot.startTime, endTime: slot.endTime };
+    });
+
+    // Compared by TIME, not period number: the same period number falls at
+    // different times for different grades and days, and what matters is
+    // whether the teacher can physically be in both places.
     const existingSchedules = await Schedule.find({
       day,
       $or: [{ teacher }, { classroom }],
@@ -189,8 +216,8 @@ exports.updateSchedule = async (req, res) => {
     delete updates.periods;
     delete updates.school;
 
-    if (period !== undefined && !isValidPeriod(period)) {
-      return res.status(400).json({ message: "رقم الحصة لازم يكون من 1 لـ 7." });
+    if (period !== undefined && !(Number.isInteger(Number(period)) && Number(period) >= 1)) {
+      return res.status(400).json({ message: "رقم الحصة غير صحيح." });
     }
 
     const checkPeriod = period !== undefined ? Number(period) : existingSchedule.period;
@@ -203,13 +230,26 @@ exports.updateSchedule = async (req, res) => {
       endTime: existingSchedule.endTime,
     };
 
+    // Moving the day or classroom can land the same period number at a
+    // different time (or on a day that doesn't have it), so re-resolve.
     if (checkPeriod) {
-      const classroomDoc = await Classroom.findById(checkClassroom).select("grade");
-      const gradeDoc = classroomDoc ? await Grade.findById(classroomDoc.grade) : null;
-      checkTimes = periodTimes(checkPeriod, gradeDoc);
+      const classroomDoc = await Classroom.findById(checkClassroom).select("grade school");
+      if (!classroomDoc) return res.status(404).json({ message: "Classroom not found" });
+
+      const { bell, error: bellError } = await bellForClassroomDay(classroomDoc, checkDay);
+      if (bellError) return res.status(400).json({ message: bellError });
+
+      const slot = slotFor(bell, checkPeriod);
+      if (!slot) {
+        return res.status(400).json({
+          message: `${periodLabel(checkPeriod)} مش موجودة يوم ${DAY_NAMES[checkDay]} للمرحلة دي.`,
+        });
+      }
+
+      checkTimes = { startTime: slot.startTime, endTime: slot.endTime };
       updates.period = checkPeriod;
-      updates.startTime = checkTimes.startTime;
-      updates.endTime = checkTimes.endTime;
+      updates.startTime = slot.startTime;
+      updates.endTime = slot.endTime;
     }
 
     if (day || teacher || classroom || period !== undefined) {

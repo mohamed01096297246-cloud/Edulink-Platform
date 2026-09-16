@@ -22,13 +22,14 @@ const scheduleSchema = new mongoose.Schema(
       enum: ["sat", "sun", "mon", "tue", "wed", "thu"],
       required: true,
     },
-    // Which of the day's fixed periods (1–7) this slot is. startTime/endTime
-    // are derived from it and the classroom's grade (utils/periods.js) and
-    // kept alongside it, since everything downstream reads the times.
+    // Which numbered period of the day this slot is. startTime/endTime are
+    // copied from the bell schedule covering the classroom's grade on this
+    // day (models/BellSchedule) and kept alongside it, since everything
+    // downstream reads the times. How many periods a day has depends on the
+    // grade and the day, so the bell schedule — not this schema — bounds it.
     period: {
       type: Number,
       min: 1,
-      max: 7,
     },
     startTime: {
       type: String,

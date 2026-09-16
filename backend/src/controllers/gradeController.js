@@ -4,53 +4,11 @@ const Student = require("../models/Student");
 const Subject = require("../models/Subject");
 const Exam = require("../models/Exam");
 const User = require("../models/User");
-const Schedule = require("../models/Schedule");
 const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
-const { periodTimes } = require("../utils/periods");
-
-// The form sends "" for "no break"; the schema wants null/0. Only touches
-// the keys that were actually sent, so an unrelated edit leaves them alone.
-const normalizeBreak = (body) => {
-  const out = { ...body };
-  if ("breakAfterPeriod" in out) {
-    const n = Number(out.breakAfterPeriod);
-    out.breakAfterPeriod = out.breakAfterPeriod === "" || out.breakAfterPeriod === null || !n ? null : n;
-  }
-  if ("breakMinutes" in out) {
-    out.breakMinutes = Number(out.breakMinutes) || 0;
-  }
-  if (out.breakAfterPeriod === null) out.breakMinutes = 0;
-  return out;
-};
-
-// A grade's period times are derived from its break, so moving the break
-// has to move every period already booked for that grade — otherwise the
-// stored times (which attendance and both apps read) would silently
-// disagree with the grid. Legacy slots without a period number are left
-// as they are; there's nothing to derive them from.
-const retimeGradeSchedules = async (grade) => {
-  const classroomIds = (await Classroom.find({ grade: grade._id }).select("_id")).map((c) => c._id);
-  if (classroomIds.length === 0) return 0;
-
-  const schedules = await Schedule.find({
-    classroom: { $in: classroomIds },
-    period: { $gte: 1 },
-  }).select("period startTime endTime");
-
-  const ops = [];
-  for (const s of schedules) {
-    const times = periodTimes(s.period, grade);
-    if (times && (times.startTime !== s.startTime || times.endTime !== s.endTime)) {
-      ops.push({ updateOne: { filter: { _id: s._id }, update: { $set: times } } });
-    }
-  }
-  if (ops.length > 0) await Schedule.bulkWrite(ops);
-  return ops.length;
-};
 
 exports.createGrade = async (req, res) => {
   try {
-    const { name, academicYear, breakAfterPeriod, breakMinutes } = normalizeBreak(req.body);
+    const { name, academicYear } = req.body;
     const school = creationSchool(req);
 
     if (!school) {
@@ -59,7 +17,7 @@ exports.createGrade = async (req, res) => {
       });
     }
 
-    const grade = await Grade.create({ name, academicYear, school, breakAfterPeriod, breakMinutes });
+    const grade = await Grade.create({ name, academicYear, school });
 
     res.status(201).json({
       success: true,
@@ -101,7 +59,7 @@ exports.updateGrade = async (req, res) => {
       return res.status(404).json({ message: "Grade not found" });
     }
 
-    const updates = normalizeBreak(req.body);
+    const updates = { ...req.body };
     delete updates.school;
 
     const grade = await Grade.findByIdAndUpdate(req.params.id, updates, {
@@ -109,18 +67,9 @@ exports.updateGrade = async (req, res) => {
       runValidators: true,
     });
 
-    const breakChanged =
-      (existing.breakAfterPeriod || null) !== (grade.breakAfterPeriod || null) ||
-      (existing.breakMinutes || 0) !== (grade.breakMinutes || 0);
-
-    const retimed = breakChanged ? await retimeGradeSchedules(grade) : 0;
-
     res.status(200).json({
       success: true,
-      message: retimed > 0
-        ? `تم تحديث المرحلة، واتعدّلت مواعيد ${retimed} حصة حسب الفسحة الجديدة.`
-        : "Grade updated successfully",
-      retimed,
+      message: "Grade updated successfully",
       data: grade,
     });
   } catch (err) {

@@ -27,36 +27,17 @@ const daysMapping = {
 };
 const dayOrder = Object.keys(daysMapping);
 
-// اليوم الدراسي 7 حصص ثابتة، كل حصة 50 دقيقة من الساعة 8:00. الفسحة بس هي اللي
-// بتختلف حسب المرحلة (مكانها ومدتها) وبتزق الحصص اللي بعدها. السيرفر هو اللي
-// بيحسب المواعيد فعليًا وقت الحفظ (utils/periods.js) — ده مجرد نفس الحساب عشان
-// نعرض الوقت للأدمن وهو بيختار.
-const PERIOD_NUMBERS = [1, 2, 3, 4, 5, 6, 7];
-const PERIOD_NAMES = {
-  1: "الأولى",
-  2: "الثانية",
-  3: "الثالثة",
-  4: "الرابعة",
-  5: "الخامسة",
-  6: "السادسة",
-  7: "السابعة",
-};
-const toHHMM = (m) =>
-  `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-const periodTimes = (period, grade) => {
-  let start = 8 * 60 + (period - 1) * 50;
-  if (grade?.breakAfterPeriod && grade?.breakMinutes > 0 && period > grade.breakAfterPeriod) {
-    start += grade.breakMinutes;
-  }
-  return { startTime: toHHMM(start), endTime: toHHMM(start + 50) };
-};
+// الحصص ومواعيدها جاية من صفحة "مواعيد الحصص" (مجموعة لكل مراحل وأيام معينة)،
+// لأنها بتختلف حسب المرحلة وحسب اليوم. السيرفر هو اللي بياخد الميعاد منها وقت
+// الحفظ — هنا بنعرضها بس عشان الأدمن يشوف الوقت وهو بيختار.
+const PERIOD_NAMES = ["", "الأولى", "الثانية", "الثالثة", "الرابعة", "الخامسة", "السادسة", "السابعة", "الثامنة", "التاسعة", "العاشرة", "الحادية عشرة", "الثانية عشرة"];
 
 const SchedulesPage = () => {
   const [schedules, setSchedules] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [classrooms, setClassrooms] = useState([]);
   const [subjects, setSubjects] = useState([]);
-  const [gradeList, setGradeList] = useState([]);
+  const [bells, setBells] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // حالات الفلترة (الصف والفصل) لعرض الكروت
@@ -108,18 +89,18 @@ const SchedulesPage = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [schRes, teachRes, classRes, subjRes, gradeRes] = await Promise.all([
+      const [schRes, teachRes, classRes, subjRes, bellRes] = await Promise.all([
         API.get("/schedules"),
         API.get("/teacher"),
         API.get("/classrooms"),
         API.get("/subjects"),
-        API.get("/grades"),
+        API.get("/bell-schedules"),
       ]);
       setSchedules(Array.isArray(schRes.data) ? schRes.data : []);
       setTeachers(teachRes.data.data || []);
       setClassrooms(Array.isArray(classRes.data) ? classRes.data : []);
       setSubjects(Array.isArray(subjRes.data) ? subjRes.data : []);
-      setGradeList(gradeRes.data.data || []);
+      setBells(bellRes.data.data || []);
     } catch (err) {
       showToast("حدث خطأ أثناء تحميل البيانات", "error");
     } finally {
@@ -186,8 +167,15 @@ const SchedulesPage = () => {
       .filter((s) => s.day === day)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-  // إعدادات الفسحة للمرحلة المختارة (من صفحة المراحل).
-  const builderGradeConfig = gradeList.find((g) => g._id === builderGrade);
+  // مواعيد الحصص اللي ماشية عليها المرحلة المختارة في اليوم ده.
+  const bellForDay = (day) =>
+    bells.find(
+      (b) =>
+        (b.grades || []).some((g) => (g._id || g) === builderGrade) &&
+        (b.days || []).includes(day),
+    );
+  const bellPeriods = (day) =>
+    [...(bellForDay(day)?.periods || [])].sort((a, b) => a.period - b.period);
 
   // الحصص المحجوزة بالفعل للفصل ده في اليوم ده — عشان تظهر مقفولة في الاختيار.
   // وقت التعديل، الحصة اللي بتتعدل نفسها مش محسوبة محجوزة.
@@ -588,10 +576,7 @@ const SchedulesPage = () => {
                   </div>
 
                   <p className="text-[11px] font-bold text-slate-500 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2.5">
-                    7 حصص، كل حصة 50 دقيقة من الساعة 08:00 —{" "}
-                    {builderGradeConfig?.breakAfterPeriod && builderGradeConfig?.breakMinutes > 0
-                      ? `الفسحة بعد الحصة ${PERIOD_NAMES[builderGradeConfig.breakAfterPeriod]} لمدة ${builderGradeConfig.breakMinutes} دقيقة.`
-                      : "مفيش فسحة متحددة للمرحلة دي (تقدر تحددها من صفحة المراحل الدراسية)."}
+                    عدد الحصص ومواعيدها في كل يوم جاية من صفحة "مواعيد الحصص".
                   </p>
 
                   {gradeSubjects.length === 0 && (
@@ -681,11 +666,16 @@ const SchedulesPage = () => {
                                 ? "الحصة"
                                 : "الحصص (تقدر تختار أكتر من حصة)"}
                             </label>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-                              {PERIOD_NUMBERS.map((p) => {
+                            {bellPeriods(day).length === 0 && (
+                              <p className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-700 text-xs font-bold">
+                                مفيش مواعيد حصص متحددة للمرحلة دي يوم {daysMapping[day]}. حددها من صفحة "مواعيد الحصص" الأول.
+                              </p>
+                            )}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+                              {bellPeriods(day).map(({ period: p, startTime, endTime }) => {
                                 const taken = takenPeriods(day)[p];
                                 const selected = periodForm.periods.includes(p);
-                                const times = periodTimes(p, builderGradeConfig);
+                                const times = { startTime, endTime };
                                 return (
                                   <button
                                     key={p}

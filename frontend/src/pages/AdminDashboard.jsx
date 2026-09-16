@@ -20,6 +20,7 @@ import {
   UserCog,
   Landmark,
   MessageSquareText,
+  Clock,
 } from "lucide-react";
 import { Routes, Route, Link, useLocation } from "react-router-dom";
 import { Navigate } from "react-router-dom";
@@ -33,6 +34,7 @@ import AdminManager from "../components/Admin/AdminManager";
 import ClassroomManager from "../components/Admin/ClassroomManager";
 import SubjectManager from "../components/Admin/SubjectManager";
 import GradeManagement from "../components/Admin/GradeManager";
+import BellScheduleManager from "../components/Admin/BellScheduleManager";
 import AdminOverview from "../components/Admin/AdminOverview";
 import PlatformOverview from "../components/Admin/PlatformOverview";
 import SchoolManager from "../components/Admin/SchoolManager";
@@ -54,6 +56,7 @@ const NAV_GROUPS = [
       { name: "المراحل الدراسية", icon: <Layers size={18} />, path: "/admin/grades" },
       { name: "الفصول", icon: <DoorOpen size={18} />, path: "/admin/classrooms" },
       { name: "المواد", icon: <BookOpen size={18} />, path: "/admin/subjects" },
+      { name: "مواعيد الحصص", icon: <Clock size={18} />, path: "/admin/bell-schedules" },
     ],
   },
   {
@@ -261,6 +264,7 @@ const AdminDashboard = ({ onLogout }) => {
             <Route path="classrooms" element={<ClassroomManager />} />
             <Route path="subjects" element={<SubjectManager />} />
             <Route path="grades" element={<GradeManagement />} />
+            <Route path="bell-schedules" element={<BellScheduleManager />} />
             {userInfo.isSuperAdmin && (
               <Route path="schools" element={<SchoolManager />} />
             )}
