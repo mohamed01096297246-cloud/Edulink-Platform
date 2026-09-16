@@ -125,7 +125,10 @@ const run = async () => {
       );
     }
     if (plan.ops.length) await Schedule.bulkWrite(plan.ops);
-    const unset = await Grade.updateMany(
+    // Raw collection on purpose: those fields are no longer in the Grade
+    // schema, and Mongoose strict mode silently drops an $unset of paths it
+    // doesn't know — the model-level update reports success and does nothing.
+    const unset = await Grade.collection.updateMany(
       { $or: [{ breakAfterPeriod: { $exists: true } }, { breakMinutes: { $exists: true } }] },
       { $unset: { breakAfterPeriod: "", breakMinutes: "" } },
     );
