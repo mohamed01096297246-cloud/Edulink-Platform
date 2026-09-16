@@ -26,7 +26,9 @@ const GradeManagement = () => {
 
   const [deleteId, setDeleteId] = useState(null);
 
-  const [formData, setFormData] = useState({ name: "", academicYear: "" });
+  const EMPTY_FORM = { name: "", academicYear: "", breakAfterPeriod: "", breakMinutes: "" };
+  const PERIOD_NAMES = ["", "الأولى", "الثانية", "الثالثة", "الرابعة", "الخامسة", "السادسة"];
+  const [formData, setFormData] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
 
   const showToast = (message, type = "success") => {
@@ -57,17 +59,24 @@ const GradeManagement = () => {
   const closeModal = () => {
     setShowModal(false);
     setEditingId(null);
-    setFormData({ name: "", academicYear: "" });
+    setFormData(EMPTY_FORM);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (formData.breakAfterPeriod && !(Number(formData.breakMinutes) > 0)) {
+      showToast("حدد مدة الفسحة بالدقائق، أو اختار \"بدون فسحة\".", "error");
+      return;
+    }
     setActionLoading(true);
     try {
       if (editingId) {
         const res = await API.put(`/grades/${editingId}`, formData);
         if (res.data.success)
-          showToast("تم تحديث المرحلة بنجاح", "success");
+          showToast(
+            res.data.retimed > 0 ? res.data.message : "تم تحديث المرحلة بنجاح",
+            "success",
+          );
       } else {
         const res = await API.post("/grades", formData);
         if (res.data.success) showToast("تم إضافة المرحلة بنجاح", "success");
@@ -101,7 +110,12 @@ const GradeManagement = () => {
 
   const startEdit = (grade) => {
     setEditingId(grade._id);
-    setFormData({ name: grade.name, academicYear: grade.academicYear });
+    setFormData({
+      name: grade.name,
+      academicYear: grade.academicYear,
+      breakAfterPeriod: grade.breakAfterPeriod || "",
+      breakMinutes: grade.breakMinutes || "",
+    });
     setShowModal(true);
   };
 
@@ -161,6 +175,9 @@ const GradeManagement = () => {
                   <th className="p-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">
                     السنة الدراسية
                   </th>
+                  <th className="p-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                    الفسحة
+                  </th>
                   <th className="p-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">
                     الإجراءات
                   </th>
@@ -169,14 +186,14 @@ const GradeManagement = () => {
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
                   <tr>
-                    <td colSpan="3" className="p-20 text-center">
+                    <td colSpan="4" className="p-20 text-center">
                       <Loader2 className="animate-spin mx-auto text-indigo-500" size={40} />
                     </td>
                   </tr>
                 ) : grades.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="3"
+                      colSpan="4"
                       className="p-16 text-center text-slate-400 font-bold"
                     >
                       لا يوجد مراحل مسجّلة بعد. اضغط "إضافة مرحلة جديدة" لإضافة أول مرحلة.
@@ -195,6 +212,17 @@ const GradeManagement = () => {
                         <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black tracking-tight">
                           {g.academicYear}
                         </span>
+                      </td>
+                      <td className="p-6">
+                        {g.breakAfterPeriod && g.breakMinutes > 0 ? (
+                          <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-[11px] font-black">
+                            بعد الحصة {PERIOD_NAMES[g.breakAfterPeriod]} · {g.breakMinutes} دقيقة
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 text-xs font-bold">
+                            بدون فسحة
+                          </span>
+                        )}
                       </td>
                       <td className="p-6">
                         <div className="flex items-center justify-center gap-2">
@@ -273,6 +301,53 @@ const GradeManagement = () => {
                   }
                 />
               </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
+                  الفسحة بعد
+                </label>
+                <select
+                  className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-slate-700 transition-all"
+                  value={formData.breakAfterPeriod}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      breakAfterPeriod: e.target.value,
+                      breakMinutes: e.target.value ? formData.breakMinutes : "",
+                    })
+                  }
+                >
+                  <option value="">بدون فسحة</option>
+                  {[1, 2, 3, 4, 5, 6].map((p) => (
+                    <option key={p} value={p}>
+                      الحصة {PERIOD_NAMES[p]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
+                  مدة الفسحة (دقيقة)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  disabled={!formData.breakAfterPeriod}
+                  placeholder="مثال: 15"
+                  className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-slate-700 transition-all disabled:opacity-40"
+                  value={formData.breakMinutes}
+                  onChange={(e) =>
+                    setFormData({ ...formData, breakMinutes: e.target.value })
+                  }
+                />
+              </div>
+
+              <p className="md:col-span-2 text-[11px] font-bold text-slate-400 -mt-2">
+                كل حصة 50 دقيقة من الساعة 08:00. لو غيّرت الفسحة، مواعيد حصص المرحلة دي
+                في الجدول هتتعدل لوحدها.
+              </p>
 
               <button
                 disabled={actionLoading}

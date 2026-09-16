@@ -27,11 +27,36 @@ const daysMapping = {
 };
 const dayOrder = Object.keys(daysMapping);
 
+// اليوم الدراسي 7 حصص ثابتة، كل حصة 50 دقيقة من الساعة 8:00. الفسحة بس هي اللي
+// بتختلف حسب المرحلة (مكانها ومدتها) وبتزق الحصص اللي بعدها. السيرفر هو اللي
+// بيحسب المواعيد فعليًا وقت الحفظ (utils/periods.js) — ده مجرد نفس الحساب عشان
+// نعرض الوقت للأدمن وهو بيختار.
+const PERIOD_NUMBERS = [1, 2, 3, 4, 5, 6, 7];
+const PERIOD_NAMES = {
+  1: "الأولى",
+  2: "الثانية",
+  3: "الثالثة",
+  4: "الرابعة",
+  5: "الخامسة",
+  6: "السادسة",
+  7: "السابعة",
+};
+const toHHMM = (m) =>
+  `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+const periodTimes = (period, grade) => {
+  let start = 8 * 60 + (period - 1) * 50;
+  if (grade?.breakAfterPeriod && grade?.breakMinutes > 0 && period > grade.breakAfterPeriod) {
+    start += grade.breakMinutes;
+  }
+  return { startTime: toHHMM(start), endTime: toHHMM(start + 50) };
+};
+
 const SchedulesPage = () => {
   const [schedules, setSchedules] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [classrooms, setClassrooms] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [gradeList, setGradeList] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // حالات الفلترة (الصف والفصل) لعرض الكروت
@@ -55,8 +80,7 @@ const SchedulesPage = () => {
   const [addingDay, setAddingDay] = useState(null);
   const [editingPeriodId, setEditingPeriodId] = useState(null);
   const [periodForm, setPeriodForm] = useState({
-    startTime: "",
-    endTime: "",
+    periods: [],
     subjectId: "",
     teacherId: "",
   });
@@ -84,16 +108,18 @@ const SchedulesPage = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [schRes, teachRes, classRes, subjRes] = await Promise.all([
+      const [schRes, teachRes, classRes, subjRes, gradeRes] = await Promise.all([
         API.get("/schedules"),
         API.get("/teacher"),
         API.get("/classrooms"),
         API.get("/subjects"),
+        API.get("/grades"),
       ]);
       setSchedules(Array.isArray(schRes.data) ? schRes.data : []);
       setTeachers(teachRes.data.data || []);
       setClassrooms(Array.isArray(classRes.data) ? classRes.data : []);
       setSubjects(Array.isArray(subjRes.data) ? subjRes.data : []);
+      setGradeList(gradeRes.data.data || []);
     } catch (err) {
       showToast("حدث خطأ أثناء تحميل البيانات", "error");
     } finally {
@@ -160,8 +186,37 @@ const SchedulesPage = () => {
       .filter((s) => s.day === day)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
+  // إعدادات الفسحة للمرحلة المختارة (من صفحة المراحل).
+  const builderGradeConfig = gradeList.find((g) => g._id === builderGrade);
+
+  // الحصص المحجوزة بالفعل للفصل ده في اليوم ده — عشان تظهر مقفولة في الاختيار.
+  // وقت التعديل، الحصة اللي بتتعدل نفسها مش محسوبة محجوزة.
+  const takenPeriods = (day) => {
+    const map = {};
+    periodsForDay(day)
+      .filter((s) => s._id !== editingPeriodId && s.period)
+      .forEach((s) => {
+        map[s.period] = s;
+      });
+    return map;
+  };
+
+  const togglePeriod = (period) => {
+    setPeriodForm((prev) => {
+      // التعديل على حصة واحدة بس — اختيار حصة تانية بيبدّلها.
+      if (editingPeriodId) return { ...prev, periods: [period] };
+      const has = prev.periods.includes(period);
+      return {
+        ...prev,
+        periods: has
+          ? prev.periods.filter((p) => p !== period)
+          : [...prev.periods, period].sort((a, b) => a - b),
+      };
+    });
+  };
+
   const resetPeriodForm = () => {
-    setPeriodForm({ startTime: "", endTime: "", subjectId: "", teacherId: "" });
+    setPeriodForm({ periods: [], subjectId: "", teacherId: "" });
     setPeriodError("");
     setEditingPeriodId(null);
   };
@@ -189,8 +244,7 @@ const SchedulesPage = () => {
     setAddingDay(schedule.day);
     setEditingPeriodId(schedule._id);
     setPeriodForm({
-      startTime: schedule.startTime,
-      endTime: schedule.endTime,
+      periods: schedule.period ? [schedule.period] : [],
       subjectId: schedule.subject?._id || "",
       teacherId: schedule.teacher?._id || "",
     });
@@ -218,17 +272,12 @@ const SchedulesPage = () => {
   const handleSavePeriod = async (day) => {
     setPeriodError("");
 
-    if (
-      !periodForm.subjectId ||
-      !periodForm.teacherId ||
-      !periodForm.startTime ||
-      !periodForm.endTime
-    ) {
-      setPeriodError("استكمل كل الحقول (المادة، المعلم، وقت البداية والنهاية).");
+    if (periodForm.periods.length === 0) {
+      setPeriodError("اختار حصة واحدة على الأقل.");
       return;
     }
-    if (periodForm.endTime <= periodForm.startTime) {
-      setPeriodError("وقت النهاية لازم يكون بعد وقت البداية.");
+    if (!periodForm.subjectId || !periodForm.teacherId) {
+      setPeriodError("اختار المادة والمعلم.");
       return;
     }
 
@@ -239,16 +288,20 @@ const SchedulesPage = () => {
         subjectId: periodForm.subjectId,
         classroom: builderClassroom,
         day,
-        startTime: periodForm.startTime,
-        endTime: periodForm.endTime,
       };
 
       if (editingPeriodId) {
-        await API.put(`/schedules/${editingPeriodId}`, payload);
+        await API.put(`/schedules/${editingPeriodId}`, {
+          ...payload,
+          period: periodForm.periods[0],
+        });
         showToast("تم تحديث الحصة بنجاح", "success");
       } else {
-        await API.post("/schedules", payload);
-        showToast("تمت إضافة الحصة بنجاح", "success");
+        const res = await API.post("/schedules", {
+          ...payload,
+          periods: periodForm.periods,
+        });
+        showToast(res.data?.message || "تمت إضافة الحصة بنجاح", "success");
       }
 
       setAddingDay(null);
@@ -405,7 +458,7 @@ const SchedulesPage = () => {
                             {s.startTime} - {s.endTime}
                           </p>
                           <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wide">
-                            توقيت الحصة
+                            {s.period ? `الحصة ${PERIOD_NAMES[s.period]}` : "توقيت الحصة"}
                           </span>
                         </div>
                       </div>
@@ -534,6 +587,13 @@ const SchedulesPage = () => {
                     </h3>
                   </div>
 
+                  <p className="text-[11px] font-bold text-slate-500 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2.5">
+                    7 حصص، كل حصة 50 دقيقة من الساعة 08:00 —{" "}
+                    {builderGradeConfig?.breakAfterPeriod && builderGradeConfig?.breakMinutes > 0
+                      ? `الفسحة بعد الحصة ${PERIOD_NAMES[builderGradeConfig.breakAfterPeriod]} لمدة ${builderGradeConfig.breakMinutes} دقيقة.`
+                      : "مفيش فسحة متحددة للمرحلة دي (تقدر تحددها من صفحة المراحل الدراسية)."}
+                  </p>
+
                   {gradeSubjects.length === 0 && (
                     <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl text-amber-700 text-xs font-bold">
                       لا توجد مواد مُسندة لهذه المرحلة بعد — أضِف مواد من صفحة
@@ -574,6 +634,11 @@ const SchedulesPage = () => {
                           className="flex items-center justify-between gap-3 bg-white rounded-2xl border border-slate-100 p-3"
                         >
                           <div className="flex items-center gap-3 min-w-0">
+                            {s.period && (
+                              <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg shrink-0">
+                                الحصة {PERIOD_NAMES[s.period]}
+                              </span>
+                            )}
                             <span className="text-xs font-black text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg shrink-0">
                               {s.startTime}–{s.endTime}
                             </span>
@@ -610,6 +675,52 @@ const SchedulesPage = () => {
                               <AlertCircle size={14} /> {periodError}
                             </div>
                           )}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-400 uppercase">
+                              {editingPeriodId
+                                ? "الحصة"
+                                : "الحصص (تقدر تختار أكتر من حصة)"}
+                            </label>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                              {PERIOD_NUMBERS.map((p) => {
+                                const taken = takenPeriods(day)[p];
+                                const selected = periodForm.periods.includes(p);
+                                const times = periodTimes(p, builderGradeConfig);
+                                return (
+                                  <button
+                                    key={p}
+                                    type="button"
+                                    disabled={!!taken}
+                                    onClick={() => togglePeriod(p)}
+                                    title={
+                                      taken
+                                        ? `محجوزة: ${taken.subject?.name || ""} — أ. ${taken.teacher?.firstName || ""}`
+                                        : ""
+                                    }
+                                    className={`p-2.5 rounded-xl border-2 text-center transition-all ${
+                                      taken
+                                        ? "bg-slate-100 border-slate-100 text-slate-300 cursor-not-allowed"
+                                        : selected
+                                          ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100"
+                                          : "bg-white border-slate-100 text-slate-600 hover:border-indigo-300"
+                                    }`}
+                                  >
+                                    <div className="text-xs font-black">
+                                      {PERIOD_NAMES[p]}
+                                    </div>
+                                    <div
+                                      className={`text-[10px] font-bold mt-0.5 ${
+                                        selected ? "text-indigo-100" : "text-slate-400"
+                                      }`}
+                                    >
+                                      {taken ? "محجوزة" : `${times.startTime}–${times.endTime}`}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="space-y-1">
                               <label className="text-[10px] font-black text-slate-400 uppercase">
@@ -661,38 +772,6 @@ const SchedulesPage = () => {
                                   </p>
                                 )}
                             </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black text-slate-400 uppercase">
-                                وقت البداية
-                              </label>
-                              <input
-                                type="time"
-                                className="w-full p-3 bg-slate-50 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none font-bold text-slate-700 text-sm transition-all"
-                                value={periodForm.startTime}
-                                onChange={(e) =>
-                                  setPeriodForm((prev) => ({
-                                    ...prev,
-                                    startTime: e.target.value,
-                                  }))
-                                }
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black text-slate-400 uppercase">
-                                وقت النهاية
-                              </label>
-                              <input
-                                type="time"
-                                className="w-full p-3 bg-slate-50 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none font-bold text-slate-700 text-sm transition-all"
-                                value={periodForm.endTime}
-                                onChange={(e) =>
-                                  setPeriodForm((prev) => ({
-                                    ...prev,
-                                    endTime: e.target.value,
-                                  }))
-                                }
-                              />
-                            </div>
                           </div>
                           <div className="flex gap-2 pt-1">
                             <button
@@ -706,7 +785,11 @@ const SchedulesPage = () => {
                               ) : (
                                 <Save size={16} />
                               )}
-                              {editingPeriodId ? "تحديث الحصة" : "حفظ الحصة"}
+                              {editingPeriodId
+                                ? "تحديث الحصة"
+                                : periodForm.periods.length > 1
+                                  ? `حفظ ${periodForm.periods.length} حصص`
+                                  : "حفظ الحصة"}
                             </button>
                             <button
                               type="button"

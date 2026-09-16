@@ -2,11 +2,43 @@ const Schedule = require("../models/Schedule");
 const User = require("../models/User");
 const Classroom = require("../models/Classroom");
 const Subject = require("../models/Subject");
+const Grade = require("../models/Grade");
 const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
+const { isValidPeriod, periodTimes, timesOverlap } = require("../utils/periods");
+
+const PERIOD_NAMES = ["", "الأولى", "الثانية", "الثالثة", "الرابعة", "الخامسة", "السادسة", "السابعة"];
+
+// Explains a clash in terms the admin can act on — which period, and
+// whether it's this classroom that's already booked or the teacher who is
+// teaching somewhere else at that moment.
+const describeConflict = (period, conflict, classroomId) => {
+  const label = `الحصة ${PERIOD_NAMES[period] || period}`;
+  if (String(conflict.classroom?._id || conflict.classroom) === String(classroomId)) {
+    return `${label}: الفصل عنده حصة بالفعل في الوقت ده.`;
+  }
+  const where = conflict.classroom?.name ? ` في فصل ${conflict.classroom.name}` : "";
+  return `${label}: المعلم عنده حصة تانية${where} في نفس الوقت (${conflict.startTime}–${conflict.endTime}).`;
+};
 
 exports.createSchedule = async (req, res) => {
   try {
-    const { teacher, classroom, day, startTime, endTime, subjectId } = req.body;
+    const { teacher, classroom, day, subjectId } = req.body;
+
+    // One request can book several periods at once (a teacher taking the
+    // 2nd and 3rd back to back). A lone `period` is accepted too.
+    const requested = Array.isArray(req.body.periods)
+      ? req.body.periods
+      : req.body.period !== undefined
+        ? [req.body.period]
+        : [];
+    const periods = [...new Set(requested.map(Number))].sort((a, b) => a - b);
+
+    if (periods.length === 0) {
+      return res.status(400).json({ message: "اختر حصة واحدة على الأقل." });
+    }
+    if (!periods.every(isValidPeriod)) {
+      return res.status(400).json({ message: "رقم الحصة لازم يكون من 1 لـ 7." });
+    }
     const school = creationSchool(req);
 
     if (!school) {
@@ -70,51 +102,53 @@ exports.createSchedule = async (req, res) => {
       });
     }
 
-    const [newStartH, newStartM] = startTime.split(":").map(Number);
-    const [newEndH, newEndM] = endTime.split(":").map(Number);
-    const newStartMinutes = newStartH * 60 + newStartM;
-    const newEndMinutes = newEndH * 60 + newEndM;
+    const gradeDoc = await Grade.findById(classroomData.grade);
 
-    if (newEndMinutes <= newStartMinutes) {
-      return res
-        .status(400)
-        .json({ message: "EndTime must be after StartTime" });
-    }
+    const slots = periods.map((period) => ({
+      period,
+      ...periodTimes(period, gradeDoc),
+    }));
 
+    // Compared by TIME, not period number: a teacher's 4th period in a grade
+    // with a break starts later than the 4th period in a grade without one,
+    // and what matters is whether the teacher can physically be in both.
     const existingSchedules = await Schedule.find({
       day,
       $or: [{ teacher }, { classroom }],
-    });
+    }).populate("classroom", "name");
 
-    const hasConflict = existingSchedules.some((sch) => {
-      const [exStartH, exStartM] = sch.startTime.split(":").map(Number);
-      const [exEndH, exEndM] = sch.endTime.split(":").map(Number);
-      const exStartMinutes = exStartH * 60 + exStartM;
-      const exEndMinutes = exEndH * 60 + exEndM;
-
-      return newStartMinutes < exEndMinutes && newEndMinutes > exStartMinutes;
-    });
-
-    if (hasConflict) {
-      return res.status(400).json({
-        message:
-          "there is a scheduling conflict with the teacher or classroom for the specified day and time.",
-      });
+    // Check every requested period before writing any of them, so a clash in
+    // one doesn't leave the rest half-booked.
+    const problems = [];
+    for (const slot of slots) {
+      const conflict = existingSchedules.find((sch) => timesOverlap(slot, sch));
+      if (conflict) problems.push(describeConflict(slot.period, conflict, classroom));
     }
 
-    const schedule = await Schedule.create({
-      teacher,
-      subject,
-      classroom,
-      day,
-      startTime,
-      endTime,
-      school,
-    });
+    if (problems.length > 0) {
+      return res.status(400).json({ message: problems.join(" ") });
+    }
 
-    res
-      .status(201)
-      .json({ message: "Schedule created successfully", schedule });
+    const created = await Schedule.insertMany(
+      slots.map((slot) => ({
+        teacher,
+        subject,
+        classroom,
+        day,
+        period: slot.period,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        school,
+      })),
+    );
+
+    res.status(201).json({
+      message:
+        created.length === 1
+          ? "تمت إضافة الحصة بنجاح"
+          : `تمت إضافة ${created.length} حصص بنجاح`,
+      schedules: created,
+    });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -135,34 +169,55 @@ exports.deleteSchedule = async (req, res) => {
 
 exports.updateSchedule = async (req, res) => {
   try {
-    const { day, startTime, endTime, teacher, classroom, subject } = req.body;
+    const { day, teacher, classroom, subject, period } = req.body;
     const scheduleId = req.params.id;
     const existingSchedule = await Schedule.findById(scheduleId);
     if (!existingSchedule || !sameSchool(req, existingSchedule)) {
       return res.status(404).json({ message: "this schedule does not exist" });
     }
-    if (day || startTime || endTime || teacher || classroom) {
-      const checkDay = day || existingSchedule.day;
-      const checkStart = startTime || existingSchedule.startTime;
-      const checkEnd = endTime || existingSchedule.endTime;
-      const checkTeacher = teacher || existingSchedule.teacher;
-      const checkClassroom = classroom || existingSchedule.classroom;
-      const conflict = await Schedule.findOne({
+
+    // Times are never taken from the request — they follow from the period
+    // and the classroom's grade, same as on create.
+    const updates = { ...req.body };
+    delete updates.startTime;
+    delete updates.endTime;
+    delete updates.periods;
+    delete updates.school;
+
+    if (period !== undefined && !isValidPeriod(period)) {
+      return res.status(400).json({ message: "رقم الحصة لازم يكون من 1 لـ 7." });
+    }
+
+    const checkPeriod = period !== undefined ? Number(period) : existingSchedule.period;
+    const checkClassroom = classroom || existingSchedule.classroom;
+    const checkTeacher = teacher || existingSchedule.teacher;
+    const checkDay = day || existingSchedule.day;
+
+    let checkTimes = {
+      startTime: existingSchedule.startTime,
+      endTime: existingSchedule.endTime,
+    };
+
+    if (checkPeriod) {
+      const classroomDoc = await Classroom.findById(checkClassroom).select("grade");
+      const gradeDoc = classroomDoc ? await Grade.findById(classroomDoc.grade) : null;
+      checkTimes = periodTimes(checkPeriod, gradeDoc);
+      updates.period = checkPeriod;
+      updates.startTime = checkTimes.startTime;
+      updates.endTime = checkTimes.endTime;
+    }
+
+    if (day || teacher || classroom || period !== undefined) {
+      const candidates = await Schedule.find({
         _id: { $ne: scheduleId },
         day: checkDay,
         $or: [{ teacher: checkTeacher }, { classroom: checkClassroom }],
-        $and: [
-          { startTime: { $lt: checkEnd } },
-          { endTime: { $gt: checkStart } },
-        ],
-      });
+      }).populate("classroom", "name");
+
+      const conflict = candidates.find((sch) => timesOverlap(checkTimes, sch));
       if (conflict) {
-        const conflictTarget =
-          conflict.teacher.toString() === checkTeacher.toString()
-            ? "teacher"
-            : "classroom";
         return res.status(400).json({
-          message: `There is a scheduling conflict with the ${conflictTarget}.`,
+          message: describeConflict(checkPeriod, conflict, checkClassroom),
         });
       }
     }
@@ -189,7 +244,7 @@ exports.updateSchedule = async (req, res) => {
 
     const updatedSchedule = await Schedule.findByIdAndUpdate(
       scheduleId,
-      { ...req.body, ...(nextSubject ? { subject: nextSubject } : {}) },
+      { ...updates, ...(nextSubject ? { subject: nextSubject } : {}) },
       { new: true, runValidators: true },
     )
       .populate("teacher", "firstName lastName")
