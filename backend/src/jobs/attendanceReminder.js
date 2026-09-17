@@ -12,15 +12,18 @@ require("../models/Subject");
 require("../models/Classroom");
 const { sendPushNotifications } = require("../utils/pushNotifications");
 const {
-  GRACE_MINUTES,
   zonedTimeToInstant,
   todayInZone,
   weekdayOf,
+  nextWeekStart,
 } = require("../utils/attendanceWindow");
+const { groupRuns, anchorOf } = require("../utils/consecutivePeriods");
 
-// The bell has just rung and the register is still empty — warn the teacher
-// while they can still do something about it, because 15 minutes later the
-// sheet locks for good.
+// The lesson has just ended and the register is still empty — a nudge while
+// it is fresh. Nothing is urgent any more: the register stays open until the
+// end of the week (see utils/attendanceWindow), so this is a reminder, not a
+// countdown. A double lesson is one register, so it is nudged once, at the
+// end of its last period.
 
 const SWEEP_MS = 60 * 1000;
 
@@ -31,14 +34,6 @@ const SWEEP_MS = 60 * 1000;
 const LOOKBACK_MS = 3 * 60 * 1000;
 
 const pad = (n) => String(n).padStart(2, "0");
-
-const formatClock = (instant, timeZone) =>
-  new Intl.DateTimeFormat("en-GB", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(instant);
 
 const utcMidnight = (dateStr) => {
   const [year, month, day] = dateStr.split("-").map(Number);
@@ -66,8 +61,13 @@ const remindForSchool = async (school, now) => {
       .populate("classroom", "name"),
   ]);
 
+  // Only the last period of each double lesson carries a register.
+  const runs = groupRuns(schedules);
+  const loose = schedules.filter((s) => !s.period);
+
   const candidates = [
-    ...schedules.map((s) => ({ session: s, isCover: false })),
+    ...runs.map((run) => ({ session: anchorOf(run), isCover: false, run })),
+    ...loose.map((s) => ({ session: s, isCover: false, run: [s] })),
     ...coverSessions.map((s) => ({ session: s, isCover: true })),
   ];
 
@@ -83,13 +83,13 @@ const remindForSchool = async (school, now) => {
 
   let sent = 0;
 
-  for (const { session: schedule, isCover } of justEnded) {
+  for (const { session: schedule, isCover, run } of justEnded) {
     // Nothing to chase if the register is already filed.
     // eslint-disable-next-line no-await-in-loop
     const recorded = await Attendance.exists(
       isCover
         ? { coverSession: schedule._id }
-        : { schedule: schedule._id, date },
+        : { schedule: { $in: (run || [schedule]).map((s) => s._id) }, date },
     );
     if (recorded) continue;
 
@@ -112,8 +112,7 @@ const remindForSchool = async (school, now) => {
       throw err;
     }
 
-    const endsAt = zonedTimeToInstant(dateStr, schedule.endTime, timeZone);
-    const closesAt = new Date(endsAt.getTime() + GRACE_MINUTES * 60 * 1000);
+    const closesAt = zonedTimeToInstant(nextWeekStart(dateStr), "00:00", timeZone);
 
     const label = isCover ? "حصة احتياط" : `حصة ${schedule.subject?.name || ""}`.trim();
     const classroom = schedule.classroom?.name || "";
@@ -121,10 +120,9 @@ const remindForSchool = async (school, now) => {
     // eslint-disable-next-line no-await-in-loop
     await sendPushNotifications(
       [token],
-      `⏰ سجّل الحضور خلال ${GRACE_MINUTES} دقيقة`,
-      `${label}${classroom ? ` — ${classroom}` : ""} خلصت ولسه الحضور ` +
-        `ما اتسجلش. السجل بيتقفل نهائيًا الساعة ${formatClock(closesAt, timeZone)}، ` +
-        "وعدم التسجيل في الوقت بيعرّضك للمساءلة.",
+      "📝 الحضور لسه ما اتسجلش",
+      `${label}${classroom ? ` — ${classroom}` : ""} خلصت. ` +
+        "تقدر تسجل الحضور في أي وقت لحد آخر يوم السبت.",
       {
         type: "attendanceReminder",
         ...(isCover
@@ -173,7 +171,7 @@ exports.startAttendanceReminders = () => {
 
   console.log(
     `⏰ Attendance reminders running (every ${SWEEP_MS / 1000}s, ` +
-      `${GRACE_MINUTES}-minute grace)`,
+      "register open until end of week)",
   );
 
   return () => clearInterval(timer);

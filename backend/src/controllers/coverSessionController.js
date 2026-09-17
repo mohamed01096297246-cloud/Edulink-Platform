@@ -7,6 +7,7 @@ const {
   getAttendanceWindow,
   todayInZone,
   weekdayOf,
+  zonedTimeToInstant,
 } = require("../utils/attendanceWindow");
 
 // A cover lesson is one period long. The teacher starts it when they walk in,
@@ -48,6 +49,17 @@ const utcMidnight = (dateStr) => {
   return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 };
 
+// Whether the cover lesson is physically in progress right now. Separate from
+// the register window on purpose: the register stays open until the end of
+// the week, but only a lesson still inside its own 50 minutes should be
+// "resumed" — a finished cover lesson for the same class is a different one.
+const isRunning = (session, timeZone, now = new Date()) => {
+  const dateStr = session.date.toISOString().slice(0, 10);
+  const startsAt = zonedTimeToInstant(dateStr, session.startTime, timeZone);
+  const endsAt = zonedTimeToInstant(dateStr, session.endTime, timeZone);
+  return Boolean(startsAt && endsAt && now >= startsAt && now <= endsAt);
+};
+
 const withWindow = (session, timeZone) => ({
   _id: session._id,
   classroom: session.classroom,
@@ -55,6 +67,7 @@ const withWindow = (session, timeZone) => ({
   date: session.date,
   startTime: session.startTime,
   endTime: session.endTime,
+  running: isRunning(session, timeZone),
   window: getAttendanceWindow({
     schedule: session,
     dateStr: session.date.toISOString().slice(0, 10),
@@ -113,14 +126,7 @@ exports.startCoverSession = async (req, res) => {
       .populate("classroom", "name")
       .populate("grade", "name");
 
-    const live = running.find(
-      (session) =>
-        getAttendanceWindow({
-          schedule: session,
-          dateStr,
-          timeZone,
-        }).canRecord,
-    );
+    const live = running.find((session) => isRunning(session, timeZone, now));
 
     if (live) {
       return res.status(200).json({

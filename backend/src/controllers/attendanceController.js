@@ -9,6 +9,7 @@ const {
   getAttendanceWindow,
   WINDOW_MESSAGES,
 } = require("../utils/attendanceWindow");
+const { runFor, anchorOf } = require("../utils/consecutivePeriods");
 
 // Cached per request path rather than per process: a school's timezone
 // effectively never changes, but reading it fresh keeps a correction taking
@@ -85,11 +86,19 @@ exports.recordBulkAttendance = async (req, res) => {
       }
     }
 
-    // The register closes for good 15 minutes after the bell — the same rule
-    // for a cover lesson as for a timetabled one. Enforced here and not only
-    // in the app: the app's countdown runs off the phone's own clock, which a
-    // teacher can wind back, so the app's lock is a courtesy and this is the
-    // rule.
+    // A double lesson takes one register, filed on its last period. Resolved
+    // here rather than trusted from the app, so a build that still lists
+    // both periods separately lands on the same record whichever one the
+    // teacher taps — and can't file the lesson twice.
+    let run = [];
+    if (targetSchedule) {
+      run = await runFor(targetSchedule);
+      targetSchedule = anchorOf(run);
+    }
+
+    // The register stays open until the end of the week's Saturday — the
+    // same rule for a cover lesson as for a timetabled one. Enforced here and
+    // not only in the app, whose clock a teacher can change.
     const window = getAttendanceWindow({
       schedule: session || targetSchedule,
       dateStr,
@@ -110,7 +119,7 @@ exports.recordBulkAttendance = async (req, res) => {
     const existingAttendance = await Attendance.findOne(
       session
         ? { coverSession: session._id }
-        : { schedule: targetSchedule._id, date: pureDate },
+        : { schedule: { $in: run.map((s) => s._id) }, date: pureDate },
     );
 
     if (existingAttendance) {
@@ -271,9 +280,8 @@ exports.updateAttendance = async (req, res) => {
     if (!record)
       return res.status(404).json({ message: "سجل الحضور غير موجود" });
 
-    // A correction is bound by the same deadline as the original entry —
-    // otherwise the lock would be trivially bypassed by saving something and
-    // editing it later.
+    // A correction is bound by the same end-of-week deadline as the original
+    // entry — otherwise the lock would be bypassed by editing it later.
     const dateStr = record.date.toISOString().slice(0, 10);
     const window = getAttendanceWindow({
       schedule: record.schedule,
@@ -315,20 +323,24 @@ exports.checkExistingAttendance = async (req, res) => {
     const [year, month, day] = date.split("-").map(Number);
     const pureDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 
-    const [records, schedule] = await Promise.all([
-      Attendance.find({ schedule: scheduleId, date: pureDate }).populate(
-        "student",
-        "firstName lastName",
-      ),
-      Schedule.findById(scheduleId),
-    ]);
+    const schedule = await Schedule.findById(scheduleId);
 
-    // Shipped alongside the records so the app can render the countdown and
-    // the locked state without doing its own timezone maths — and so both
-    // sides always agree on the deadline. `serverTime` lets the app correct
-    // for a phone clock that is off.
+    // Either period of a double lesson shows the one shared register, so
+    // opening the first period after the lesson was filed reads as filed.
+    const run = schedule ? await runFor(schedule) : [];
+    const anchor = run.length ? anchorOf(run) : null;
+
+    const records = await Attendance.find({
+      schedule: { $in: run.length ? run.map((s) => s._id) : [scheduleId] },
+      date: pureDate,
+    }).populate("student", "firstName lastName");
+
+    // Shipped alongside the records so the app can render the locked state
+    // without doing its own timezone maths — and so both sides always agree
+    // on the deadline. `serverTime` lets the app correct for a phone clock
+    // that is off.
     const window = getAttendanceWindow({
-      schedule,
+      schedule: anchor || schedule,
       dateStr: date,
       timeZone: await schoolTimezone(req.user.school),
     });
@@ -338,6 +350,10 @@ exports.checkExistingAttendance = async (req, res) => {
       exists: records.length > 0,
       records,
       window,
+      merged:
+        run.length > 1
+          ? { anchorId: anchor._id, periods: run.map((s) => s.period) }
+          : null,
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

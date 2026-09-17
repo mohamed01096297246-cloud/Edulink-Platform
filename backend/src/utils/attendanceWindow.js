@@ -7,8 +7,13 @@
 // away from the actual lesson. Everything here therefore converts the school's
 // wall clock to a real instant before comparing.
 
-// How long after the bell a teacher still has to file the register.
-const GRACE_MINUTES = 15;
+// The register used to lock 15 minutes after the bell. The teachers asked for
+// that to go: a lesson's register now stays open from the start of its day
+// until the end of that week's Saturday, and locks when the next week begins
+// on Sunday. Kept as a school-week rule rather than "N days after the lesson"
+// so a teacher can catch up on the whole week in one sitting over the
+// weekend, and so last week's registers can't be quietly rewritten later.
+const WEEK_CLOSES_BEFORE = "sun";
 
 // The window is only meaningful for the weekday the session actually runs on.
 const DAY_CODES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
@@ -90,15 +95,35 @@ const weekdayOf = (dateStr) => {
   return Number.isNaN(date.getTime()) ? null : DAY_CODES[date.getUTCDay()];
 };
 
+// YYYY-MM-DD shifted by `days` calendar days (UTC arithmetic on a plain date).
+const addDays = (dateStr, days) => {
+  const [year, month, day] = String(dateStr).split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+};
+
+// The Sunday that starts the week after `dateStr` — the moment that week's
+// registers lock. A Sunday lesson closes a full week later, not the same day.
+const nextWeekStart = (dateStr) => {
+  const index = DAY_CODES.indexOf(weekdayOf(dateStr));
+  const target = DAY_CODES.indexOf(WEEK_CLOSES_BEFORE);
+  const ahead = ((target - index + 7) % 7) || 7;
+  return addDays(dateStr, ahead);
+};
+
 /**
  * Describes whether attendance can be filed for `schedule` on `dateStr`.
  *
  * state:
  *   "wrong-day" — the session does not run on that weekday at all
- *   "upcoming"  — the lesson has not started yet
- *   "open"      — the lesson is in progress
- *   "grace"     — the lesson ended; the 15-minute countdown is running
- *   "closed"    — the countdown expired; permanently locked
+ *   "upcoming"  — that day hasn't come yet
+ *   "open"      — any time from the start of that day to the end of the
+ *                 week's Saturday; the lesson's own clock times no longer matter
+ *   "closed"    — the next week has begun; permanently locked
+ *
+ * `endsAt` is sent equal to `closesAt` on purpose: app builds already on
+ * teachers' phones derive a 15-minute "grace" countdown from the gap between
+ * the two. With no gap, those builds simply show the register as open.
  */
 const getAttendanceWindow = ({
   schedule,
@@ -107,7 +132,6 @@ const getAttendanceWindow = ({
   now = new Date(),
 }) => {
   const base = {
-    graceMinutes: GRACE_MINUTES,
     serverTime: now.toISOString(),
     opensAt: null,
     endsAt: null,
@@ -124,19 +148,17 @@ const getAttendanceWindow = ({
     return { ...base, state: "wrong-day" };
   }
 
-  const opensAt = zonedTimeToInstant(dateStr, schedule.startTime, timeZone);
-  const endsAt = zonedTimeToInstant(dateStr, schedule.endTime, timeZone);
+  const opensAt = zonedTimeToInstant(dateStr, "00:00", timeZone);
+  const closesAt = zonedTimeToInstant(nextWeekStart(dateStr), "00:00", timeZone);
 
-  if (!opensAt || !endsAt) {
+  if (!opensAt || !closesAt) {
     return { ...base, state: "closed" };
   }
-
-  const closesAt = new Date(endsAt.getTime() + GRACE_MINUTES * 60 * 1000);
 
   const window = {
     ...base,
     opensAt: opensAt.toISOString(),
-    endsAt: endsAt.toISOString(),
+    endsAt: closesAt.toISOString(),
     closesAt: closesAt.toISOString(),
   };
 
@@ -144,13 +166,13 @@ const getAttendanceWindow = ({
     return { ...window, state: "upcoming" };
   }
 
-  if (now > closesAt) {
+  if (now >= closesAt) {
     return { ...window, state: "closed" };
   }
 
   return {
     ...window,
-    state: now <= endsAt ? "open" : "grace",
+    state: "open",
     msRemaining: closesAt.getTime() - now.getTime(),
     canRecord: true,
   };
@@ -159,14 +181,14 @@ const getAttendanceWindow = ({
 // Reasons refused, phrased for the teacher rather than the developer.
 const WINDOW_MESSAGES = {
   "wrong-day": "الحصة دي مش موجودة في اليوم ده في جدولك.",
-  upcoming: "الحصة لسه ما بدأتش — التسجيل بيفتح مع بداية الحصة.",
+  upcoming: "اليوم ده لسه ما جاش — تقدر تسجل حضوره من أول اليوم.",
   closed:
-    `انتهت مهلة تسجيل الحضور لهذه الحصة (${GRACE_MINUTES} دقيقة بعد نهايتها) ` +
-    "والسجل اتقفل نهائيًا. لو في ظرف اضطرك تتأخر، كلّم إدارة المدرسة.",
+    "انتهت مهلة تسجيل حضور الأسبوع ده (كانت لحد آخر يوم السبت) والسجل اتقفل. " +
+    "لو محتاج تعدّل حاجة، كلّم إدارة المدرسة.",
 };
 
 module.exports = {
-  GRACE_MINUTES,
+  nextWeekStart,
   getAttendanceWindow,
   zonedTimeToInstant,
   todayInZone,
