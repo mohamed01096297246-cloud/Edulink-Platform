@@ -7,6 +7,7 @@ const {
 } = require("../utils/generateCredentials");
 const { sendCredentialsEmail } = require("../utils/emailService");
 const { friendlyDuplicateKeyMessage } = require("../utils/formatDbError");
+const { STAGES } = require("../utils/stages");
 
 // Everything here is platform-super-admin only (see schoolRoutes.js) — this
 // is the onboarding surface for adding a new school to EduLink, whether
@@ -163,6 +164,15 @@ exports.createSchoolAdmin = async (req, res) => {
       return res.status(404).json({ success: false, message: "School not found" });
     }
 
+    // Naming stages makes this account a principal over those stages; naming
+    // none makes it an admin over the whole school, which is what this
+    // endpoint has always created. Only a whole-school admin can be the
+    // primary one — the account that manages the school's other admins —
+    // since a principal over one stage has no standing over another's.
+    const managedStages = Array.isArray(req.body.managedStages)
+      ? req.body.managedStages.filter((stage) => STAGES.includes(stage))
+      : [];
+
     // See resolveUsername: phone is unique per role now, so this can share
     // a phone with an existing account of a different role.
     const username = await resolveUsername(phoneNumber, User);
@@ -176,7 +186,8 @@ exports.createSchoolAdmin = async (req, res) => {
       email,
       role: "admin",
       school: school._id,
-      isPrimaryAdmin: true,
+      managedStages,
+      isPrimaryAdmin: managedStages.length === 0,
       username,
       password,
       active: true,
@@ -207,7 +218,12 @@ exports.createSchoolAdmin = async (req, res) => {
       message: emailError
         ? `تم إنشاء حساب الإداري لمدرسة ${school.name}، لكن تعذّر إرسال بيانات الدخول على البريد الإلكتروني.`
         : `Admin account created for ${school.name}.`,
-      admin: { id: admin._id, username: admin.username },
+      admin: {
+        id: admin._id,
+        username: admin.username,
+        managedStages: admin.managedStages,
+        isPrimaryAdmin: admin.isPrimaryAdmin,
+      },
       credentialsEmailed,
       emailError,
     });

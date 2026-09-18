@@ -2,6 +2,7 @@ const User = require("../models/User");
 const School = require("../models/School");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { hasStagePrincipals } = require("../utils/tenant");
 
 exports.login = async (req, res) => {
   try {
@@ -49,6 +50,13 @@ exports.login = async (req, res) => {
       }
     }
 
+    const schoolHasStages = await hasStagePrincipals(user.school);
+    const oversightOnly =
+      user.role === "admin" &&
+      !user.isSuperAdmin &&
+      (user.managedStages || []).length === 0 &&
+      schoolHasStages;
+
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
@@ -68,6 +76,15 @@ exports.login = async (req, res) => {
         school: user.school || null,
         isSuperAdmin: user.isSuperAdmin || false,
         isPrimaryAdmin: user.isPrimaryAdmin || false,
+        // Which stages this admin presides over, and — for one who
+        // presides over the whole school — whether that school has
+        // principals under them, which makes their role oversight rather
+        // than data entry. The server enforces both regardless; these are
+        // so the panel can show the right screens instead of offering
+        // buttons that would be refused.
+        managedStages: user.managedStages || [],
+        oversightOnly,
+        schoolHasStages,
         features: school?.features || null,
         appFeatures: user.appFeatures || null,
       },
@@ -110,6 +127,9 @@ exports.getMe = async (req, res) => {
     const userWithFeatures = {
       ...user.toObject(),
       features: req.userSchool?.features || null,
+      // `protect` worked both of these out already for this request.
+      oversightOnly: req.oversightOnly || false,
+      schoolHasStages: Boolean(req.oversightOnly || req.stageScope),
     };
     res.status(200).json({
       success: true,

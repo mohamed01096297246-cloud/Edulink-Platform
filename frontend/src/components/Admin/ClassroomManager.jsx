@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import API from "../../api/axios";
+import useAdminScope from "../../hooks/useAdminScope";
+import StagePicker from "./StagePicker";
 import {
   Plus,
   Edit3,
@@ -19,6 +21,8 @@ import {
 } from "lucide-react";
 
 const ClassroomManagement = () => {
+  const { canEdit, browsesByStage } = useAdminScope();
+  const [stage, setStage] = useState("");
   const [classrooms, setClassrooms] = useState([]);
   const [grades, setGrades] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -70,12 +74,17 @@ const ClassroomManagement = () => {
   };
 
   useEffect(() => {
+    // Someone overseeing a split school picks a stage first; until they
+    // have, there is nothing to load.
+    if (browsesByStage && !stage) return;
+
     const fetchData = async () => {
       setLoading(true);
       try {
+        const params = stage ? { stage } : {};
         const [classRes, gradeRes] = await Promise.all([
-          API.get("/classrooms"),
-          API.get("/grades"),
+          API.get("/classrooms", { params }),
+          API.get("/grades", { params }),
         ]);
         setClassrooms(classRes.data);
         setGrades(gradeRes.data.data || []);
@@ -86,7 +95,7 @@ const ClassroomManagement = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [stage, browsesByStage]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -243,6 +252,17 @@ const ClassroomManagement = () => {
     return classroomGradeId === selectedFilterGrade;
   });
 
+  if (browsesByStage && !stage) {
+    return (
+      <StagePicker
+        title="إدارة الفصول"
+        subtitle="اختر المرحلة التعليمية لعرض فصولها"
+        value={stage}
+        onChange={setStage}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-10 font-sans" dir="rtl">
       {toast.show && (
@@ -280,13 +300,19 @@ const ClassroomManagement = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white px-6 py-4 rounded-2xl font-black shadow-lg shadow-indigo-100"
-          >
-            <Plus size={20} /> إنشاء فصل جديد
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white px-6 py-4 rounded-2xl font-black shadow-lg shadow-indigo-100"
+            >
+              <Plus size={20} /> إنشاء فصل جديد
+            </button>
+          )}
         </div>
+
+        {browsesByStage && (
+          <StagePicker value={stage} onChange={setStage} />
+        )}
 
         {/* قسم الفلتر */}
         <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -393,25 +419,29 @@ const ClassroomManagement = () => {
                           >
                             <Eye size={18} />
                           </button>
-                          <button
-                            onClick={() => openAssignModal(cls)}
-                            title="توزيع طلاب على الفصل"
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                          >
-                            <Users size={18} />
-                          </button>
-                          <button
-                            onClick={() => startEdit(cls)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                          >
-                            <Edit3 size={18} />
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(cls._id)}
-                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                          {canEdit && (
+                            <>
+                              <button
+                                onClick={() => openAssignModal(cls)}
+                                title="توزيع طلاب على الفصل"
+                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                              >
+                                <Users size={18} />
+                              </button>
+                              <button
+                                onClick={() => startEdit(cls)}
+                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                              >
+                                <Edit3 size={18} />
+                              </button>
+                              <button
+                                onClick={() => setDeleteId(cls._id)}
+                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

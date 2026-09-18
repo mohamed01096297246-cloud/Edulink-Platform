@@ -15,19 +15,23 @@
 const Grade = require("../models/Grade");
 const Classroom = require("../models/Classroom");
 const Student = require("../models/Student");
+const User = require("../models/User");
+const { STAGES } = require("./stages");
 
-// Resolves a caller's stage restriction into the concrete grade and
-// classroom ids it covers, once per request. Returns null for anyone who
-// sees their whole school, which is the common case and costs no queries.
-exports.resolveStageScope = async (user) => {
-  const stages = user?.role === "admin" ? user.managedStages || [] : [];
-  if (!stages.length || user.isSuperAdmin) return null;
-
-  const grades = await Grade.find({ school: user.school, stage: { $in: stages } }).select("_id");
+// Expands a set of stages into the concrete grade and classroom ids they
+// cover. Used for two different things that must not be confused: the
+// caller's own restriction (`req.stageScope`, which is a permission), and
+// the stage they happen to be looking at (`req.pickedStage`, which is only
+// a view). Filters honour either; permission checks read the first alone.
+const expandStages = async (schoolId, stages) => {
+  const grades = await Grade.find({
+    school: schoolId,
+    stage: { $in: stages },
+  }).select("_id");
   const gradeIds = grades.map((grade) => grade._id);
 
   const classrooms = await Classroom.find({
-    school: user.school,
+    school: schoolId,
     grade: { $in: gradeIds },
   }).select("_id");
 
@@ -40,6 +44,48 @@ exports.resolveStageScope = async (user) => {
   };
 };
 
+// The caller's own restriction, resolved once per request. Null for anyone
+// who sees their whole school, which is the common case and costs no
+// queries.
+exports.resolveStageScope = async (user) => {
+  const stages = user?.role === "admin" ? user.managedStages || [] : [];
+  if (!stages.length || user.isSuperAdmin) return null;
+
+  return expandStages(user.school, stages);
+};
+
+// The stage an admin who can see the whole school is currently looking at
+// (`?stage=primary`). Narrows what comes back and nothing else — someone
+// restricted to their own stages already has a scope, and this never
+// widens it.
+exports.resolvePickedStage = async (req) => {
+  const picked = req.query?.stage;
+  if (!picked || req.stageScope || !STAGES.includes(picked)) return null;
+
+  const schoolId = req.user.isSuperAdmin ? req.query.school : req.user.school;
+  if (!schoolId) return null;
+
+  return expandStages(schoolId, [picked]);
+};
+
+// True once a school has actually appointed principals over its stages.
+// Until then nothing has been delegated and its admins work as they always
+// have — which is what every school that never splits itself looks like,
+// permanently. Making this the trigger avoids a bootstrap trap: the person
+// setting a school up keeps full powers right up to the moment someone
+// else is there to take the work over.
+exports.hasStagePrincipals = async (schoolId) => {
+  if (!schoolId) return false;
+
+  const principal = await User.exists({
+    school: schoolId,
+    role: "admin",
+    managedStages: { $exists: true, $ne: [] },
+  });
+
+  return Boolean(principal);
+};
+
 // The filter fragment that narrows a collection to the caller's stages,
 // given which field that collection reaches a grade through. `{}` when the
 // caller sees the whole school, so it is always safe to spread.
@@ -48,7 +94,7 @@ exports.resolveStageScope = async (user) => {
 // which matches nothing — an empty section reads as empty, rather than
 // silently falling back to the whole school.
 exports.stageWhere = (req, key = "grade") => {
-  const scope = req.stageScope;
+  const scope = req.stageScope || req.pickedStage;
   if (!scope) return {};
 
   // "self" is the Grade collection itself, "grades" a collection that
@@ -84,7 +130,7 @@ exports.mergeWhere = mergeWhere;
 // students of the caller's stages, so the list is resolved on first use
 // rather than for every request, and kept for the rest of this one.
 exports.stageStudentWhere = async (req) => {
-  const scope = req.stageScope;
+  const scope = req.stageScope || req.pickedStage;
   if (!scope) return {};
 
   if (!scope.studentIds) {

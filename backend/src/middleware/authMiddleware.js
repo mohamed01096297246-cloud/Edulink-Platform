@@ -1,7 +1,20 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const School = require("../models/School");
-const { resolveStageScope } = require("../utils/tenant");
+const {
+  resolveStageScope,
+  resolvePickedStage,
+  hasStagePrincipals,
+} = require("../utils/tenant");
+
+// The school's day-to-day records, as opposed to the things that belong to
+// running the school itself. Once a school is split into stages, entering
+// and changing what's in this list is the stage principals' work; whoever
+// oversees the whole school reads it rather than edits it. They keep the
+// rest — admin accounts, bell times, announcements, the staff register —
+// because those cross the stages and nobody else can reach all of them.
+const STAGE_RUN_DATA =
+  /^\/api\/(students|classrooms|grades|subjects|schedules|exams|results|homework|homework-results|behavior|attendance|monthly-grades|weekly-evaluation|coursework|cover-sessions|grade-register|classwork-notebook|board-notes|fees|teacher|parent)(\/|$)/;
 
 
 exports.protect = async (req, res, next) => {
@@ -62,6 +75,28 @@ exports.protect = async (req, res, next) => {
     // quietly skips it. Costs nothing for everyone else: whole-school
     // admins, teachers and parents all resolve to null without a query.
     req.stageScope = await resolveStageScope(user);
+    req.pickedStage = await resolvePickedStage(req);
+
+    // An admin over a whole school that has appointed principals is there
+    // to oversee it, not to run it. Enforced here, by method and path,
+    // rather than route by route — the same reason the stage scope is
+    // resolved here: a new endpoint can't quietly opt out of it.
+    req.oversightOnly =
+      user.role === "admin" &&
+      !user.isSuperAdmin &&
+      !req.stageScope &&
+      (await hasStagePrincipals(user.school));
+
+    if (
+      req.oversightOnly &&
+      req.method !== "GET" &&
+      STAGE_RUN_DATA.test(req.originalUrl.split("?")[0])
+    ) {
+      return res.status(403).json({
+        message:
+          "الإدارة العامة بتتابع بيانات المدرسة ومش بتعدّلها — الإضافة والتعديل من صلاحية مدير المرحلة المختصة.",
+      });
+    }
 
     next();
 
