@@ -4,7 +4,7 @@ const CoverSession = require("../models/CoverSession");
 const School = require("../models/School");
 const Student = require("../models/Student");
 const mongoose = require("mongoose");
-const { scopeFilter } = require("../utils/tenant");
+const { scopeFilter, mergeWhere, stageStudentWhere } = require("../utils/tenant");
 const {
   getAttendanceWindow,
   WINDOW_MESSAGES,
@@ -209,7 +209,7 @@ exports.getStudentAttendance = async (req, res) => {
 };
 exports.getAllAttendance = async (req, res) => {
   try {
-    const filter = scopeFilter(
+    let filter = scopeFilter(
       req,
       req.user.role === "teacher" ? { recordedBy: req.user.id } : {},
     );
@@ -219,6 +219,10 @@ exports.getAllAttendance = async (req, res) => {
         message: "برجاء تحديد مدرسة (?school=id) لعرض الحضور.",
       });
     }
+
+    // Attendance names no grade of its own — the student it is about is
+    // what places it in a stage.
+    filter = mergeWhere(filter, await stageStudentWhere(req));
 
     // Timetabled lessons only: every row in this list is rendered through
     // its schedule (subject, classroom, grade), which a cover record does not

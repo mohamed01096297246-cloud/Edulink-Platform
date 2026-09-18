@@ -1,7 +1,13 @@
 const Exam = require("../models/Exam");
 const Student = require("../models/Student");
 const User = require("../models/User");
-const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
+const {
+  scopeFilter,
+  sameSchool,
+  creationSchool,
+  inStage,
+  STAGE_DENIED,
+} = require("../utils/tenant");
 
 exports.createExamSchedule = async (req, res) => {
   try {
@@ -12,6 +18,10 @@ exports.createExamSchedule = async (req, res) => {
       return res.status(400).json({
         message: "برجاء تحديد مدرسة (?school=id) لإنشاء جدول امتحانات.",
       });
+    }
+
+    if (!inStage(req, grade)) {
+      return res.status(403).json({ message: STAGE_DENIED });
     }
 
     const exam = await Exam.create({
@@ -34,7 +44,7 @@ exports.createExamSchedule = async (req, res) => {
 
 exports.getAllExams = async (req, res) => {
   try {
-    const filter = scopeFilter(req);
+    const filter = scopeFilter(req, {}, "grade");
 
     if (!filter) {
       return res.status(400).json({

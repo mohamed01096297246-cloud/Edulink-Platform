@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { STAGES, stageLabel } from "../../constants/stages";
 import API from "../../api/axios";
 
 import {
@@ -52,6 +53,9 @@ const AdminPage = () => {
     phoneNumber: "",
     email: "",
     role: "admin",
+    // Empty = an admin over the whole school. Naming stages makes this
+    // account a principal over those stages only.
+    managedStages: [],
   });
 
   const [editModal, setEditModal] = useState({ show: false, user: null });
@@ -119,6 +123,7 @@ const AdminPage = () => {
         phoneNumber: userForm.phoneNumber.trim(),
         email: userForm.email.trim(),
         role: "admin",
+        managedStages: userForm.managedStages,
       };
 
       const response = await API.post("/admin/sub-admin", cleanedData);
@@ -134,6 +139,7 @@ const AdminPage = () => {
         phoneNumber: "",
         email: "",
         role: "admin",
+        managedStages: [],
       });
       fetchInitialData();
     } catch (err) {
@@ -374,6 +380,17 @@ const AdminPage = () => {
                               <p className="text-[10px] text-indigo-500 font-bold uppercase mt-0.5">
                                 @{user.username}
                               </p>
+                              {/* Only worth saying for an admin whose remit
+                                  is narrower than the school. */}
+                              {user.role === "admin" &&
+                                user.managedStages?.length > 0 && (
+                                  <p className="text-[10px] text-emerald-600 font-black mt-1">
+                                    مدير:{" "}
+                                    {user.managedStages
+                                      .map(stageLabel)
+                                      .join("، ")}
+                                  </p>
+                                )}
                             </div>
                           </div>
                         </td>
@@ -631,6 +648,48 @@ const AdminPage = () => {
                   }
                 />
               </div>
+
+              {/* How far this admin's remit reaches. Ticking nothing keeps
+                  the old behaviour — an admin over the whole school. */}
+              <div className="md:col-span-2 lg:col-span-3 space-y-2">
+                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
+                  نطاق الإدارة
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {STAGES.map((stage) => {
+                    const picked = userForm.managedStages.includes(stage.key);
+                    return (
+                      <button
+                        key={stage.key}
+                        type="button"
+                        onClick={() =>
+                          setUserForm({
+                            ...userForm,
+                            managedStages: picked
+                              ? userForm.managedStages.filter(
+                                  (item) => item !== stage.key,
+                                )
+                              : [...userForm.managedStages, stage.key],
+                          })
+                        }
+                        className={`px-5 py-3 rounded-2xl font-black text-sm transition-all border-2 ${
+                          picked
+                            ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100"
+                            : "bg-slate-50 border-transparent text-slate-500 hover:border-slate-200"
+                        }`}
+                      >
+                        {stage.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] font-bold text-slate-400 mr-2">
+                  {userForm.managedStages.length === 0
+                    ? "من غير اختيار: الإداري ده هيشوف المدرسة كلها."
+                    : "هيشوف ويدير المراحل المختارة بس — مش هيقدر يوصل لباقي المدرسة."}
+                </p>
+              </div>
+
               <button
                 disabled={actionLoading}
                 className="md:col-span-2 lg:col-span-3 mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"

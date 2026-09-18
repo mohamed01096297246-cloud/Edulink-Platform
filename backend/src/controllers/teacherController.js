@@ -7,7 +7,13 @@ const {
   generatePassword,
   resolveUsername,
 } = require("../utils/generateCredentials");
-const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
+const {
+  scopeFilter,
+  sameSchool,
+  creationSchool,
+  inStage,
+  STAGE_DENIED,
+} = require("../utils/tenant");
 const { friendlyDuplicateKeyMessage } = require("../utils/formatDbError");
 const { resolveTeacherSubject } = require("../utils/teacherSubject");
 const {
@@ -46,6 +52,15 @@ exports.createTeacher = async (req, res) => {
     // else, so a bad one loses the account's password with no trace.
     if (!isGmailAddress(email)) {
       return res.status(400).json({ message: GMAIL_REQUIRED_MESSAGE });
+    }
+
+    // A principal appoints teachers to their own stages only — otherwise
+    // they'd be staffing a stage they can't see the timetable of.
+    if (
+      req.stageScope &&
+      !(teachingGrades || []).every((grade) => inStage(req, grade))
+    ) {
+      return res.status(403).json({ message: STAGE_DENIED });
     }
 
     const subjectIds = readSubjectIds(req.body);
@@ -130,7 +145,10 @@ exports.createTeacher = async (req, res) => {
 
 exports.getAllTeachers = async (req, res) => {
   try {
-    const filter = scopeFilter(req, { role: "teacher" });
+    // A teacher belongs to a stage through the grades they teach — and one
+    // teacher can legitimately belong to two, which is why this narrows
+    // rather than partitions: the same teacher shows up for both principals.
+    const filter = scopeFilter(req, { role: "teacher" }, "teachingGrades");
 
     if (!filter) {
       return res.status(400).json({

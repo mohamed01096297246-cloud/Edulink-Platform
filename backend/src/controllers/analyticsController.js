@@ -1,5 +1,5 @@
 const Result = require("../models/Result");
-const { scopeFilter } = require("../utils/tenant");
+const { scopeFilter, mergeWhere, stageStudentWhere } = require("../utils/tenant");
 
 const PASS_THRESHOLD = 50;
 
@@ -46,12 +46,15 @@ exports.getExamAnalytics = async (req, res) => {
     const extra = {};
     if (req.query.examId) extra.exam = req.query.examId;
 
-    const filter = scopeFilter(req, extra);
+    let filter = scopeFilter(req, extra);
     if (!filter) {
       return res.status(400).json({
         message: "Please specify a school (?school=id) for this report.",
       });
     }
+
+    // A mark reaches a stage through the student it belongs to.
+    filter = mergeWhere(filter, await stageStudentWhere(req));
 
     let results = await Result.find(filter)
       .populate("subject", "name")

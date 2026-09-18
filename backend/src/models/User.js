@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+const { STAGES } = require("../utils/stages");
 
 const userSchema = new mongoose.Schema(
   {
@@ -66,6 +67,19 @@ const userSchema = new mongoose.Schema(
     isPrimaryAdmin: {
       type: Boolean,
       default: false,
+    },
+
+    // The stages this admin presides over, for a school split into stages
+    // with a principal over each. Empty (the default, and what every admin
+    // created before this existed has) means the whole school — the
+    // general manager, and any school that isn't split at all. Non-empty
+    // narrows every query this admin makes to the grades carrying these
+    // stages; enforced server-side in tenant.js, so it is a real boundary
+    // and not a hidden menu. Meaningless on teachers and parents, who are
+    // already narrowed by their own assignments and children.
+    managedStages: {
+      type: [{ type: String, enum: STAGES }],
+      default: [],
     },
 
     // Every subject this teacher is qualified to teach. Which one a given

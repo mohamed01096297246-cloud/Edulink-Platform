@@ -4,7 +4,13 @@ const Student = require("../models/Student");
 const Subject = require("../models/Subject");
 const Exam = require("../models/Exam");
 const User = require("../models/User");
-const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
+const {
+  scopeFilter,
+  sameSchool,
+  creationSchool,
+  STAGE_DENIED,
+} = require("../utils/tenant");
+const { STAGES } = require("../utils/stages");
 
 exports.createGrade = async (req, res) => {
   try {
@@ -17,7 +23,22 @@ exports.createGrade = async (req, res) => {
       });
     }
 
-    const grade = await Grade.create({ name, academicYear, school });
+    // Unset unless the school is split into stages and one is named. A
+    // principal over part of the school can only add grades to their own
+    // stages, and when they preside over exactly one, that is the answer
+    // whether or not they sent it.
+    let stage = STAGES.includes(req.body.stage) ? req.body.stage : null;
+
+    if (req.stageScope) {
+      if (!stage && req.stageScope.stages.length === 1) {
+        [stage] = req.stageScope.stages;
+      }
+      if (!req.stageScope.stages.includes(stage)) {
+        return res.status(403).json({ message: STAGE_DENIED });
+      }
+    }
+
+    const grade = await Grade.create({ name, academicYear, stage, school });
 
     res.status(201).json({
       success: true,
@@ -36,7 +57,7 @@ exports.createGrade = async (req, res) => {
 
 exports.getAllGrades = async (req, res) => {
   try {
-    const filter = scopeFilter(req);
+    const filter = scopeFilter(req, {}, "self");
 
     if (!filter) {
       return res.status(400).json({
@@ -61,6 +82,17 @@ exports.updateGrade = async (req, res) => {
 
     const updates = { ...req.body };
     delete updates.school;
+
+    // sameSchool already proved the grade is in the caller's stages; this
+    // stops them from moving it out of them, which would hand a grade to
+    // another principal — or to nobody.
+    if (
+      req.stageScope &&
+      updates.stage !== undefined &&
+      !req.stageScope.stages.includes(updates.stage)
+    ) {
+      return res.status(403).json({ message: STAGE_DENIED });
+    }
 
     const grade = await Grade.findByIdAndUpdate(req.params.id, updates, {
       new: true,

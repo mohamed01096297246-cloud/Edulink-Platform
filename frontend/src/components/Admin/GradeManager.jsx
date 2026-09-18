@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import API from "../../api/axios";
+import { STAGES, stageLabel } from "../../constants/stages";
 import {
   Plus,
   Edit3,
@@ -26,7 +27,11 @@ const GradeManagement = () => {
 
   const [deleteId, setDeleteId] = useState(null);
 
-  const [formData, setFormData] = useState({ name: "", academicYear: "" });
+  const [formData, setFormData] = useState({
+    name: "",
+    academicYear: "",
+    stage: "",
+  });
   const [editingId, setEditingId] = useState(null);
 
   const showToast = (message, type = "success") => {
@@ -57,7 +62,7 @@ const GradeManagement = () => {
   const closeModal = () => {
     setShowModal(false);
     setEditingId(null);
-    setFormData({ name: "", academicYear: "" });
+    setFormData({ name: "", academicYear: "", stage: "" });
   };
 
   const handleSubmit = async (e) => {
@@ -101,7 +106,11 @@ const GradeManagement = () => {
 
   const startEdit = (grade) => {
     setEditingId(grade._id);
-    setFormData({ name: grade.name, academicYear: grade.academicYear });
+    setFormData({
+      name: grade.name,
+      academicYear: grade.academicYear,
+      stage: grade.stage || "",
+    });
     setShowModal(true);
   };
 
@@ -161,6 +170,9 @@ const GradeManagement = () => {
                   <th className="p-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">
                     السنة الدراسية
                   </th>
+                  <th className="p-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                    المرحلة التعليمية
+                  </th>
                   <th className="p-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">
                     الإجراءات
                   </th>
@@ -169,14 +181,14 @@ const GradeManagement = () => {
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
                   <tr>
-                    <td colSpan="3" className="p-20 text-center">
+                    <td colSpan="4" className="p-20 text-center">
                       <Loader2 className="animate-spin mx-auto text-indigo-500" size={40} />
                     </td>
                   </tr>
                 ) : grades.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="3"
+                      colSpan="4"
                       className="p-16 text-center text-slate-400 font-bold"
                     >
                       لا يوجد مراحل مسجّلة بعد. اضغط "إضافة مرحلة جديدة" لإضافة أول مرحلة.
@@ -195,6 +207,17 @@ const GradeManagement = () => {
                         <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black tracking-tight">
                           {g.academicYear}
                         </span>
+                      </td>
+                      <td className="p-6">
+                        {g.stage ? (
+                          <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-black tracking-tight">
+                            {stageLabel(g.stage)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 text-[11px] font-black">
+                            —
+                          </span>
+                        )}
                       </td>
                       <td className="p-6">
                         <div className="flex items-center justify-center gap-2">
@@ -272,6 +295,33 @@ const GradeManagement = () => {
                     setFormData({ ...formData, academicYear: e.target.value })
                   }
                 />
+              </div>
+
+              {/* Only matters for a school split into stages with a
+                  principal over each. Left empty, the grade simply belongs
+                  to the school as a whole. */}
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-xs font-black text-slate-400 mr-2 uppercase">
+                  المرحلة التعليمية
+                </label>
+                <select
+                  className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-slate-700 transition-all"
+                  value={formData.stage}
+                  onChange={(e) =>
+                    setFormData({ ...formData, stage: e.target.value })
+                  }
+                >
+                  <option value="">بدون مرحلة — يتبع المدرسة كلها</option>
+                  {STAGES.map((stage) => (
+                    <option key={stage.key} value={stage.key}>
+                      {stage.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] font-bold text-slate-400 mr-2 pt-1">
+                  حدّدها لو المدرسة مقسّمة مراحل ولكل مرحلة مدير — مدير
+                  المرحلة بيشوف صفوف مرحلته بس.
+                </p>
               </div>
 
               <button

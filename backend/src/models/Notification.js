@@ -25,6 +25,17 @@ const notificationSchema = new mongoose.Schema({
     default: null
   },
 
+  // Narrows a `target: "all"` announcement to part of the school. Empty —
+  // the default, and what every announcement written before stages existed
+  // has — means the whole school, so nothing already sent changes meaning.
+  // Set when the sender presides over some stages only: "everyone" then
+  // means everyone they preside over, and a family in another stage never
+  // sees it.
+  stages: {
+    type: [String],
+    default: []
+  },
+
   // Which specific child this notification is about, when it's an
   // auto-generated per-student event (new homework, a grade, a behavior
   // report, a board note) rather than a manually-authored broadcast —

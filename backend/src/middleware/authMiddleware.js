@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const School = require("../models/School");
+const { resolveStageScope } = require("../utils/tenant");
 
 
 exports.protect = async (req, res, next) => {
@@ -55,6 +56,13 @@ exports.protect = async (req, res, next) => {
 
     req.user = user;
 
+    // A principal over part of the school reaches only the grades of their
+    // own stages. Resolved here, once, rather than per query — and here
+    // rather than in each controller, so an endpoint can't be written that
+    // quietly skips it. Costs nothing for everyone else: whole-school
+    // admins, teachers and parents all resolve to null without a query.
+    req.stageScope = await resolveStageScope(user);
+
     next();
 
   } catch (err) {
@@ -103,6 +111,23 @@ exports.requireUserFeature = (featureKey) => {
     }
     next();
   };
+};
+
+
+// Blocks a route that can't be reasoned about one stage at a time. Bell
+// times are the case that forced this: saving them is validated against
+// the whole school at once, because a teacher's periods clash across
+// stages, so a principal over one stage can't be the one to change them —
+// they'd be refused by conditions in classrooms they can't see. Such
+// settings belong to whoever oversees the whole school.
+exports.requireWholeSchool = (req, res, next) => {
+  if (req.stageScope) {
+    return res.status(403).json({
+      message:
+        "هذا الإعداد يخص المدرسة كلها، وتعديله من صلاحية إدارة المدرسة العامة وليس إدارة مرحلة بعينها.",
+    });
+  }
+  next();
 };
 
 

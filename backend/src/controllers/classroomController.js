@@ -1,7 +1,13 @@
 const Classroom = require("../models/Classroom");
 const Student = require("../models/Student");
 const Schedule = require("../models/Schedule");
-const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
+const {
+  scopeFilter,
+  sameSchool,
+  creationSchool,
+  inStage,
+  STAGE_DENIED,
+} = require("../utils/tenant");
 
 exports.createClassroom = async (req, res) => {
   try {
@@ -18,6 +24,10 @@ exports.createClassroom = async (req, res) => {
       return res.status(400).json({
         message: "لا يمكن أن تتجاوز سعة الفصل 50 طالبًا.",
       });
+    }
+
+    if (!inStage(req, grade)) {
+      return res.status(403).json({ message: STAGE_DENIED });
     }
 
     const existingClass = await Classroom.findOne({
@@ -57,7 +67,7 @@ exports.createClassroom = async (req, res) => {
 
 exports.getAllClassrooms = async (req, res) => {
   try {
-    const filter = scopeFilter(req);
+    const filter = scopeFilter(req, {}, "grade");
 
     if (!filter) {
       return res.status(400).json({
