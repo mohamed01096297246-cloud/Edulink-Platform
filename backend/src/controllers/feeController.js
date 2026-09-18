@@ -1,6 +1,12 @@
 const Fee = require("../models/Fee");
 const Student = require("../models/Student");
-const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
+const {
+  scopeFilter,
+  sameSchool,
+  creationSchool,
+  mergeWhere,
+  stageStudentWhere,
+} = require("../utils/tenant");
 
 exports.createFee = async (req, res) => {
   try {
@@ -42,12 +48,15 @@ exports.getAllFees = async (req, res) => {
     if (req.query.status) extra.status = req.query.status;
     if (req.query.academicYear) extra.academicYear = req.query.academicYear;
 
-    const filter = scopeFilter(req, extra);
+    let filter = scopeFilter(req, extra);
     if (!filter) {
       return res.status(400).json({
         message: "Please specify a school (?school=id) to list its fees.",
       });
     }
+
+    // A fee names no grade — the student it is owed for places it.
+    filter = mergeWhere(filter, await stageStudentWhere(req));
 
     const fees = await Fee.find(filter)
       .populate("student", "firstName lastName grade classroom")
@@ -123,12 +132,16 @@ exports.deleteFee = async (req, res) => {
 // totals across every fee record for their school, plus who's overdue.
 exports.getFinancialSummary = async (req, res) => {
   try {
-    const filter = scopeFilter(req);
+    let filter = scopeFilter(req);
     if (!filter) {
       return res.status(400).json({
         message: "Please specify a school (?school=id) for this summary.",
       });
     }
+
+    // Totals a stage principal can act on: their own stage's, not the
+    // school's.
+    filter = mergeWhere(filter, await stageStudentWhere(req));
 
     const fees = await Fee.find(filter).populate(
       "student",

@@ -3,7 +3,13 @@ const User = require("../models/User");
 const Student = require("../models/Student");
 const Schedule = require("../models/Schedule");
 const { sendPushNotifications } = require("../utils/pushNotifications");
-const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
+const {
+  scopeFilter,
+  sameSchool,
+  creationSchool,
+  stageParentWhere,
+  stagesOfParent,
+} = require("../utils/tenant");
 
 // A teacher only ever notifies parents of students they actually teach —
 // never the whole school. Same source of truth as every other per-teacher
@@ -95,11 +101,30 @@ exports.createNotification = async (req, res) => {
       }
     }
 
+    // The same rule for a principal over part of the school: a named
+    // recipient has to be one of their own families. Checked before the
+    // notice is written, not just before it is pushed — an unsent notice
+    // still shows up in the parent's feed.
+    if (req.stageScope && target === "parent") {
+      const inStage = await User.exists({
+        _id: parentId,
+        school,
+        ...(await stageParentWhere(req)),
+      });
+
+      if (!inStage) {
+        return res.status(403).json({
+          message: "غير مصرح لك بإرسال إشعار لولي أمر خارج المراحل التي تديرها.",
+        });
+      }
+    }
+
     const notification = await Notification.create({
       title,
       message,
       target: target || "all",
       parent: target === "parent" ? parentId : null,
+      stages: req.stageScope ? req.stageScope.stages : [],
       createdBy: req.user._id,
       school,
     });
@@ -114,7 +139,13 @@ exports.createNotification = async (req, res) => {
         { type: "notification", notificationId: notification._id },
       );
     } else if (target === "all" || !target) {
-      const parents = await User.find({ role: "parent", school });
+      // "Everyone" means everyone the sender presides over — for a stage
+      // principal that is their own stage's families, not the school's.
+      const parents = await User.find({
+        role: "parent",
+        school,
+        ...(await stageParentWhere(req)),
+      });
 
       await sendPushNotifications(
         parents.map((p) => p.pushToken),
@@ -123,7 +154,11 @@ exports.createNotification = async (req, res) => {
         { type: "notification", notificationId: notification._id },
       );
     } else if (target === "parent") {
-      const parentUser = await User.findById(parentId);
+      const parentUser = await User.findOne({
+        _id: parentId,
+        school,
+        ...(await stageParentWhere(req)),
+      });
 
       if (parentUser) {
         await sendPushNotifications(
@@ -146,9 +181,30 @@ exports.createNotification = async (req, res) => {
 
 exports.getParentNotifications = async (req, res) => {
   try {
+    // An announcement addressed to part of the school reaches this family
+    // only if one of their children is in it. A notice with no stages is
+    // the school's own and reaches everyone — which is every notice sent
+    // before stages existed, and every notice from whoever oversees the
+    // whole school.
+    const stages = await stagesOfParent(req.user);
+
     const notifications = await Notification.find({
       school: req.user.school,
-      $or: [{ target: "all" }, { target: "parent", parent: req.user._id }],
+      $or: [
+        {
+          target: "all",
+          // `$exists: false` is not redundant with `$size: 0`: every notice
+          // written before this field existed has no `stages` key at all,
+          // and `$size` matches only an array that is actually there. Without
+          // it, adding this filter would have emptied every parent's feed.
+          $or: [
+            { stages: { $exists: false } },
+            { stages: { $size: 0 } },
+            { stages: { $in: stages } },
+          ],
+        },
+        { target: "parent", parent: req.user._id },
+      ],
     })
       .sort({ createdAt: -1 })
       .populate("createdBy", "name role")

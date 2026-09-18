@@ -12,7 +12,14 @@ const {
 } = require("../utils/generateCredentials");
 
 const mongoose = require("mongoose");
-const { scopeFilter, sameSchool } = require("../utils/tenant");
+const {
+  scopeFilter,
+  sameSchool,
+  mergeWhere,
+  stageUserWhere,
+  userInStage,
+} = require("../utils/tenant");
+const { STAGES } = require("../utils/stages");
 const { friendlyDuplicateKeyMessage } = require("../utils/formatDbError");
 
 // Guards admin-account actions: creating another admin, or modifying/
@@ -63,6 +70,14 @@ exports.createSubAdmin = async (req, res) => {
   try {
     const { firstName, lastName, nationalId, phoneNumber, email } = req.body;
 
+    // A school split into stages appoints a principal over some of them;
+    // an empty list (the default) means the whole school. Only the primary
+    // admin reaches this route at all — see protectAdminActions — so the
+    // person handing out a narrower remit always holds the wider one.
+    const managedStages = Array.isArray(req.body.managedStages)
+      ? req.body.managedStages.filter((stage) => STAGES.includes(stage))
+      : [];
+
     if (!req.user.school) {
       return res.status(400).json({
         message:
@@ -85,6 +100,7 @@ exports.createSubAdmin = async (req, res) => {
       phoneNumber,
       email,
       role: "admin",
+      managedStages,
       school: req.user.school,
       active: true,
     });
@@ -207,7 +223,7 @@ exports.deleteUser = async (req, res) => {
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ message: "user not found" });
 
-    if (!sameSchool(req, user)) {
+    if (!sameSchool(req, user) || !(await userInStage(req, user))) {
       return res.status(404).json({ message: "user not found" });
     }
 
@@ -246,7 +262,11 @@ exports.updateUser = async (req, res) => {
     const userId = req.params.id;
 
     const targetUser = await User.findById(userId);
-    if (!targetUser || !sameSchool(req, targetUser)) {
+    if (
+      !targetUser ||
+      !sameSchool(req, targetUser) ||
+      !(await userInStage(req, targetUser))
+    ) {
       return res.status(404).json({ message: "user not found" });
     }
 
@@ -269,6 +289,13 @@ exports.updateUser = async (req, res) => {
     delete updates.school;
     delete updates.isSuperAdmin;
     delete updates.isPrimaryAdmin;
+
+    // How far an admin's remit reaches is set by whoever oversees the whole
+    // school, never by the admin themselves — otherwise a principal over
+    // one stage could widen their own.
+    if (!req.user.isSuperAdmin && !req.user.isPrimaryAdmin) {
+      delete updates.managedStages;
+    }
 
     // Per-user app control (active + appFeatures) for teachers/parents is
     // the platform owner's tool only (SchoolManager's "المعلمين"/"أولياء
@@ -302,13 +329,18 @@ exports.updateUser = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
   try {
-    const filter = scopeFilter(req, req.query.role ? { role: req.query.role } : {});
+    let filter = scopeFilter(req, req.query.role ? { role: req.query.role } : {});
 
     if (!filter) {
       return res.status(400).json({
         message: "Please specify a school (?school=id) to list its users.",
       });
     }
+
+    // A principal over part of the school lists their own teachers and
+    // families — and no admins at all, which is deliberate: admin accounts
+    // are the primary admin's to manage.
+    filter = mergeWhere(filter, await stageUserWhere(req));
 
     const users = await User.find(filter)
       .populate("subjects", "name")
@@ -368,7 +400,7 @@ exports.getUserById = async (req, res) => {
       .populate("teachingGrades", "name academicYear")
       .select("-password");
 
-    if (!user || !sameSchool(req, user)) {
+    if (!user || !sameSchool(req, user) || !(await userInStage(req, user))) {
       return res.status(404).json({ message: "user not found" });
     }
 

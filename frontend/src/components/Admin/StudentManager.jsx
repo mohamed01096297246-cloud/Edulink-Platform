@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import API from "../../api/axios";
+import useAdminScope from "../../hooks/useAdminScope";
+import StagePicker from "./StagePicker";
 import {
   UserPlus,
   Users,
@@ -27,6 +29,8 @@ import {
 const DEFAULT_PARENT_EMAIL = "awlyaamwr8@gmail.com";
 
 const StudentManagement = () => {
+  const { canEdit, browsesByStage } = useAdminScope();
+  const [stage, setStage] = useState("");
   const [students, setStudents] = useState([]);
   const [grades, setGrades] = useState([]);
   const [classrooms, setClassrooms] = useState([]);
@@ -82,10 +86,13 @@ const StudentManagement = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // `stage` is empty for anyone who works inside one already — the
+      // server narrows those by itself and ignores the parameter.
+      const params = stage ? { stage } : {};
       const [studentsRes, gradesRes, classroomsRes] = await Promise.all([
-        API.get("/students"),
-        API.get("/grades"),
-        API.get("/classrooms"),
+        API.get("/students", { params }),
+        API.get("/grades", { params }),
+        API.get("/classrooms", { params }),
       ]);
       setStudents(studentsRes.data.data || []);
       setGrades(gradesRes.data.data || []);
@@ -99,8 +106,9 @@ const StudentManagement = () => {
   };
 
   useEffect(() => {
+    if (browsesByStage && !stage) return;
     fetchData();
-  }, []);
+  }, [stage, browsesByStage]);
 
   const resetForm = () => {
     setEditMode(false);
@@ -238,6 +246,17 @@ const StudentManagement = () => {
       (filterGrade === "" || s.grade?._id === filterGrade),
   );
 
+  if (browsesByStage && !stage) {
+    return (
+      <StagePicker
+        title="دليل الطلاب"
+        subtitle="اختر المرحلة التعليمية لعرض طلابها"
+        value={stage}
+        onChange={setStage}
+      />
+    );
+  }
+
   return (
     <div className="p-8 bg-[#F8FAFC] min-h-screen relative" dir="rtl">
       {toast.show && (
@@ -280,16 +299,24 @@ const StudentManagement = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-2 hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200"
-          >
-            <UserPlus size={20} /> تسجيل طالب جديد
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => {
+                resetForm();
+                setShowModal(true);
+              }}
+              className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-2 hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200"
+            >
+              <UserPlus size={20} /> تسجيل طالب جديد
+            </button>
+          )}
         </div>
+
+        {browsesByStage && (
+          <div className="mb-8">
+            <StagePicker value={stage} onChange={setStage} />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
@@ -407,18 +434,26 @@ const StudentManagement = () => {
                       </td>
                       <td className="p-6 text-center">
                         <div className="flex justify-center gap-2">
-                          <button
-                            onClick={() => handleEdit(student)}
-                            className="p-3 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
-                          >
-                            <Edit3 size={20} />
-                          </button>
-                          <button
-                            onClick={() => openDeleteModal(student)}
-                            className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                          >
-                            <Trash2 size={20} />
-                          </button>
+                          {canEdit ? (
+                            <>
+                              <button
+                                onClick={() => handleEdit(student)}
+                                className="p-3 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+                              >
+                                <Edit3 size={20} />
+                              </button>
+                              <button
+                                onClick={() => openDeleteModal(student)}
+                                className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                              >
+                                <Trash2 size={20} />
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-slate-300 text-xs font-black">
+                              —
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>

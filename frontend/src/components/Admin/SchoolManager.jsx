@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import API from "../../api/axios";
+import { STAGES, stageLabel } from "../../constants/stages";
 import {
   Building2,
   PlusCircle,
@@ -36,6 +37,9 @@ const SchoolManager = () => {
     nationalId: "",
     phoneNumber: "",
     email: "",
+    // Empty = the general manager, over the whole school. Naming stages
+    // makes this account a principal over those stages only.
+    managedStages: [],
   });
   const [createdCredentials, setCreatedCredentials] = useState(null);
 
@@ -147,7 +151,14 @@ const SchoolManager = () => {
 
   const closeAdminModal = () => {
     setAdminModalSchool(null);
-    setAdminForm({ firstName: "", lastName: "", nationalId: "", phoneNumber: "", email: "" });
+    setAdminForm({
+      firstName: "",
+      lastName: "",
+      nationalId: "",
+      phoneNumber: "",
+      email: "",
+      managedStages: [],
+    });
     setCreatedCredentials(null);
   };
 
@@ -517,7 +528,7 @@ const SchoolManager = () => {
           <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden">
             <div className="p-6 bg-indigo-600 text-white flex justify-between items-center">
               <h2 className="text-lg font-black">
-                أول إداري — {adminModalSchool.name}
+                إضافة إداري — {adminModalSchool.name}
               </h2>
               <button onClick={closeAdminModal} className="p-2 hover:bg-white/10 rounded-full">
                 <X />
@@ -546,12 +557,33 @@ const SchoolManager = () => {
                 >
                   <Copy size={14} /> نسخ اسم المستخدم
                 </button>
-                <button
-                  onClick={closeAdminModal}
-                  className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all"
-                >
-                  تم
-                </button>
+                {/* A school being set up gets its general manager and then
+                    a principal per stage, one after another — so the way
+                    back to an empty form matters more than the way out. */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setCreatedCredentials(null);
+                      setAdminForm({
+                        firstName: "",
+                        lastName: "",
+                        nationalId: "",
+                        phoneNumber: "",
+                        email: "",
+                        managedStages: [],
+                      });
+                    }}
+                    className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl transition-all"
+                  >
+                    إضافة إداري آخر
+                  </button>
+                  <button
+                    onClick={closeAdminModal}
+                    className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all"
+                  >
+                    تم
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleCreateAdmin} className="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -594,11 +626,71 @@ const SchoolManager = () => {
                     onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
                   />
                 </div>
+                {/* What this admin presides over. Nothing ticked is the
+                    general manager — the account that manages the school's
+                    other admins. Ticking stages makes a principal over
+                    those stages, who never sees the rest of the school. */}
+                <div className="md:col-span-2 lg:col-span-3 space-y-2">
+                  <label className="text-xs font-black text-slate-400 mr-2 uppercase">
+                    نطاق الإدارة
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAdminForm({ ...adminForm, managedStages: [] })}
+                      className={`px-5 py-3 rounded-2xl font-black text-sm transition-all border-2 ${
+                        adminForm.managedStages.length === 0
+                          ? "bg-slate-800 border-slate-800 text-white shadow-lg"
+                          : "bg-slate-50 border-transparent text-slate-500 hover:border-slate-200"
+                      }`}
+                    >
+                      المدير العام
+                    </button>
+                    {STAGES.map((stage) => {
+                      const picked = adminForm.managedStages.includes(stage.key);
+                      return (
+                        <button
+                          key={stage.key}
+                          type="button"
+                          onClick={() =>
+                            setAdminForm({
+                              ...adminForm,
+                              managedStages: picked
+                                ? adminForm.managedStages.filter(
+                                    (item) => item !== stage.key,
+                                  )
+                                : [...adminForm.managedStages, stage.key],
+                            })
+                          }
+                          className={`px-5 py-3 rounded-2xl font-black text-sm transition-all border-2 ${
+                            picked
+                              ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100"
+                              : "bg-slate-50 border-transparent text-slate-500 hover:border-slate-200"
+                          }`}
+                        >
+                          مدير {stage.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] font-bold text-slate-400 mr-2">
+                    {adminForm.managedStages.length === 0
+                      ? "المدير العام: بيشوف المدرسة كلها وهو اللي بيدير باقي الإداريين."
+                      : "بيشوف ويدير المراحل المختارة بس — مش هيقدر يوصل لباقي المدرسة."}
+                  </p>
+                </div>
+
                 <button
                   disabled={actionLoading}
                   className="md:col-span-2 lg:col-span-3 mt-2 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black transition-all flex items-center justify-center gap-2"
                 >
-                  {actionLoading ? <Loader2 className="animate-spin" size={20} /> : "إنشاء حساب الإداري"}
+                  {actionLoading ? (
+                    <Loader2 className="animate-spin" size={20} />
+                  ) : adminForm.managedStages.length === 0 ? (
+                    "إنشاء حساب المدير العام"
+                  ) : (
+                    "إنشاء حساب مدير المرحلة"
+                  )}
                 </button>
               </form>
             )}
@@ -753,6 +845,15 @@ const SchoolManager = () => {
                       </p>
                       <p className="text-slate-500 text-xs font-bold mt-1" dir="ltr">
                         {admin.username} · {admin.phoneNumber}
+                      </p>
+                      <p className="text-[11px] font-black mt-1.5">
+                        {admin.managedStages?.length > 0 ? (
+                          <span className="text-emerald-600">
+                            مدير {admin.managedStages.map(stageLabel).join("، ")}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">المدرسة كلها</span>
+                        )}
                       </p>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">

@@ -4,7 +4,13 @@ const Classroom = require("../models/Classroom");
 const Subject = require("../models/Subject");
 const Grade = require("../models/Grade");
 const BellSchedule = require("../models/BellSchedule");
-const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
+const {
+  scopeFilter,
+  sameSchool,
+  creationSchool,
+  inStage,
+  STAGE_DENIED,
+} = require("../utils/tenant");
 const {
   DAY_NAMES,
   periodLabel,
@@ -80,6 +86,10 @@ exports.createSchedule = async (req, res) => {
       classroomData.school.toString() !== school.toString()
     )
       return res.status(404).json({ message: "Classroom not found" });
+
+    if (!inStage(req, classroomData.grade)) {
+      return res.status(403).json({ message: STAGE_DENIED });
+    }
 
     const isAuthorized = teacherData.teachingGrades.some(
       (gId) => gId.toString() === classroomData.grade.toString(),
@@ -236,6 +246,12 @@ exports.updateSchedule = async (req, res) => {
       const classroomDoc = await Classroom.findById(checkClassroom).select("grade school");
       if (!classroomDoc) return res.status(404).json({ message: "Classroom not found" });
 
+      // Moving a lesson into a classroom the caller doesn't preside over
+      // would place a booking they can no longer see or undo.
+      if (!inStage(req, classroomDoc.grade)) {
+        return res.status(403).json({ message: STAGE_DENIED });
+      }
+
       const { bell, error: bellError } = await bellForClassroomDay(classroomDoc, checkDay);
       if (bellError) return res.status(400).json({ message: bellError });
 
@@ -347,6 +363,7 @@ exports.getAllSchedules = async (req, res) => {
     const filter = scopeFilter(
       req,
       req.user.role === "teacher" ? { teacher: req.user.id } : {},
+      "classroom",
     );
 
     if (!filter) {

@@ -110,10 +110,16 @@ exports.getAllSubjects = async (req, res) => {
     }
 
     // ?grade=<id> now means "subjects taught to this grade", which includes
-    // every school-wide subject as well as those naming it explicitly.
-    if (req.query.grade) {
-      Object.assign(filter, Subject.coveringGrade(req.query.grade));
+    // every school-wide subject as well as those naming it explicitly. A
+    // principal over part of the school asks the same question of their
+    // whole stage. Both are $or conditions, so they go in an $and rather
+    // than over each other.
+    const conditions = [];
+    if (req.query.grade) conditions.push(Subject.coveringGrade(req.query.grade));
+    if (req.stageScope) {
+      conditions.push(Subject.coveringGrades(req.stageScope.gradeIds));
     }
+    if (conditions.length) filter.$and = conditions;
 
     const subjects = await Subject.find(filter)
       .populate("grades", "name academicYear")

@@ -99,7 +99,7 @@ const respondApplied = (res, status, result, verb) => {
 
 exports.getBellSchedules = async (req, res) => {
   try {
-    const filter = scopeFilter(req);
+    const filter = scopeFilter(req, {}, "grades");
     if (!filter) {
       return res.status(400).json({ message: "Please specify a school (?school=id)." });
     }

@@ -189,6 +189,7 @@ exports.getAllHomeworks = async (req, res) => {
     const filter = scopeFilter(
       req,
       req.user.role === "teacher" ? { teacher: req.user.id } : {},
+      "classroom",
     );
 
     if (!filter) {

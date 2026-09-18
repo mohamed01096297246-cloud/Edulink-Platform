@@ -8,7 +8,13 @@ const { friendlyDuplicateKeyMessage } = require("../utils/formatDbError");
 const User = require("../models/User");
 const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
-const { scopeFilter, sameSchool, creationSchool } = require("../utils/tenant");
+const {
+  scopeFilter,
+  sameSchool,
+  creationSchool,
+  inStage,
+  STAGE_DENIED,
+} = require("../utils/tenant");
 
 exports.createStudent = async (req, res) => {
   const session = await mongoose.startSession();
@@ -34,6 +40,10 @@ exports.createStudent = async (req, res) => {
       throw new Error(
         "sorry, no school context found for this account. Please contact support.",
       );
+    }
+
+    if (!inStage(req, grade)) {
+      throw new Error(STAGE_DENIED);
     }
 
     if (!grade) {
@@ -369,7 +379,11 @@ exports.deleteStudent = async (req, res) => {
 exports.getStudents = async (req, res) => {
   try {
     const { classroomId } = req.query;
-    let filter = scopeFilter(req, classroomId ? { classroom: classroomId } : {});
+    let filter = scopeFilter(
+      req,
+      classroomId ? { classroom: classroomId } : {},
+      "grade",
+    );
 
     if (!filter) {
       return res.status(400).json({
@@ -459,7 +473,11 @@ exports.getUnassignedStudents = async (req, res) => {
       });
     }
 
-    const filter = scopeFilter(req, { grade, classroom: null, active: true });
+    const filter = scopeFilter(
+      req,
+      { grade, classroom: null, active: true },
+      "grade",
+    );
     if (!filter) {
       return res.status(400).json({
         success: false,

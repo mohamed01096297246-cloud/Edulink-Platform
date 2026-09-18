@@ -63,4 +63,11 @@ subjectSchema.statics.coveringGrade = (gradeId) => ({
   $or: [{ allGrades: true }, { grades: gradeId }],
 });
 
+// The same question asked of several grades at once — "which subjects does
+// this stage see?". A school-wide subject counts for every stage, exactly
+// as it counts for every grade.
+subjectSchema.statics.coveringGrades = (gradeIds) => ({
+  $or: [{ allGrades: true }, { grades: { $in: gradeIds } }],
+});
+
 module.exports = mongoose.model("Subject", subjectSchema);
