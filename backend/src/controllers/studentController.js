@@ -8,6 +8,8 @@ const { friendlyDuplicateKeyMessage } = require("../utils/formatDbError");
 const User = require("../models/User");
 const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
+const AdmissionCandidate = require("../models/AdmissionCandidate");
+const { toLatinDigits } = require("../utils/phone");
 const {
   scopeFilter,
   sameSchool,
@@ -24,7 +26,6 @@ exports.createStudent = async (req, res) => {
     const {
       firstName,
       lastName,
-      phoneNumber,
       email,
       gender,
       grade,
@@ -32,8 +33,14 @@ exports.createStudent = async (req, res) => {
       parentFirstName,
       parentLastName,
       parentEmail,
-      parentPhone,
+      admissionCandidate,
     } = req.body;
+
+    // A number typed on an Arabic keyboard ("٠١٠...") is the same number
+    // as "010..." — stored one way, or the parent lookup below would miss
+    // the sibling already registered under it.
+    const phoneNumber = toLatinDigits(req.body.phoneNumber).trim();
+    const parentPhone = toLatinDigits(req.body.parentPhone).trim();
 
     const school = creationSchool(req);
     if (!school) {
@@ -169,6 +176,20 @@ exports.createStudent = async (req, res) => {
       { session },
     );
 
+    // Registered from the school's admissions list: take the child off it
+    // in the same transaction, so a failed registration leaves them there
+    // and two admins can't register the same child twice.
+    if (admissionCandidate) {
+      const taken = await AdmissionCandidate.findOneAndUpdate(
+        { _id: admissionCandidate, school, registeredStudent: null },
+        { $set: { registeredStudent: student._id, registeredAt: new Date() } },
+        { session },
+      );
+      if (!taken) {
+        throw new Error("الطالب ده اتسجّل بالفعل من كشف المستجدين.");
+      }
+    }
+
     if (isNewParent && parentEmail) {
       try {
         await sendCredentialsEmail(
@@ -299,6 +320,10 @@ exports.updateStudent = async (req, res) => {
     // `school` is never editable from the client — a student can't be
     // silently moved to a different tenant via this endpoint.
     delete req.body.school;
+    delete req.body.admissionCandidate;
+    if (req.body.phoneNumber !== undefined) {
+      req.body.phoneNumber = toLatinDigits(req.body.phoneNumber).trim();
+    }
 
     const updatedStudent = await Student.findByIdAndUpdate(
       studentId,
@@ -357,6 +382,14 @@ exports.deleteStudent = async (req, res) => {
         { session },
       );
     }
+
+    // Put the child back on the admissions list they were registered from,
+    // so a registration deleted by mistake can simply be redone.
+    await AdmissionCandidate.updateOne(
+      { registeredStudent: student._id },
+      { $set: { registeredStudent: null, registeredAt: null } },
+      { session },
+    );
 
     await student.deleteOne({ session });
 

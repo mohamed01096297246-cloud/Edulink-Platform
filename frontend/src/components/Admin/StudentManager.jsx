@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import API from "../../api/axios";
 import useAdminScope from "../../hooks/useAdminScope";
 import StagePicker from "./StagePicker";
+import { toLatinDigits } from "../../utils/phone";
 import {
   UserPlus,
   Users,
@@ -19,6 +20,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   XCircle,
+  ClipboardList,
+  Link2,
 } from "lucide-react";
 
 // Many parents don't have an email of their own. Registration defaults to
@@ -76,6 +79,15 @@ const StudentManagement = () => {
   const [directoryMatches, setDirectoryMatches] = useState([]);
   const [directoryLoading, setDirectoryLoading] = useState(false);
 
+  // The school's new-admissions list (AdmissionCandidate). `pending` is
+  // how many children on it are still unregistered — null until asked, 0
+  // for a school that has no list, which hides the whole search box.
+  const [admissionPending, setAdmissionPending] = useState(null);
+  const [admissionQuery, setAdmissionQuery] = useState("");
+  const [admissionMatches, setAdmissionMatches] = useState([]);
+  const [admissionLoading, setAdmissionLoading] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
+
   const showToastMessage = (message, type = "success") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -127,6 +139,74 @@ const StudentManagement = () => {
       parentPhone: "",
     });
     setDirectoryMatches([]);
+    setAdmissionQuery("");
+    setAdmissionMatches([]);
+    setSelectedCandidate(null);
+  };
+
+  // Whether this school has an admissions list with anyone left on it —
+  // asked each time the registration form opens, since the count drops
+  // with every child registered from it.
+  useEffect(() => {
+    if (!showModal || editMode) return;
+    API.get("/admission-candidates/search")
+      .then((res) => setAdmissionPending(res.data?.pending || 0))
+      .catch(() => setAdmissionPending(0));
+  }, [showModal, editMode]);
+
+  useEffect(() => {
+    if (editMode || !admissionPending) return;
+
+    const query = admissionQuery.trim();
+    if (query.length < 2) {
+      setAdmissionMatches([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setAdmissionLoading(true);
+      try {
+        const res = await API.get("/admission-candidates/search", {
+          params: { q: query },
+        });
+        setAdmissionMatches(res.data?.data || []);
+      } catch {
+        setAdmissionMatches([]);
+      } finally {
+        setAdmissionLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [admissionQuery, admissionPending, editMode]);
+
+  // Fills the form from the chosen child's row. The phone is the one the
+  // server picked for the family (an existing parent's number, else the
+  // number the siblings share) and goes into both phone fields, the way
+  // the school's students are already registered.
+  const pickCandidate = (candidate) => {
+    const phone = candidate.primaryPhone || "";
+    setFormData((prev) => ({
+      ...prev,
+      firstName: candidate.firstName || prev.firstName,
+      lastName: candidate.lastName || prev.lastName,
+      gender: candidate.gender || prev.gender,
+      grade: grades.some((g) => g._id === candidate.grade?._id)
+        ? candidate.grade._id
+        : prev.grade,
+      classroom: "",
+      phoneNumber: phone,
+      parentFirstName: candidate.parentFirstName || prev.parentFirstName,
+      parentLastName: candidate.parentLastName || prev.parentLastName,
+      parentPhone: phone,
+    }));
+    setSelectedCandidate(candidate);
+    setAdmissionQuery("");
+    setAdmissionMatches([]);
+  };
+
+  const applyCandidatePhone = (number) => {
+    setFormData((prev) => ({ ...prev, phoneNumber: number, parentPhone: number }));
   };
 
   // Looks the new student up in the imported household-contact directory as
@@ -221,7 +301,10 @@ const StudentManagement = () => {
         await API.put(`/students/${selectedStudentId}`, formData);
         showToastMessage("تم تحديث بيانات الطالب بنجاح!", "success");
       } else {
-        await API.post("/students", formData);
+        await API.post("/students", {
+          ...formData,
+          admissionCandidate: selectedCandidate?._id,
+        });
         showToastMessage("تم تسجيل الطالب الجديد بنجاح!", "success");
       }
 
@@ -538,6 +621,173 @@ const StudentManagement = () => {
               onSubmit={handleSubmit}
               className="p-8 overflow-y-auto space-y-10"
             >
+              {/* The school's new-admissions list: search a child, pick
+                  them, and the form fills itself. Only shown to a school
+                  that has such a list with someone still on it. */}
+              {!editMode && (admissionPending > 0 || selectedCandidate) && (
+                <div className="bg-emerald-50/60 border border-emerald-100 rounded-3xl p-5 space-y-4">
+                  <div className="flex items-center justify-between gap-2 text-emerald-700">
+                    <div className="flex items-center gap-2">
+                      <ClipboardList size={18} />
+                      <span className="text-sm font-black">
+                        كشف المستجدين
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-black bg-white border border-emerald-100 rounded-lg px-2 py-1">
+                      باقي {admissionPending ?? 0} طالب لم يُسجَّلوا
+                    </span>
+                  </div>
+
+                  {selectedCandidate ? (
+                    <div className="bg-white rounded-2xl border border-emerald-200 p-4 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                        <div>
+                          <p className="font-black text-slate-800">
+                            {selectedCandidate.studentName}
+                          </p>
+                          <p className="text-[11px] font-bold text-slate-400 mt-1">
+                            {selectedCandidate.grade?.name}
+                            {selectedCandidate.birthDate &&
+                              ` · مواليد ${new Date(selectedCandidate.birthDate).toLocaleDateString("en-GB", { timeZone: "UTC" })}`}
+                            {selectedCandidate.nationalId &&
+                              ` · رقم قومي ${selectedCandidate.nationalId}`}
+                          </p>
+                          <p className="text-[11px] font-bold text-slate-400">
+                            ولي الأمر: {selectedCandidate.parentName || "—"}
+                            {selectedCandidate.parentJob &&
+                              ` · ${selectedCandidate.parentJob}`}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCandidate(null)}
+                          className="text-[11px] font-black text-slate-400 hover:text-rose-500 shrink-0"
+                        >
+                          إلغاء الاختيار
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-[11px] font-black text-slate-500">
+                          رقم الربط (هاتف ولي الأمر) — اضغط على رقم لتغييره:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedCandidate.phones.map((p) => (
+                            <button
+                              key={p.number}
+                              type="button"
+                              disabled={p.otherSchool}
+                              onClick={() => applyCandidatePhone(p.number)}
+                              title={
+                                p.otherSchool
+                                  ? "الرقم ده مسجّل لولي أمر في مدرسة تانية"
+                                  : undefined
+                              }
+                              className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                                formData.parentPhone === p.number
+                                  ? "bg-emerald-600 border-emerald-600 text-white"
+                                  : "bg-white border-slate-200 text-slate-600 hover:border-emerald-400"
+                              }`}
+                            >
+                              {p.number}
+                              {p.number === selectedCandidate.primaryPhone &&
+                                " ★"}
+                            </button>
+                          ))}
+                          {selectedCandidate.invalidPhones?.map((raw) => (
+                            <span
+                              key={raw}
+                              title="رقم غير صحيح في الملف — ناقص أو زايد رقم"
+                              className="px-3 py-1.5 rounded-xl text-xs font-black border border-amber-200 bg-amber-50 text-amber-700 line-through"
+                            >
+                              {raw}
+                            </span>
+                          ))}
+                        </div>
+                        {!selectedCandidate.primaryPhone && (
+                          <p className="text-[11px] font-bold text-amber-600">
+                            مفيش رقم موبايل صحيح في الملف للطالب ده — اكتب
+                            رقم ولي الأمر يدويًا.
+                          </p>
+                        )}
+                        {selectedCandidate.existingParent && (
+                          <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                            <Link2 size={12} />
+                            هيتربط بحساب ولي الأمر الموجود (
+                            {selectedCandidate.existingParent.name} — عنده{" "}
+                            {selectedCandidate.existingParent.children} طالب
+                            مسجّل)
+                          </p>
+                        )}
+                        {selectedCandidate.siblings?.length > 0 && (
+                          <p className="text-[11px] font-bold text-indigo-600">
+                            إخوته في الكشف على نفس الرقم:{" "}
+                            {selectedCandidate.siblings
+                              .map(
+                                (s) =>
+                                  `${s.studentName} (${s.sheetLabel}${s.registered ? " — مسجّل" : ""})`,
+                              )
+                              .join("، ")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Search
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-400"
+                          size={18}
+                        />
+                        <input
+                          type="text"
+                          value={admissionQuery}
+                          onChange={(e) => setAdmissionQuery(e.target.value)}
+                          placeholder="ابحث باسم الطالب في كشف المستجدين..."
+                          className="modal-input !pr-12"
+                        />
+                        {admissionLoading && (
+                          <Loader2
+                            className="absolute left-4 top-1/2 -translate-y-1/2 animate-spin text-emerald-500"
+                            size={18}
+                          />
+                        )}
+                      </div>
+
+                      {admissionMatches.map((c) => (
+                        <button
+                          key={c._id}
+                          type="button"
+                          onClick={() => pickCandidate(c)}
+                          className="w-full text-right bg-white rounded-2xl border border-emerald-100 hover:border-emerald-400 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-colors"
+                        >
+                          <div>
+                            <p className="font-black text-slate-700 text-sm">
+                              {c.studentName}
+                            </p>
+                            <p className="text-[11px] font-bold text-slate-400">
+                              {c.grade?.name} · ولي الأمر: {c.parentName || "—"}
+                            </p>
+                          </div>
+                          <span className="text-xs font-black text-emerald-700 shrink-0">
+                            {c.primaryPhone || "بدون رقم صحيح"}
+                            {c.siblings?.length > 0 && " · له إخوة"}
+                          </span>
+                        </button>
+                      ))}
+
+                      {!admissionLoading &&
+                        admissionQuery.trim().length >= 2 &&
+                        admissionMatches.length === 0 && (
+                          <p className="text-[11px] font-bold text-slate-400 mr-2">
+                            مفيش طالب بالاسم ده في الكشف (أو اتسجّل قبل كده).
+                          </p>
+                        )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-6">
                 <div className="flex items-center gap-3 text-indigo-600">
                   <Baby size={20} />
@@ -674,7 +924,7 @@ const StudentManagement = () => {
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          phoneNumber: e.target.value,
+                          phoneNumber: toLatinDigits(e.target.value),
                         })
                       }
                     />
@@ -804,7 +1054,7 @@ const StudentManagement = () => {
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          parentPhone: e.target.value,
+                          parentPhone: toLatinDigits(e.target.value),
                         })
                       }
                     />

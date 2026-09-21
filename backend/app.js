@@ -48,6 +48,7 @@ const gradeRegisterRoutes = require("./src/routes/gradeRegisterRoutes");
 const classworkNotebookRoutes = require("./src/routes/classworkNotebookRoutes");
 const boardNoteRoutes = require("./src/routes/boardNoteRoutes");
 const contactDirectoryRoutes = require("./src/routes/contactDirectoryRoutes");
+const admissionCandidateRoutes = require("./src/routes/admissionCandidateRoutes");
 const bellScheduleRoutes = require("./src/routes/bellScheduleRoutes");
 
 
@@ -79,6 +80,7 @@ app.use("/api/grade-register", gradeRegisterRoutes);
 app.use("/api/classwork-notebook", classworkNotebookRoutes);
 app.use("/api/board-notes", boardNoteRoutes);
 app.use("/api/contact-directory", contactDirectoryRoutes);
+app.use("/api/admission-candidates", admissionCandidateRoutes);
 app.use("/api/bell-schedules", bellScheduleRoutes);
 
 
