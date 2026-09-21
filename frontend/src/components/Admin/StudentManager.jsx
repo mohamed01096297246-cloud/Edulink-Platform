@@ -25,10 +25,12 @@ import {
 } from "lucide-react";
 
 // Many parents don't have an email of their own. Registration defaults to
-// this shared inbox — the admin reads the credentials there and relays them
-// to the parent personally (phone/WhatsApp) — instead of leaving the field
-// blank and typing it fresh for every student. Still editable per student
-// for the parents who do have their own address.
+// the school's shared inbox (School.parentInbox, read from /auth/me) — the
+// admin reads the credentials there and relays them to the parent
+// personally (phone/WhatsApp) — instead of leaving the field blank and
+// typing it fresh for every student. Still editable per student for the
+// parents who do have their own address. This address is only the
+// fallback for a school that hasn't set its own inbox.
 const DEFAULT_PARENT_EMAIL = "awlyaamwr8@gmail.com";
 
 const StudentManagement = () => {
@@ -44,6 +46,7 @@ const StudentManagement = () => {
   const [filterGrade, setFilterGrade] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState(null);
+  const [parentInbox, setParentInbox] = useState(DEFAULT_PARENT_EMAIL);
 
   const [toast, setToast] = useState({
     show: false,
@@ -135,7 +138,7 @@ const StudentManagement = () => {
       classroom: "",
       parentFirstName: "",
       parentLastName: "",
-      parentEmail: DEFAULT_PARENT_EMAIL,
+      parentEmail: parentInbox,
       parentPhone: "",
     });
     setDirectoryMatches([]);
@@ -143,6 +146,25 @@ const StudentManagement = () => {
     setAdmissionMatches([]);
     setSelectedCandidate(null);
   };
+
+  // This school's own parent inbox. Asked from the server rather than read
+  // from the stored login, so a school's inbox change reaches an admin
+  // who is already signed in. A form already open on the old default
+  // (not yet edited) switches over too.
+  useEffect(() => {
+    API.get("/auth/me")
+      .then((res) => {
+        const inbox = res.data?.user?.parentInbox;
+        if (!inbox) return;
+        setParentInbox(inbox);
+        setFormData((prev) =>
+          prev.parentEmail === DEFAULT_PARENT_EMAIL
+            ? { ...prev, parentEmail: inbox }
+            : prev,
+        );
+      })
+      .catch(() => {});
+  }, []);
 
   // Whether this school has an admissions list with anyone left on it —
   // asked each time the registration form opens, since the count drops

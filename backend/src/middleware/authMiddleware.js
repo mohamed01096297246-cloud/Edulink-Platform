@@ -58,7 +58,7 @@ exports.protect = async (req, res, next) => {
     // check in authController.login) is the entire enforcement point for
     // "stop a whole school from using the platform/app".
     if (user.school) {
-      const school = await School.findById(user.school).select("active features");
+      const school = await School.findById(user.school).select("active features parentInbox");
       if (!school || !school.active) {
         return res.status(403).json({
           message: "عذرًا، وصول هذه المدرسة إلى النظام موقوف مؤقتًا. تواصل مع إدارة المنصة.",

@@ -58,6 +58,18 @@ const schoolSchema = new mongoose.Schema(
       staffAttendance: { type: Boolean, default: true },
       behavior: { type: Boolean, default: true },
     },
+
+    // The school's own shared inbox for parents' login credentials. Most
+    // parents have no email, so registration defaults to this address and
+    // the school relays the credentials by phone/WhatsApp. Each school reads
+    // its own inbox — one school's parents' passwords must never land in
+    // another's.
+    parentInbox: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: "",
+    },
   },
   { timestamps: true }
 );

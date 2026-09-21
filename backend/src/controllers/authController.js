@@ -127,6 +127,7 @@ exports.getMe = async (req, res) => {
     const userWithFeatures = {
       ...user.toObject(),
       features: req.userSchool?.features || null,
+      parentInbox: req.userSchool?.parentInbox || "",
       // `protect` worked both of these out already for this request.
       oversightOnly: req.oversightOnly || false,
       schoolHasStages: Boolean(req.oversightOnly || req.stageScope),
