@@ -30,24 +30,27 @@ const { normalizeArabicName } = require("../src/utils/arabicName");
 const { extractMobiles } = require("../src/utils/phone");
 const { cleanName, splitName, assignHouseholds } = require("../src/utils/admissionRoster");
 
-// The sheet's column headers, as written on the ministry form. Located by
+// The sheet's column headers, as written on the ministry forms. Located by
 // header text rather than by position, so a school that inserts or moves a
-// column doesn't silently shift every field.
+// column doesn't silently shift every field. Each field lists the wordings
+// seen so far — the new-admissions notice and the enrolment register
+// (سجل قيد التلاميذ) name the same columns differently.
 const HEADERS = {
-  serial: "م",
-  studentName: "اسم الطالب",
-  gender: "النوع",
-  religion: "الديانه",
-  birthDate: "تاريخ الميلاد",
-  nationalId: "الرقم القومى",
-  nationality: "الجنسية",
-  address: "العنوان",
-  parentName: "اسم ولى الامر",
-  parentJob: "صناعة الوالد",
-  phone: "رقم التليفون",
+  serial: ["م"],
+  studentName: ["اسم الطالب", "اسم التلميذ"],
+  gender: ["النوع"],
+  religion: ["الديانه"],
+  birthDate: ["تاريخ الميلاد"],
+  nationalId: ["الرقم القومى", "الرقم القومى للتلميذ"],
+  nationality: ["الجنسية"],
+  address: ["العنوان", "محل الاقامة"],
+  parentName: ["اسم ولى الامر"],
+  parentJob: ["صناعة الوالد", "صناعته"],
+  phone: ["رقم التليفون"],
 };
 
 const fold = (value) => normalizeArabicName(value).replace(/\s+/g, "");
+const words = (value) => normalizeArabicName(value).split(/[^ء-ي]+/).filter(Boolean);
 
 const cellText = (cell) => {
   const v = cell.value;
@@ -81,8 +84,10 @@ const findHeaderRow = (sheet) => {
     const columns = {};
     row.eachCell((cell, col) => {
       const text = fold(cellText(cell));
-      for (const [key, header] of Object.entries(HEADERS)) {
-        if (text === fold(header)) columns[key] = col;
+      for (const [key, headers] of Object.entries(HEADERS)) {
+        // First match wins: the register repeats "تاريخ الميلاد" further
+        // right as a split day/month/year helper.
+        if (!columns[key] && headers.some((h) => text === fold(h))) columns[key] = col;
       }
     });
     if (columns.studentName && columns.phone) return { row: r, columns };
@@ -124,8 +129,34 @@ const run = async () => {
       continue;
     }
 
-    const track = fold(sheet.name);
-    const matches = grades.filter((g) => fold(g.name).endsWith(track));
+    const { columns } = header;
+    // The header cells are merged down over the rows beneath them, and a
+    // merged cell reads as its top cell's text — so those rows would come
+    // back named "اسم التلميذ". Only a cell that is its own master is data.
+    const nameAt = (r) => {
+      const cell = sheet.getRow(r).getCell(columns.studentName);
+      if (cell.isMerged && cell.master.address !== cell.address) return "";
+      return cellText(cell).trim();
+    };
+    let hasData = false;
+    for (let r = header.row + 1; r <= sheet.rowCount && !hasData; r += 1) hasData = !!nameAt(r);
+    if (!hasData) {
+      console.log(`[${sheet.name}] no students — skipped`);
+      continue;
+    }
+
+    // Which grade the sheet is for: the grade whose every word (after
+    // "الصف") appears in the sheet's name or its title rows — "كشوف الصف
+    // الثانى الاعدادي(عربي )" is "الصف الثاني الاعدادي عربي". The title is
+    // needed because a sheet's name may leave the track out ("الثانى
+    // الاعدادى"); exactly one grade must fit, never a best guess.
+    const context = new Set(words(sheet.name));
+    for (let r = 1; r < header.row; r += 1) {
+      sheet.getRow(r).eachCell((cell) => words(cellText(cell)).forEach((w) => context.add(w)));
+    }
+    const matches = grades.filter((g) =>
+      words(g.name).filter((w) => w !== "الصف").every((w) => context.has(w)),
+    );
     if (matches.length !== 1) {
       console.log(
         `[${sheet.name}] matches ${matches.length} grades of this school (need exactly 1) — skipped`,
@@ -133,16 +164,15 @@ const run = async () => {
       continue;
     }
     const grade = matches[0];
-    const { columns } = header;
     let count = 0;
 
-    // Data starts under the two-row header (the age column is split into
-    // يوم / شهر / سنه on the second).
-    for (let r = header.row + 2; r <= sheet.rowCount; r += 1) {
+    // Data starts under the header block (one or two more rows split the
+    // age into يوم / شهر / سنه); those rows carry no name and are skipped.
+    for (let r = header.row + 1; r <= sheet.rowCount; r += 1) {
       const row = sheet.getRow(r);
       const text = (key) => (columns[key] ? cellText(row.getCell(columns[key])).trim() : "");
 
-      const studentName = cleanName(text("studentName"));
+      const studentName = cleanName(nameAt(r));
       if (!studentName) continue;
 
       const parentName = cleanName(text("parentName"));
@@ -213,6 +243,22 @@ const run = async () => {
     phoneNumber: { $in: allPhones },
     school: { $ne: school._id },
   }).select("phoneNumber");
+  // Children whose family is already registered here (a brother or
+  // sister in another grade) — the form will link them to that account.
+  const known = new Set(
+    (
+      await User.find({ role: "parent", school: school._id, phoneNumber: { $in: allPhones } }).select(
+        "phoneNumber",
+      )
+    ).map((u) => u.phoneNumber),
+  );
+  const joining = rows.filter((r) => r.phones.some((p) => known.has(p)));
+  if (joining.length) {
+    console.log(`\nfamily already registered at this school — will join that parent account (${joining.length}):`);
+    joining.forEach((r) =>
+      console.log(`  ${r.sheetLabel} #${r.serial} ${r.studentName} → ${r.phones.find((p) => known.has(p))}`),
+    );
+  }
   if (elsewhere.length) {
     console.log(`\nnumbers already used by a parent at another school (${elsewhere.length}) — skipped when picking the shared number:`);
     elsewhere.forEach((u) => console.log(`  ${u.phoneNumber}`));
