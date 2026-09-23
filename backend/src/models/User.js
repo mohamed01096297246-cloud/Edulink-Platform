@@ -12,10 +12,13 @@ const userSchema = new mongoose.Schema(
     // without one on hand, and a parent account still needs to exist so the
     // student can be created. When it's missing, phoneNumber is what links
     // that parent's other children together instead (see studentController).
+    //
+    // Never set on a student: they are children, and their account is
+    // deliberately built to carry no identifier beyond the code we issue.
     nationalId: {
       type: String,
       required: function () {
-        return this.role !== "parent";
+        return this.role !== "parent" && this.role !== "student";
       },
       trim: true,
     },
@@ -26,9 +29,15 @@ const userSchema = new mongoose.Schema(
     // attends the same school also needs a parent account, both tied to
     // the same phone. What must stay unique is "this phone as a teacher"
     // and separately "this phone as a parent", not the phone on its own.
+    // Not required of a student: a child of 12 has no phone of their own,
+    // and the family's number already belongs to the parent account. It is
+    // also why the uniqueness index below only covers accounts that have
+    // one — two siblings would otherwise collide on their father's number.
     phoneNumber: {
       type: String,
-      required: true,
+      required: function () {
+        return this.role !== "student";
+      },
       trim: true,
     },
 
@@ -40,8 +49,18 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["admin", "teacher", "parent"],
+      enum: ["admin", "teacher", "parent", "student"],
       default: "parent",
+    },
+
+    // For a student account: the Student record it belongs to. The parent's
+    // equivalent is `linkedStudents` — a family holds several children,
+    // a student holds only himself, so the two are kept apart rather than
+    // one pretending to be the other.
+    studentProfile: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Student",
+      default: null,
     },
 
     // The school this user belongs to. Every user has one except the
@@ -174,8 +193,21 @@ userSchema.index(
 );
 
 // One account per phone number per role — see the comment on `phoneNumber`
-// above for why this isn't a bare unique index.
-userSchema.index({ phoneNumber: 1, role: 1 }, { unique: true });
+// above for why this isn't a bare unique index. Partial, because student
+// accounts carry no phone at all and any number of them would otherwise
+// count as duplicates of each other (see scripts/migrate-student-index.js
+// for the rebuild of the older, non-partial version of this index).
+userSchema.index(
+  { phoneNumber: 1, role: 1 },
+  { unique: true, partialFilterExpression: { phoneNumber: { $type: "string" } } },
+);
+
+// A student account is the one account tied to a single Student record —
+// re-issuing credentials must update that account, never add a second one.
+userSchema.index(
+  { studentProfile: 1 },
+  { unique: true, partialFilterExpression: { studentProfile: { $type: "objectId" } } },
+);
 
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;

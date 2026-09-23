@@ -8,6 +8,7 @@ const {
   sameSchool,
   creationSchool,
   stageParentWhere,
+  stageStudentWhere,
   stagesOfParent,
 } = require("../utils/tenant");
 
@@ -147,8 +148,19 @@ exports.createNotification = async (req, res) => {
         ...(await stageParentWhere(req)),
       });
 
+      // Students of those same stages hold their own accounts and hear the
+      // school's announcements themselves — the notice document is shared
+      // (target "all"), so only the push has to reach them too.
+      const stageWhere = await stageStudentWhere(req);
+      const students = await User.find({
+        role: "student",
+        active: true,
+        school,
+        ...(stageWhere.student ? { studentProfile: stageWhere.student } : {}),
+      }).select("pushToken");
+
       await sendPushNotifications(
-        parents.map((p) => p.pushToken),
+        [...parents, ...students].map((p) => p.pushToken),
         title,
         message,
         { type: "notification", notificationId: notification._id },

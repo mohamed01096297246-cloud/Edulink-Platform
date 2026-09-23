@@ -383,6 +383,13 @@ exports.deleteStudent = async (req, res) => {
       );
     }
 
+    // The student's own login goes with them — nothing should be left able
+    // to sign in as a child who is no longer at the school.
+    await User.deleteOne(
+      { role: "student", studentProfile: student._id },
+      { session },
+    );
+
     // Put the child back on the admissions list they were registered from,
     // so a registration deleted by mistake can simply be redone.
     await AdmissionCandidate.updateOne(

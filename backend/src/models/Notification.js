@@ -15,11 +15,21 @@ const notificationSchema = new mongoose.Schema({
 
   target: {
     type: String,
-    enum: ["all", "parent"],
+    enum: ["all", "parent", "student"],
     default: "all"
   },
 
   parent: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null
+  },
+
+  // The student account a `target: "student"` copy belongs to. Students in
+  // preparatory and secondary hold their own accounts, and everything that
+  // reaches a parent reaches the child too — except a negative behaviour
+  // note, which stays between the teacher and the parent.
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     default: null

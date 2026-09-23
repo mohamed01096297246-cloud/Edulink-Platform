@@ -128,6 +128,12 @@ async function notifyBehaviorParents(bulkData, subjectId, user) {
         message: `سلوك ${typeLabel} في مادة ${subjectDoc?.name || ""}: "${record.note}"`,
         school: user.school,
         createdBy: user.id,
+        // The child sees praise, never a complaint about themselves: a
+        // negative note is between the teacher and the parent, which is
+        // what keeps teachers writing them frankly.
+        alsoStudent: record.type === "positive",
+        studentTitle: "ملاحظة إيجابية من معلمك",
+        studentMessage: `مادة ${subjectDoc?.name || ""}: "${record.note}"`,
       });
     }),
   );

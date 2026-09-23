@@ -49,6 +49,8 @@ const classworkNotebookRoutes = require("./src/routes/classworkNotebookRoutes");
 const boardNoteRoutes = require("./src/routes/boardNoteRoutes");
 const contactDirectoryRoutes = require("./src/routes/contactDirectoryRoutes");
 const admissionCandidateRoutes = require("./src/routes/admissionCandidateRoutes");
+const studentAccountRoutes = require("./src/routes/studentAccountRoutes");
+const studentAppRoutes = require("./src/routes/studentAppRoutes");
 const bellScheduleRoutes = require("./src/routes/bellScheduleRoutes");
 
 
@@ -81,6 +83,8 @@ app.use("/api/classwork-notebook", classworkNotebookRoutes);
 app.use("/api/board-notes", boardNoteRoutes);
 app.use("/api/contact-directory", contactDirectoryRoutes);
 app.use("/api/admission-candidates", admissionCandidateRoutes);
+app.use("/api/student-accounts", studentAccountRoutes);
+app.use("/api/student", studentAppRoutes);
 app.use("/api/bell-schedules", bellScheduleRoutes);
 
 

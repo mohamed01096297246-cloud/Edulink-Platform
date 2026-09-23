@@ -72,6 +72,8 @@ exports.gradeBulkHomework = async (req, res) => {
           message: `${student.firstName}: ${scoreText} في واجب "${homework.title}" (${homework.subject.name}).`,
           school: req.user.school,
           createdBy: req.user.id,
+          studentTitle: "تم تصحيح واجبك",
+          studentMessage: `درجتك: ${scoreText} في واجب "${homework.title}" (${homework.subject.name}).`,
         });
       }),
     );
