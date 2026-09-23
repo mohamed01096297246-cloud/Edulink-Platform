@@ -70,7 +70,11 @@ const StudentAccountManager = () => {
     setWorking(true);
     try {
       const res = await API.post("/student-accounts/issue", { grade });
-      setIssued({ title: "بيانات دخول جديدة", rows: res.data?.data || [] });
+      setIssued({
+        title: "بيانات دخول الطلاب",
+        gradeName: grades.find((g) => g._id === grade)?.name || "",
+        rows: res.data?.data || [],
+      });
       showToast(res.data?.message || "تم الإصدار");
       loadStudents(grade);
     } catch (err) {
@@ -84,7 +88,11 @@ const StudentAccountManager = () => {
     setWorking(true);
     try {
       const res = await API.post(`/student-accounts/${student._id}/reissue`);
-      setIssued({ title: "كلمة مرور جديدة", rows: [res.data.data] });
+      setIssued({
+        title: "كلمة مرور جديدة",
+        gradeName: grades.find((g) => g._id === grade)?.name || "",
+        rows: [{ ...res.data.data, classroom: student.classroom }],
+      });
       showToast(res.data.message);
     } catch (err) {
       showToast(err.response?.data?.message || "تعذّرت إعادة الإصدار", "error");
@@ -147,6 +155,10 @@ const StudentAccountManager = () => {
                     كلمات المرور متخزنة مشفّرة — مش هتقدر تشوفها تاني بعد ما تقفل
                     الصفحة. لو ضاعت، هتحتاج تعمل إعادة إصدار.
                   </p>
+                  <p className="text-[12px] font-bold text-slate-500 mt-0.5">
+                    من نافذة الطباعة اختار «حفظ بصيغة PDF» عشان تحتفظ بنسخة عندك
+                    قبل ما تطبع على ورق.
+                  </p>
                 </div>
               </div>
               <div className="flex gap-2 shrink-0">
@@ -166,9 +178,18 @@ const StudentAccountManager = () => {
             </div>
 
             <div className="p-6">
-              <h2 className="hidden print:block text-xl font-black mb-4">
-                {issued.title}
-              </h2>
+              {/* Only on paper: which grade this sheet belongs to and when
+                  it was issued, so a printout found later is identifiable
+                  on its own. */}
+              <div className="hidden print:block mb-4">
+                <h2 className="text-xl font-black">
+                  {issued.title} — {issued.gradeName}
+                </h2>
+                <p className="text-sm font-bold">
+                  {new Date().toLocaleDateString("ar-EG")} · عدد الطلاب:{" "}
+                  {issued.rows.length}
+                </p>
+              </div>
               <table className="w-full text-right">
                 <thead>
                   <tr className="border-b border-slate-100">
@@ -306,10 +327,22 @@ const StudentAccountManager = () => {
       <style
         dangerouslySetInnerHTML={{
           __html: `
+        /* The sheet is inside the admin dashboard's own layout (sidebar,
+           header, the students table below it), so hiding this screen's
+           own chrome isn't enough — everything on the page is hidden and
+           only the sheet is put back, at the top of the paper. */
         @media print {
+          body * { visibility: hidden !important; }
+          .print-area, .print-area * { visibility: visible !important; }
+          .print-area {
+            position: absolute; inset: 0 auto auto 0; width: 100%;
+            border: none !important; box-shadow: none !important; margin: 0;
+          }
           .no-print { display: none !important; }
           body { background: white; }
-          .print-area { border: none !important; box-shadow: none !important; }
+          table { page-break-inside: auto; }
+          tr { page-break-inside: avoid; }
+          thead { display: table-header-group; }
         }
       `,
         }}
