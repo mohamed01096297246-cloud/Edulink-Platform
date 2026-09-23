@@ -72,14 +72,19 @@ const toneFor = (score, outOf) => {
   return "bg-rose-50 text-rose-600";
 };
 
-const Card = ({ children, tone = "bg-white border-slate-100" }) => (
-  <div className={`rounded-3xl border p-4 flex items-center gap-4 shadow-sm ${tone}`}>
+// Cards sit on a tinted canvas rather than on white, so the page reads as
+// a set of surfaces instead of one large white field — the shadow is what
+// lifts them, not a hard border.
+const Card = ({ children, tone = "bg-white border-slate-200/70" }) => (
+  <div
+    className={`rounded-3xl border p-4 flex items-center gap-4 shadow-[0_2px_12px_rgba(15,23,42,0.05)] ${tone}`}
+  >
     {children}
   </div>
 );
 
 const Empty = ({ children }) => (
-  <div className="bg-white rounded-3xl border border-slate-100 p-8 text-center">
+  <div className="rounded-3xl border border-dashed border-slate-300/80 bg-white/50 p-8 text-center">
     <p className="text-slate-400 font-bold text-sm">{children}</p>
   </div>
 );
@@ -140,36 +145,45 @@ const StudentDashboard = ({ onLogout }) => {
   const today = cache.today;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-28" dir="rtl">
-      <header className="bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between sticky top-0 z-20">
-        <div>
-          <p className="font-black text-slate-800">
-            {today?.student?.fullName || "الطالب"}
-          </p>
-          <p className="text-[11px] font-bold text-slate-400">
-            {today?.student?.grade}
-            {today?.student?.classroom ? ` · فصل ${today.student.classroom}` : ""}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => load(tab, { silent: true })}
-            className="p-2.5 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-            title="تحديث"
-          >
-            <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
-          </button>
-          <button
-            onClick={onLogout}
-            className="p-2.5 rounded-xl text-rose-500 bg-rose-50 hover:bg-rose-100 transition-colors"
-            title="تسجيل الخروج"
-          >
-            <LogOut size={18} />
-          </button>
+    <div
+      className="min-h-screen pb-28 bg-gradient-to-b from-[#E7ECF5] via-[#EDF0F6] to-[#F1F4F9]"
+      dir="rtl"
+    >
+      {/* The school's own navy, so the top of the screen carries the brand
+          instead of another sheet of white. */}
+      <header className="bg-gradient-to-l from-[#00259E] to-[#1236C4] text-white px-5 pt-5 pb-8 rounded-b-[2rem] shadow-lg shadow-slate-300/40">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <div>
+            <p className="font-black text-lg">
+              {today?.student?.fullName || "الطالب"}
+            </p>
+            <p className="text-[12px] font-bold text-white/70">
+              {today?.student?.grade}
+              {today?.student?.classroom ? ` · فصل ${today.student.classroom}` : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => load(tab, { silent: true })}
+              className="p-2.5 rounded-xl text-white/80 bg-white/10 hover:bg-white/20 transition-colors"
+              title="تحديث"
+            >
+              <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
+            </button>
+            <button
+              onClick={onLogout}
+              className="p-2.5 rounded-xl text-white/80 bg-white/10 hover:bg-white/20 transition-colors"
+              title="تسجيل الخروج"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-5 py-6 space-y-3">
+      {/* Lifted into the header band so the first cards overlap it — the
+          page starts with content, not with empty canvas. */}
+      <main className="max-w-2xl mx-auto px-5 -mt-5 pb-6 space-y-3">
         {error && (
           <p className="text-rose-600 font-bold text-sm text-center">{error}</p>
         )}
@@ -183,14 +197,14 @@ const StudentDashboard = ({ onLogout }) => {
             {tab === "today" && data && (
               <>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-emerald-50 rounded-3xl p-4 text-center">
+                  <div className="bg-white rounded-3xl p-4 text-center border border-slate-200/70 shadow-[0_2px_12px_rgba(15,23,42,0.05)]">
                     <p className="text-2xl font-black text-emerald-600">
                       {data.attendance?.present ?? 0}
                     </p>
                     <p className="text-[11px] font-bold text-slate-500">حصص حضرتها</p>
                   </div>
-                  <div className="bg-rose-50 rounded-3xl p-4 text-center">
-                    <p className="text-2xl font-black text-rose-600">
+                  <div className="bg-white rounded-3xl p-4 text-center border border-slate-200/70 shadow-[0_2px_12px_rgba(15,23,42,0.05)]">
+                    <p className="text-2xl font-black text-rose-500">
                       {data.attendance?.absent ?? 0}
                     </p>
                     <p className="text-[11px] font-bold text-slate-500">حصص غبتها</p>
@@ -442,7 +456,7 @@ const StudentDashboard = ({ onLogout }) => {
         )}
       </main>
 
-      <nav className="fixed bottom-4 left-4 right-4 max-w-2xl mx-auto bg-white border border-slate-200 rounded-3xl shadow-lg flex items-center justify-around h-[72px] z-30">
+      <nav className="fixed bottom-4 left-4 right-4 max-w-2xl mx-auto bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-3xl shadow-[0_8px_30px_rgba(15,23,42,0.12)] flex items-center justify-around h-[72px] z-30">
         {TABS.map((item) => {
           const Icon = item.icon;
           const active = tab === item.key;
