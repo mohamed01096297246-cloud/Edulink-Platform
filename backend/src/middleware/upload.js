@@ -11,16 +11,24 @@ const imageFileFilter = (req, file, cb) => {
   cb(null, true);
 };
 
-// 5MB keeps a phone photo comfortably within a single MongoDB document
-// (16MB hard limit) with room to spare for the rest of the document.
+// 5MB is a generous phone photo. Each one is stored as its own document
+// (see BoardNoteImage), so the count below is about what a teacher can
+// sensibly upload over a school's connection, not about a size limit.
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGES_PER_NOTE = 8;
 
 const createImageUpload = () => {
+  // "images" is what the app sends now; "image" is what versions already
+  // installed send, and both are accepted so an older phone keeps working
+  // against this deploy.
   const upload = multer({
     storage: multer.memoryStorage(),
     fileFilter: imageFileFilter,
-    limits: { fileSize: MAX_IMAGE_BYTES },
-  }).single("image");
+    limits: { fileSize: MAX_IMAGE_BYTES, files: MAX_IMAGES_PER_NOTE },
+  }).fields([
+    { name: "images", maxCount: MAX_IMAGES_PER_NOTE },
+    { name: "image", maxCount: 1 },
+  ]);
 
   // Multer reports file-too-large/wrong-type errors to Express's default
   // error handler (an HTML page) unless caught explicitly — wrap it so
@@ -29,10 +37,12 @@ const createImageUpload = () => {
   return (req, res, next) => {
     upload(req, res, (err) => {
       if (err instanceof multer.MulterError) {
-        const message =
-          err.code === "LIMIT_FILE_SIZE"
-            ? "حجم الصورة أكبر من المسموح به (5 ميجا)."
-            : "فشل رفع الصورة.";
+        let message = "فشل رفع الصور.";
+        if (err.code === "LIMIT_FILE_SIZE") {
+          message = "حجم الصورة أكبر من المسموح به (5 ميجا).";
+        } else if (err.code === "LIMIT_FILE_COUNT" || err.code === "LIMIT_UNEXPECTED_FILE") {
+          message = `أقصى عدد صور في الملاحظة الواحدة ${MAX_IMAGES_PER_NOTE} صور.`;
+        }
         return res.status(400).json({ success: false, message });
       }
       if (err) {
@@ -44,3 +54,4 @@ const createImageUpload = () => {
 };
 
 exports.uploadBoardNoteImage = createImageUpload();
+exports.MAX_IMAGES_PER_NOTE = MAX_IMAGES_PER_NOTE;

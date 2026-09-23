@@ -38,7 +38,11 @@ router.get(
 // Any signed-in member of the school can fetch the bytes; the controller
 // enforces that it is *their* school. Teachers, parents and admins all
 // legitimately view these images.
+//
+// Without an index it is the note's first photo — the address app versions
+// already installed ask for, and the only one they know about.
 router.get("/:id/image", protect, getBoardNoteImage);
+router.get("/:id/image/:index", protect, getBoardNoteImage);
 
 router.delete("/:id", protect, authorize("teacher", "admin"), deleteBoardNote);
 

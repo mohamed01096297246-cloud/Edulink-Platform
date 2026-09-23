@@ -12,13 +12,19 @@ const boardNoteSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
-    // The photo lives in the document itself, not on disk. App Platform
-    // containers are ephemeral and run more than one instance, so a file
-    // written to local disk is wiped by the next deploy and invisible to
-    // the sibling instance — an uploaded photo simply disappeared. Stored
-    // here it survives deploys and is covered by the database's own daily
-    // backups. `select: false` keeps the bytes out of every list query;
-    // only the dedicated image endpoint asks for them.
+    // How many photos this note has. The photos themselves are their own
+    // documents (see BoardNoteImage) because a note can carry several and
+    // a MongoDB document stops at 16MB; this count is what lets a list
+    // query build their URLs without fetching a single byte.
+    imageCount: {
+      type: Number,
+      default: 0,
+    },
+
+    // Where the photo used to live, back when a note could only have one:
+    // inside this document. Notes written then still carry theirs here, so
+    // the image endpoint reads this when a note has no BoardNoteImage rows
+    // — nothing already published is left without its picture.
     image: {
       data: { type: Buffer, select: false },
       contentType: { type: String },
@@ -54,8 +60,20 @@ const boardNoteSchema = new mongoose.Schema(
 // Clients only ever need the address of the image, never the bytes inline.
 // Serving it from under /api matters: that's the only path the deployment
 // routes to this backend at all.
+//
+// `imageUrl` stays, pointing at the first photo: app versions already on
+// teachers' and parents' phones read that field, and they must keep
+// showing the picture after this deploy.
 boardNoteSchema.virtual("imageUrl").get(function getImageUrl() {
   return `/api/board-notes/${this._id}/image`;
+});
+
+boardNoteSchema.virtual("imageUrls").get(function getImageUrls() {
+  const count = this.imageCount || 1;
+  return Array.from(
+    { length: count },
+    (_, index) => `/api/board-notes/${this._id}/image/${index}`,
+  );
 });
 
 module.exports = mongoose.model("BoardNote", boardNoteSchema);
