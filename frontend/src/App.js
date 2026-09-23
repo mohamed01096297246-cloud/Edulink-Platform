@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ParentDashboard from "./pages/ParentDashboard";
+import StudentDashboard from "./pages/StudentDashboard";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
@@ -92,6 +93,20 @@ function App() {
           element={
             isLoggedIn && userRole === "parent" ? (
               <ParentDashboard onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+
+        {/* Students from preparatory upwards hold their own account. The
+            browser view exists so they can use the system from any phone
+            without installing anything. */}
+        <Route
+          path="/student/*"
+          element={
+            isLoggedIn && userRole === "student" ? (
+              <StudentDashboard onLogout={handleLogout} />
             ) : (
               <Navigate to="/login" />
             )

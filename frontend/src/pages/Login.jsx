@@ -38,6 +38,8 @@ const Login = ({ onLogin }) => {
         navigate("/teacher");
       } else if (role === "parent") {
         navigate("/parent");
+      } else if (role === "student") {
+        navigate("/student");
       } else {
         navigate("/");
       }
