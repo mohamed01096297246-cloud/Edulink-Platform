@@ -2,6 +2,8 @@ const User = require("../models/User");
 const Subject = require("../models/Subject");
 const Schedule = require("../models/Schedule");
 const Student = require("../models/Student");
+const StaffCandidate = require("../models/StaffCandidate");
+const { toLatinDigits } = require("../utils/phone");
 const { sendCredentialsEmail } = require("../utils/emailService");
 const {
   generatePassword,
@@ -32,20 +34,33 @@ const readSubjectIds = (body) => {
 
 exports.createTeacher = async (req, res) => {
   try {
-    const {
-      firstName,
-      lastName,
-      phoneNumber,
-      nationalId,
-      email,
-      teachingGrades,
-    } = req.body;
+    const { firstName, lastName, email, teachingGrades, staffCandidate } = req.body;
+
+    // Typed on an Arabic keyboard, "٠١٠..." is the same number as "010..."
+    // — stored one way, so the one-account-per-phone check really holds.
+    const phoneNumber = toLatinDigits(req.body.phoneNumber).trim();
+    const nationalId = toLatinDigits(req.body.nationalId).trim();
 
     const school = creationSchool(req);
     if (!school) {
       return res.status(400).json({
         message: "Please specify a school (?school=id) to create a teacher for.",
       });
+    }
+
+    // Registering from the school's staff list: refuse up front if someone
+    // already registered this teacher from it, before an account exists.
+    if (staffCandidate) {
+      const onList = await StaffCandidate.exists({
+        _id: staffCandidate,
+        school,
+        registeredUser: null,
+      });
+      if (!onList) {
+        return res
+          .status(400)
+          .json({ message: "المعلم ده اتسجّل بالفعل من قائمة المعلمين." });
+      }
     }
 
     // The teacher's login credentials are mailed to this address and nowhere
@@ -101,6 +116,14 @@ exports.createTeacher = async (req, res) => {
       password,
       active: true,
     });
+
+    // Off the staff list now that the account exists.
+    if (staffCandidate) {
+      await StaffCandidate.updateOne(
+        { _id: staffCandidate, school },
+        { $set: { registeredUser: teacher._id, registeredAt: new Date() } },
+      );
+    }
 
     // The teacher row already exists by this point, so a mail failure must
     // not fail the request — that would strand an account the admin thinks
@@ -301,7 +324,13 @@ exports.updateTeacher = async (req, res) => {
       return res.status(400).json({ message: GMAIL_REQUIRED_MESSAGE });
     }
 
-    const updateData = { firstName, lastName, phoneNumber, nationalId, email };
+    const updateData = {
+      firstName,
+      lastName,
+      phoneNumber: phoneNumber === undefined ? undefined : toLatinDigits(phoneNumber).trim(),
+      nationalId: nationalId === undefined ? undefined : toLatinDigits(nationalId).trim(),
+      email,
+    };
 
     const subjectIds = readSubjectIds(req.body);
 
@@ -369,6 +398,13 @@ exports.deleteTeacher = async (req, res) => {
     }
 
     await teacher.deleteOne();
+
+    // Back on the staff list they were registered from, so an account
+    // deleted by mistake can simply be registered again.
+    await StaffCandidate.updateOne(
+      { registeredUser: teacher._id },
+      { $set: { registeredUser: null, registeredAt: null } },
+    );
 
     res.status(200).json({
       success: true,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import API from "../../api/axios";
+import { toLatinDigits } from "../../utils/phone";
 import {
   UserPlus,
   Users,
@@ -14,6 +15,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   XCircle,
+  ClipboardList,
 } from "lucide-react";
 
 const TeacherManagement = () => {
@@ -38,6 +40,21 @@ const TeacherManagement = () => {
     id: null,
     name: "",
   });
+
+  // The school's own inbox for login credentials (School.parentInbox) —
+  // the same default the student registration form uses, since most
+  // teachers' accounts are handed over by the school itself. Editable per
+  // teacher for anyone who wants theirs sent to their own Gmail.
+  const [schoolInbox, setSchoolInbox] = useState("");
+
+  // The school's staff list (StaffCandidate): search a name, pick it, and
+  // the form fills itself. `staffPending` is how many are still waiting —
+  // 0 for a school with no list, which hides the box entirely.
+  const [staffPending, setStaffPending] = useState(0);
+  const [staffQuery, setStaffQuery] = useState("");
+  const [staffMatches, setStaffMatches] = useState([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState(null);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -82,7 +99,64 @@ const TeacherManagement = () => {
 
   useEffect(() => {
     fetchData();
+    API.get("/auth/me")
+      .then((res) => setSchoolInbox(res.data?.user?.parentInbox || ""))
+      .catch(() => {});
   }, []);
+
+  // Whether there is a staff list with anyone left on it — asked each time
+  // the form opens, since it shrinks with every teacher registered.
+  useEffect(() => {
+    if (!showModal || editMode) return;
+    API.get("/staff-candidates/search")
+      .then((res) => setStaffPending(res.data?.pending || 0))
+      .catch(() => setStaffPending(0));
+  }, [showModal, editMode]);
+
+  useEffect(() => {
+    if (editMode || !staffPending) return;
+    const query = staffQuery.trim();
+    if (query.length < 2) {
+      setStaffMatches([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setStaffLoading(true);
+      try {
+        const res = await API.get("/staff-candidates/search", {
+          params: { q: query },
+        });
+        setStaffMatches(res.data?.data || []);
+      } catch {
+        setStaffMatches([]);
+      } finally {
+        setStaffLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [staffQuery, staffPending, editMode]);
+
+  // Fills everything the list knows. The national ID and a personal email
+  // usually aren't on it, so those are left for the admin — the email
+  // starting from the school's inbox.
+  const pickStaff = (candidate) => {
+    setFormData((prev) => ({
+      ...prev,
+      firstName: candidate.firstName || prev.firstName,
+      lastName: candidate.lastName || prev.lastName,
+      phoneNumber: candidate.primaryPhone || prev.phoneNumber,
+      nationalId: candidate.nationalId || prev.nationalId,
+      email: candidate.email || prev.email || schoolInbox,
+      subjectIds: candidate.subjects?.length
+        ? candidate.subjects.map((subject) => subject._id)
+        : prev.subjectIds,
+    }));
+    setSelectedStaff(candidate);
+    setStaffQuery("");
+    setStaffMatches([]);
+  };
 
   const resetForm = () => {
     setEditMode(false);
@@ -90,12 +164,15 @@ const TeacherManagement = () => {
     setFormData({
       firstName: "",
       lastName: "",
-      email: "",
+      email: schoolInbox,
       phoneNumber: "",
       nationalId: "",
       subjectIds: [],
       teachingGrades: [],
     });
+    setStaffQuery("");
+    setStaffMatches([]);
+    setSelectedStaff(null);
   };
 
   const handleEditOpen = (teacher) => {
@@ -192,7 +269,10 @@ const TeacherManagement = () => {
         await API.put(`/teacher/${selectedTeacherId}`, formData);
         showToastMessage("تم تحديث بيانات المعلم بنجاح", "success");
       } else {
-        await API.post("/teacher", formData);
+        await API.post("/teacher", {
+          ...formData,
+          staffCandidate: selectedStaff?._id,
+        });
         showToastMessage("تم تسجيل المعلم الجديد بنجاح", "success");
       }
 
@@ -470,6 +550,143 @@ const TeacherManagement = () => {
               onSubmit={handleSubmit}
               className="p-8 overflow-y-auto space-y-8"
             >
+              {/* The school's staff list: search a teacher, pick them, and
+                  the form fills itself — the same flow as registering new
+                  students from the admissions list. */}
+              {!editMode && (staffPending > 0 || selectedStaff) && (
+                <div className="bg-emerald-50/60 border border-emerald-100 rounded-3xl p-5 space-y-4">
+                  <div className="flex items-center justify-between gap-2 text-emerald-700">
+                    <div className="flex items-center gap-2">
+                      <ClipboardList size={18} />
+                      <span className="text-sm font-black">قائمة المعلمين</span>
+                    </div>
+                    <span className="text-[11px] font-black bg-white border border-emerald-100 rounded-lg px-2 py-1">
+                      باقي {staffPending} معلم لم يُسجَّلوا
+                    </span>
+                  </div>
+
+                  {selectedStaff ? (
+                    <div className="bg-white rounded-2xl border border-emerald-200 p-4 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                        <div>
+                          <p className="font-black text-slate-800">
+                            {selectedStaff.fullName}
+                          </p>
+                          <p className="text-[11px] font-bold text-slate-400 mt-1">
+                            المادة في الملف: {selectedStaff.subjectLabel || "—"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStaff(null)}
+                          className="text-[11px] font-black text-slate-400 hover:text-rose-500 shrink-0"
+                        >
+                          إلغاء الاختيار
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {selectedStaff.phones.map((p) => (
+                          <button
+                            key={p.number}
+                            type="button"
+                            disabled={p.taken}
+                            onClick={() =>
+                              setFormData((prev) => ({ ...prev, phoneNumber: p.number }))
+                            }
+                            title={p.taken ? "الرقم ده عليه حساب معلم بالفعل" : undefined}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                              formData.phoneNumber === p.number
+                                ? "bg-emerald-600 border-emerald-600 text-white"
+                                : "bg-white border-slate-200 text-slate-600 hover:border-emerald-400"
+                            }`}
+                          >
+                            {p.number}
+                          </button>
+                        ))}
+                        {selectedStaff.invalidPhones?.map((raw) => (
+                          <span
+                            key={raw}
+                            title="رقم غير صحيح في الملف — ناقص أو زايد رقم"
+                            className="px-3 py-1.5 rounded-xl text-xs font-black border border-amber-200 bg-amber-50 text-amber-700 line-through"
+                          >
+                            {raw}
+                          </span>
+                        ))}
+                      </div>
+
+                      {!selectedStaff.primaryPhone && (
+                        <p className="text-[11px] font-bold text-amber-600">
+                          مفيش رقم موبايل صحيح في الملف — اكتبه يدويًا.
+                        </p>
+                      )}
+                      {selectedStaff.subjectLabel &&
+                        !selectedStaff.subjects?.length && (
+                          <p className="text-[11px] font-bold text-amber-600">
+                            مفيش مادة في المدرسة اسمها «{selectedStaff.subjectLabel}» —
+                            اختار المادة من القائمة تحت
+                            {subjects.length === 0 ? " (بعد ما تضيف المواد من صفحة المواد)" : ""}.
+                          </p>
+                        )}
+                      {!selectedStaff.nationalId && (
+                        <p className="text-[11px] font-bold text-slate-500">
+                          الرقم القومي مش في الملف — اكتبه تحت.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Search
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-400"
+                          size={18}
+                        />
+                        <input
+                          type="text"
+                          value={staffQuery}
+                          onChange={(e) => setStaffQuery(e.target.value)}
+                          placeholder="ابحث باسم المعلم في القائمة..."
+                          className="modal-input !pr-12"
+                        />
+                        {staffLoading && (
+                          <Loader2
+                            className="absolute left-4 top-1/2 -translate-y-1/2 animate-spin text-emerald-500"
+                            size={18}
+                          />
+                        )}
+                      </div>
+
+                      {staffMatches.map((c) => (
+                        <button
+                          key={c._id}
+                          type="button"
+                          onClick={() => pickStaff(c)}
+                          className="w-full text-right bg-white rounded-2xl border border-emerald-100 hover:border-emerald-400 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-colors"
+                        >
+                          <div>
+                            <p className="font-black text-slate-700 text-sm">{c.fullName}</p>
+                            <p className="text-[11px] font-bold text-slate-400">
+                              {c.subjectLabel || "—"}
+                            </p>
+                          </div>
+                          <span className="text-xs font-black text-emerald-700 shrink-0">
+                            {c.primaryPhone || "بدون رقم صحيح"}
+                          </span>
+                        </button>
+                      ))}
+
+                      {!staffLoading &&
+                        staffQuery.trim().length >= 2 &&
+                        staffMatches.length === 0 && (
+                          <p className="text-[11px] font-bold text-slate-400 mr-2">
+                            مفيش معلم بالاسم ده في القائمة (أو اتسجّل قبل كده).
+                          </p>
+                        )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <label className="label-style">الاسم الأول</label>
@@ -511,7 +728,10 @@ const TeacherManagement = () => {
                     value={formData.nationalId}
                     className="modal-input"
                     onChange={(e) =>
-                      setFormData({ ...formData, nationalId: e.target.value })
+                      setFormData({
+                        ...formData,
+                        nationalId: toLatinDigits(e.target.value),
+                      })
                     }
                   />
                 </div>
@@ -534,6 +754,9 @@ const TeacherManagement = () => {
                   <p className="text-[11px] font-bold text-slate-400 mr-2">
                     كلمة السر واسم المستخدم بيتبعتوا على الإيميل ده — لازم يكون
                     صحيح.
+                    {!editMode && schoolInbox && formData.email === schoolInbox
+                      ? " متحدد افتراضيًا على إيميل المدرسة، وتقدر تغيّره لإيميل المعلم نفسه."
+                      : ""}
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -548,7 +771,10 @@ const TeacherManagement = () => {
                     value={formData.phoneNumber}
                     className="modal-input"
                     onChange={(e) =>
-                      setFormData({ ...formData, phoneNumber: e.target.value })
+                      setFormData({
+                        ...formData,
+                        phoneNumber: toLatinDigits(e.target.value),
+                      })
                     }
                   />
                 </div>

@@ -19,6 +19,7 @@
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "jszip": "^3.10.2",
     "mongodb": "^7.1.1",
     "mongoose": "^9.0.0",
     "multer": "^2.3.0",
