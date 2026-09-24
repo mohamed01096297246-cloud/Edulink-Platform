@@ -43,6 +43,7 @@ import FeeManager from "../components/Admin/FeeManager";
 import ExamAnalytics from "../components/Admin/ExamAnalytics";
 import TeacherAttendanceManager from "../components/Admin/TeacherAttendanceManager";
 import StudentAccountManager from "../components/Admin/StudentAccountManager";
+import StaffAccountManager from "../components/Admin/StaffAccountManager";
 
 // Grouped the way MySchool and every mature school system organizes its
 // menu — by area of the school, not one flat list — but scoped to what
@@ -68,6 +69,7 @@ const NAV_GROUPS = [
       { name: "المعلمين", icon: <Users size={18} />, path: "/admin/teachers" },
       { name: "الطلاب", icon: <GraduationCap size={18} />, path: "/admin/students" },
       { name: "بيانات دخول الطلاب", icon: <KeyRound size={18} />, path: "/admin/student-accounts" },
+      { name: "بيانات دخول المعلمين", icon: <KeyRound size={18} />, path: "/admin/staff-accounts" },
       { name: "حسابات الإدارة", icon: <UserCog size={18} />, path: "/admin/admin-manager" },
     ],
   },
@@ -257,6 +259,7 @@ const AdminDashboard = ({ onLogout }) => {
             />
             <Route path="students/*" element={<StudentManager />} />
             <Route path="student-accounts" element={<StudentAccountManager />} />
+            <Route path="staff-accounts" element={<StaffAccountManager />} />
             <Route path="fees" element={<FeeManager />} />
             <Route path="teachers/*" element={<TeacherManager />} />
             <Route path="staff-attendance" element={<TeacherAttendanceManager />} />

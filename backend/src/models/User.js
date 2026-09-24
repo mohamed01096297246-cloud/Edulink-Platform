@@ -15,10 +15,15 @@ const userSchema = new mongoose.Schema(
     //
     // Never set on a student: they are children, and their account is
     // deliberately built to carry no identifier beyond the code we issue.
+    //
+    // Optional for a teacher too: a school can issue its teachers coded
+    // logins straight off its staff list (see staffAccountController),
+    // which carries names, subjects and phones but no national IDs. An
+    // admin's account still needs one.
     nationalId: {
       type: String,
       required: function () {
-        return this.role !== "parent" && this.role !== "student";
+        return this.role === "admin";
       },
       trim: true,
     },
@@ -33,10 +38,14 @@ const userSchema = new mongoose.Schema(
     // and the family's number already belongs to the parent account. It is
     // also why the uniqueness index below only covers accounts that have
     // one — two siblings would otherwise collide on their father's number.
+    //
+    // Not required of a teacher either: one issued a coded login signs in
+    // with that code, and a school's list sometimes has a number nobody
+    // can read — that shouldn't keep the teacher out of the system.
     phoneNumber: {
       type: String,
       required: function () {
-        return this.role !== "student";
+        return this.role === "admin" || this.role === "parent";
       },
       trim: true,
     },

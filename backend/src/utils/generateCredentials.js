@@ -57,14 +57,14 @@ const resolveUsername = async (phoneNumber, UserModel) => {
   );
 };
 
-// A student has no phone to derive a username from, and must not be
-// identified by anything of their own (they are children — see the
-// nationalId note on the User model). So the school issues them a code
-// that means nothing outside this system: six digits, typed on the phone's
-// number pad with no keyboard switching, and short enough to copy off a
-// printed sheet without mistakes. Six digits also never collide with the
-// eleven-digit phone usernames of parents and staff.
-const generateStudentCode = async (UserModel) => {
+// The login code a school issues in bulk off a printed sheet — students
+// (who have no phone to derive a username from, and must not be identified
+// by anything of their own) and teachers issued from the staff list alike.
+// A code means nothing outside this system: six digits, typed on the
+// phone's number pad with no keyboard switching, and short enough to copy
+// off paper without mistakes. Six digits also never collide with the
+// eleven-digit phone usernames every other account has.
+const generateAccountCode = async (UserModel) => {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     const code = String(Math.floor(100000 + Math.random() * 900000));
     // eslint-disable-next-line no-await-in-loop -- one query per attempt,
@@ -73,14 +73,14 @@ const generateStudentCode = async (UserModel) => {
     if (!taken) return code;
   }
 
-  throw new Error("تعذّر توليد كود دخول غير مستخدم للطالب. حاول مرة أخرى.");
+  throw new Error("تعذّر توليد كود دخول غير مستخدم. حاول مرة أخرى.");
 };
 
-// A student's password is printed once, never changed and never recovered
-// (it is stored hashed), so it has to survive being read off paper by a
-// twelve-year-old: no 0/O, no 1/l/I, and nothing case-sensitive to get
-// wrong. Eight characters from this alphabet still leaves far too many
-// combinations to guess at a login prompt.
+// A coded account's password is printed once, never changed and never
+// recovered (it is stored hashed), so it has to survive being read off
+// paper — by a twelve-year-old, among others: no 0/O, no 1/l/I, and
+// nothing case-sensitive to get wrong. Eight characters from this alphabet
+// still leaves far too many combinations to guess at a login prompt.
 const READABLE = "abcdefghjkmnpqrstuvwxyz23456789";
 
 const generateReadablePassword = (length = 8) => {
@@ -95,6 +95,6 @@ module.exports = {
   generateUsername,
   generatePassword,
   resolveUsername,
-  generateStudentCode,
+  generateAccountCode,
   generateReadablePassword,
 };

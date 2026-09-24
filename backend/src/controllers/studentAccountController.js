@@ -2,7 +2,7 @@ const Student = require("../models/Student");
 const User = require("../models/User");
 const Grade = require("../models/Grade");
 const {
-  generateStudentCode,
+  generateAccountCode,
   generateReadablePassword,
 } = require("../utils/generateCredentials");
 const { scopeFilter, sameSchool } = require("../utils/tenant");
@@ -120,7 +120,7 @@ exports.issueStudentAccounts = async (req, res) => {
 
       // eslint-disable-next-line no-await-in-loop -- a classroom at a time,
       // and each account needs its own unique code checked against the rest.
-      const username = await generateStudentCode(User);
+      const username = await generateAccountCode(User);
       const password = generateReadablePassword();
 
       // eslint-disable-next-line no-await-in-loop -- as above.
