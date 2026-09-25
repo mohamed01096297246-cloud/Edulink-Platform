@@ -4,18 +4,19 @@ const HomeworkResult = require("../models/HomeworkResult");
 const WeeklyEvaluation = require("../models/WeeklyEvaluation");
 const ClassworkNotebook = require("../models/ClassworkNotebook");
 const CourseworkOverride = require("../models/CourseworkOverride");
+const { SCHEMES, DEFAULT_SCHEME } = require("./gradebook");
 
 // The four "أعمال السنة" columns for a single [weekStart, weekStart+6 days]
 // window. Lives here rather than inside a controller because two different
 // places have to agree on it exactly: the Excel register the teacher prints,
 // and the weekly-evaluation screen the teacher edits. If they each computed
 // it themselves, an edit on screen and a number in print could drift apart.
-const MAX_SCORES = {
-  attendanceScore: 5,
-  homeworkScore: 5,
-  weeklyEvalScore: 10,
-  classworkScore: 5,
-};
+//
+// Which columns there are, and what each is out of, depends on the school's
+// marking scheme for the classroom's stage (see utils/gradebook.js).
+// MAX_SCORES is the classic set, kept for callers that predate schemes.
+const MAX_SCORES = SCHEMES.classic.max;
+const maxScoresFor = (scheme) => (SCHEMES[scheme] || SCHEMES[DEFAULT_SCHEME]).max;
 
 const round1 = (n) =>
   n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
@@ -33,8 +34,15 @@ const weekEnd = (weekStart) => {
   return end;
 };
 
-const computeWeekScores = async (classroomId, subjectId, studentIds, weekStart) => {
+const computeWeekScores = async (
+  classroomId,
+  subjectId,
+  studentIds,
+  weekStart,
+  scheme = DEFAULT_SCHEME,
+) => {
   const rangeEnd = weekEnd(weekStart);
+  const rules = SCHEMES[scheme] || SCHEMES[DEFAULT_SCHEME];
 
   const [
     attendanceRecords,
@@ -67,11 +75,13 @@ const computeWeekScores = async (classroomId, subjectId, studentIds, weekStart) 
       subject: subjectId,
       weekStart,
     }).select("student score"),
-    ClassworkNotebook.find({
-      classroom: classroomId,
-      subject: subjectId,
-      weekStart,
-    }).select("student score"),
+    rules.classwork
+      ? ClassworkNotebook.find({
+          classroom: classroomId,
+          subject: subjectId,
+          weekStart,
+        }).select("student score")
+      : [],
     CourseworkOverride.find({
       student: { $in: studentIds },
       subject: subjectId,
@@ -136,12 +146,19 @@ const computeWeekScores = async (classroomId, subjectId, studentIds, weekStart) 
     const attendance = attendanceByStudent.get(key);
     const attendanceRate =
       attendance && attendance.total > 0 ? attendance.attended / attendance.total : null;
+    // Classic works مواظبة out from the attendance rate. weekly40 has no
+    // formula — the teacher enters مواظبة وسلوك, so there is nothing to
+    // compute and the only value is the one they set.
     const computedAttendance =
-      attendanceRate === null ? null : round1(attendanceRate * 3 + 2);
+      !rules.attendanceComputed || attendanceRate === null
+        ? null
+        : round1(attendanceRate * 3 + 2);
 
     const homeworkEarned = homeworkByStudent.get(key) || 0;
     const computedHomework =
-      weekHomeworkMax > 0 ? round1((homeworkEarned / weekHomeworkMax) * 5) : null;
+      weekHomeworkMax > 0
+        ? round1((homeworkEarned / weekHomeworkMax) * rules.max.homeworkScore)
+        : null;
 
     // A teacher's manual correction replaces the computed number outright —
     // that's the whole point of it. `null` on the document (or no document)
@@ -189,4 +206,4 @@ const computeWeekScores = async (classroomId, subjectId, studentIds, weekStart) 
   return scores;
 };
 
-module.exports = { computeWeekScores, normalizeDate, weekEnd, MAX_SCORES };
+module.exports = { computeWeekScores, normalizeDate, weekEnd, MAX_SCORES, maxScoresFor };

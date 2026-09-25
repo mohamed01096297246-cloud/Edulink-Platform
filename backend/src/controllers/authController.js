@@ -3,6 +3,7 @@ const School = require("../models/School");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { hasStagePrincipals } = require("../utils/tenant");
+const { schemeForTeacher } = require("../utils/gradebook");
 
 exports.login = async (req, res) => {
   try {
@@ -87,6 +88,10 @@ exports.login = async (req, res) => {
         schoolHasStages,
         features: school?.features || null,
         appFeatures: user.appFeatures || null,
+        // Which marking scheme a teacher's screens follow — the app hides
+        // the classwork notebook and behaviour notes, and shows مواظبة
+        // وسلوك instead, on "weekly40" (see utils/gradebook.js).
+        gradebook: await schemeForTeacher(user),
       },
     });
   } catch (err) {
@@ -128,6 +133,7 @@ exports.getMe = async (req, res) => {
       ...user.toObject(),
       features: req.userSchool?.features || null,
       parentInbox: req.userSchool?.parentInbox || "",
+      gradebook: await schemeForTeacher(user),
       // `protect` worked both of these out already for this request.
       oversightOnly: req.oversightOnly || false,
       schoolHasStages: Boolean(req.oversightOnly || req.stageScope),

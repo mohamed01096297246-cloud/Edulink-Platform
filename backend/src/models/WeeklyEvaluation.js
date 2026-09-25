@@ -39,11 +39,14 @@ const weeklyEvaluationSchema = new mongoose.Schema(
     // Whole numbers only — this is a teacher's on-the-spot weekly judgment
     // call, not a percentage-derived calculation, so it never carries
     // fractions (unlike the auto-computed coursework columns).
+    // Out of 10 on the classic scheme, 20 on weekly40 (utils/gradebook.js).
+    // The model allows the larger; the controller holds each classroom to
+    // its own scheme's limit.
     score: {
       type: Number,
       required: true,
       min: 0,
-      max: 10,
+      max: 20,
       validate: {
         validator: Number.isInteger,
         message: "درجة التقييم الأسبوعي لازم تكون رقم صحيح من غير كسور.",

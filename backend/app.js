@@ -52,6 +52,7 @@ const admissionCandidateRoutes = require("./src/routes/admissionCandidateRoutes"
 const studentAccountRoutes = require("./src/routes/studentAccountRoutes");
 const studentAppRoutes = require("./src/routes/studentAppRoutes");
 const staffCandidateRoutes = require("./src/routes/staffCandidateRoutes");
+const termTestRoutes = require("./src/routes/termTestRoutes");
 const bellScheduleRoutes = require("./src/routes/bellScheduleRoutes");
 
 
@@ -87,6 +88,7 @@ app.use("/api/admission-candidates", admissionCandidateRoutes);
 app.use("/api/student-accounts", studentAccountRoutes);
 app.use("/api/student", studentAppRoutes);
 app.use("/api/staff-candidates", staffCandidateRoutes);
+app.use("/api/term-tests", termTestRoutes);
 app.use("/api/bell-schedules", bellScheduleRoutes);
 
 

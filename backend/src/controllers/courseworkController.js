@@ -13,8 +13,9 @@ const { getCurrentTermWindow } = require("../utils/termWindow");
 const {
   computeWeekScores,
   normalizeDate,
-  MAX_SCORES,
+  maxScoresFor,
 } = require("../utils/weekScores");
+const { schemeForClassroom } = require("../utils/gradebook");
 
 const round1 = (n) =>
   n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
@@ -260,14 +261,16 @@ exports.getClassroomWeekCoursework = async (req, res) => {
     if (!subjectId) return undefined;
 
     const students = await Student.find({ classroom: classroomId, active: true })
-      .select("firstName lastName")
+      .select("firstName lastName gender")
       .sort({ firstName: 1 });
 
+    const scheme = await schemeForClassroom(classroom);
     const scores = await computeWeekScores(
       classroomId,
       subjectId,
       students.map((s) => s._id),
       weekStart,
+      scheme,
     );
 
     return res.status(200).json({
@@ -277,9 +280,13 @@ exports.getClassroomWeekCoursework = async (req, res) => {
           studentId: student._id,
           firstName: student.firstName,
           lastName: student.lastName,
+          gender: student.gender,
           ...scores[student._id.toString()],
         })),
-        maxScores: MAX_SCORES,
+        // The app lays the week out from these: which columns exist and
+        // what each is out of, for this classroom's scheme.
+        scheme,
+        maxScores: maxScoresFor(scheme),
       },
     });
   } catch (err) {
@@ -319,12 +326,23 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
         .json({ success: false, message: "مفيش أي تعديلات للحفظ." });
     }
 
+    const classroom = await Classroom.findById(classroomId);
+    if (!classroom) {
+      return res
+        .status(404)
+        .json({ success: false, message: "الفصل غير موجود." });
+    }
+
+    // The columns this classroom's scheme has, and what each is out of.
+    const maxScores = maxScoresFor(await schemeForClassroom(classroom));
+
     // A value of `null` is a deliberate "put this column back to the
     // automatic calculation"; a missing key means "leave it alone". Anything
     // else has to be a whole number inside the column's own maximum — this
     // is the server-side half of the cap the score buttons enforce in the
     // app, so a stale or tampered client can't push a 7 into a 5-mark
-    // column.
+    // column. A column the scheme doesn't have (كراسة الحصة on weekly40)
+    // is refused outright.
     for (const entry of list) {
       if (!entry || !entry.studentId) {
         return res
@@ -336,9 +354,16 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
         if (!Object.prototype.hasOwnProperty.call(entry, column)) continue;
 
         const value = entry[column];
-        if (value === null) continue;
+        const max = maxScores[column];
 
-        const max = MAX_SCORES[column];
+        if (max === undefined) {
+          return res.status(400).json({
+            success: false,
+            message: "العمود ده مش جزء من نظام الدرجات بتاع الفصل ده.",
+          });
+        }
+
+        if (value === null) continue;
 
         if (!Number.isInteger(Number(value)) || value < 0 || value > max) {
           return res.status(400).json({
@@ -347,13 +372,6 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
           });
         }
       }
-    }
-
-    const classroom = await Classroom.findById(classroomId);
-    if (!classroom) {
-      return res
-        .status(404)
-        .json({ success: false, message: "الفصل غير موجود." });
     }
 
     const teacher = await User.findById(req.user.id);

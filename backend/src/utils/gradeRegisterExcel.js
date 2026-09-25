@@ -332,3 +332,213 @@ exports.buildMonthlyRegisterWorkbook = ({
 
   return workbook;
 };
+
+// ---------------------------------------------------------------------------
+// The weekly40 register (utils/gradebook.js) — مدارس المستقبل's preparatory
+// form, column for column: a week is الواجب المنزلي 10 + تقييم أسبوعي 20 +
+// مواظبة وسلوك 10 = 40; a month is its weeks and their average; a term is
+// its months' averages, two tests of 15, أعمال السنة out of 70 and the
+// number of days absent.
+// ---------------------------------------------------------------------------
+
+const WEEK40_PARTS = [
+  { key: "homeworkScore", label: "الواجب المنزلي", max: 10 },
+  { key: "weeklyEvalScore", label: "تقييم أسبوعي", max: 20 },
+  { key: "attendanceScore", label: "مواظبة وسلوك", max: 10 },
+  { key: "total", label: "المجموع", max: 40 },
+];
+
+const ORDINALS = ["الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس"];
+
+// A table whose header runs over two rows: a group spans its sub-columns
+// on the top row, and a lone column is merged down through both. Returns
+// the first data row. `groups` is [{ label, subs: [{ label }] }] or
+// [{ label, width }] for a single column.
+const writeTwoRowHeader = (sheet, headerTop, groups) => {
+  const headerBottom = headerTop + 1;
+  let col = 1;
+
+  groups.forEach((group) => {
+    if (group.subs) {
+      if (group.subs.length > 1) {
+        sheet.mergeCells(headerTop, col, headerTop, col + group.subs.length - 1);
+      }
+      const top = sheet.getCell(headerTop, col);
+      top.value = group.label;
+      styleHeaderCell(top);
+      group.subs.forEach((sub, i) => {
+        const cell = sheet.getCell(headerBottom, col + i);
+        cell.value = sub.label;
+        styleHeaderCell(cell);
+      });
+      col += group.subs.length;
+    } else {
+      sheet.mergeCells(headerTop, col, headerBottom, col);
+      const cell = sheet.getCell(headerTop, col);
+      cell.value = group.label;
+      styleHeaderCell(cell);
+      col += 1;
+    }
+  });
+
+  sheet.getRow(headerTop).height = 26;
+  sheet.getRow(headerBottom).height = 34;
+  return headerBottom + 1;
+};
+
+const countColumns = (groups) =>
+  groups.reduce((n, g) => n + (g.subs ? g.subs.length : 1), 0);
+
+const writeStudentRows = (sheet, firstDataRow, students, valuesFor) => {
+  students.forEach((student, index) => {
+    const row = sheet.getRow(firstDataRow + index);
+    const values = [
+      index + 1,
+      `${student.firstName} ${student.lastName}`,
+      ...valuesFor(student._id.toString()),
+    ];
+    values.forEach((value, i) => {
+      const cell = row.getCell(i + 1);
+      cell.value = value === null || value === undefined ? "-" : value;
+      styleDataCell(cell, { bold: i === 1 });
+    });
+    row.height = 20;
+  });
+};
+
+const withMax = (label, max) => `${label} (${max})`;
+
+exports.buildWeek40Workbook = ({ subjectName, classroomName, weekStart, students, scores }) => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = baseSheet(workbook, "سجل الأسبوع");
+
+  const groups = [
+    { label: "م" },
+    { label: "الاسم" },
+    ...WEEK40_PARTS.map((p) => ({ label: withMax(p.label, p.max) })),
+  ];
+  const totalCols = countColumns(groups);
+  sheet.columns = Array.from({ length: totalCols }, (_, i) => ({
+    width: i === 0 ? 5 : i === 1 ? 28 : 16,
+  }));
+
+  const headerTop = writeHeaderBlock(sheet, totalCols, {
+    title: `سجل رصد الدرجات ${withLabel("فصل", classroomName)}`,
+    subtitle: `المادة: ${subjectName} — أسبوع ${formatDateAr(weekStart)}`,
+  });
+  const firstDataRow = writeTwoRowHeader(sheet, headerTop, groups);
+
+  writeStudentRows(sheet, firstDataRow, students, (key) => {
+    const entry = scores[key] || {};
+    return WEEK40_PARTS.map((p) => entry[p.key]);
+  });
+
+  writeSignatureBlock(sheet, totalCols, firstDataRow + students.length - 1);
+  return workbook;
+};
+
+exports.buildMonth40Workbook = ({
+  subjectName,
+  classroomName,
+  month,
+  year,
+  students,
+  weekStarts,
+  weeklyScores,
+}) => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = baseSheet(workbook, "سجل الشهر");
+
+  const groups = [
+    { label: "م" },
+    { label: "الاسم" },
+    ...weekStarts.map((weekStart, i) => ({
+      label: `${ORDINALS[i] || i + 1} — ${formatDateAr(weekStart)}`,
+      subs: WEEK40_PARTS.map((p) => ({ label: withMax(p.label, p.max) })),
+    })),
+    { label: withMax("المتوسط", 40) },
+  ];
+  const totalCols = countColumns(groups);
+  sheet.columns = Array.from({ length: totalCols }, (_, i) => ({
+    width: i === 0 ? 5 : i === 1 ? 26 : 10,
+  }));
+
+  const headerTop = writeHeaderBlock(sheet, totalCols, {
+    title: `سجل رصد الدرجات ${withLabel("فصل", classroomName)}`,
+    subtitle: `المادة: ${subjectName} — شهر ${MONTH_NAMES[month]} ${year}`,
+  });
+  const firstDataRow = writeTwoRowHeader(sheet, headerTop, groups);
+
+  writeStudentRows(sheet, firstDataRow, students, (key) => {
+    const cells = [];
+    const totals = [];
+    weeklyScores.forEach(({ scores }) => {
+      const entry = scores[key] || {};
+      WEEK40_PARTS.forEach((p) => cells.push(entry[p.key]));
+      totals.push(entry.total);
+    });
+    cells.push(average(totals));
+    return cells;
+  });
+
+  writeSignatureBlock(sheet, totalCols, firstDataRow + students.length - 1);
+  return workbook;
+};
+
+exports.buildTerm40Workbook = ({
+  subjectName,
+  classroomName,
+  term,
+  academicYear,
+  students,
+  months,
+  rows,
+}) => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = baseSheet(workbook, "أعمال السنة");
+
+  const groups = [
+    { label: "م" },
+    { label: "الاسم" },
+    {
+      label: "متوسط الأسابيع",
+      subs: [
+        ...months.map((m) => ({ label: withMax(MONTH_NAMES[m.month], 40) })),
+        { label: withMax("المتوسط", 40) },
+      ],
+    },
+    {
+      label: "الاختبارات",
+      subs: [{ label: withMax("الأول", 15) }, { label: withMax("الثاني", 15) }],
+    },
+    { label: withMax("مجموع الاختبار", 30) },
+    { label: withMax("أعمال السنة", 70) },
+    { label: "عدد أيام الغياب" },
+  ];
+  const totalCols = countColumns(groups);
+  sheet.columns = Array.from({ length: totalCols }, (_, i) => ({
+    width: i === 0 ? 5 : i === 1 ? 26 : 12,
+  }));
+
+  const headerTop = writeHeaderBlock(sheet, totalCols, {
+    title: `سجل رصد الدرجات ${withLabel("فصل", classroomName)} — الترم ${term === 1 ? "الأول" : "الثاني"}`,
+    subtitle: `المادة: ${subjectName} — العام الدراسي ${academicYear}`,
+  });
+  const firstDataRow = writeTwoRowHeader(sheet, headerTop, groups);
+
+  writeStudentRows(sheet, firstDataRow, students, (key) => {
+    const r = rows[key] || {};
+    return [
+      ...months.map((m) => r.monthAverages?.[m.month] ?? null),
+      r.weeksAverage,
+      r.test1,
+      r.test2,
+      r.testsTotal,
+      r.yearWork,
+      r.absentDays,
+    ];
+  });
+
+  writeSignatureBlock(sheet, totalCols, firstDataRow + students.length - 1);
+  return workbook;
+};

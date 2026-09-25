@@ -14,7 +14,7 @@ const {
 // rest — admin accounts, bell times, announcements, the staff register —
 // because those cross the stages and nobody else can reach all of them.
 const STAGE_RUN_DATA =
-  /^\/api\/(students|classrooms|grades|subjects|schedules|exams|results|homework|homework-results|behavior|attendance|monthly-grades|weekly-evaluation|coursework|cover-sessions|grade-register|classwork-notebook|board-notes|fees|teacher|parent)(\/|$)/;
+  /^\/api\/(students|classrooms|grades|subjects|schedules|exams|results|homework|homework-results|behavior|attendance|monthly-grades|term-tests|weekly-evaluation|coursework|cover-sessions|grade-register|classwork-notebook|board-notes|fees|teacher|parent)(\/|$)/;
 
 
 exports.protect = async (req, res, next) => {

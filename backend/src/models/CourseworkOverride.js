@@ -50,16 +50,20 @@ const courseworkOverrideSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Out of 5 on the classic scheme, 10 on weekly40 (utils/gradebook.js) —
+    // where attendanceScore is مواظبة وسلوك, entered by the teacher rather
+    // than overriding a formula. The model allows the larger; the
+    // controller holds each classroom to its own scheme's limit.
     attendanceScore: {
       type: Number,
       min: 0,
-      max: 5,
+      max: 10,
     },
 
     homeworkScore: {
       type: Number,
       min: 0,
-      max: 5,
+      max: 10,
     },
   },
   { timestamps: true },

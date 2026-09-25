@@ -3,6 +3,7 @@ const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
 const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
+const { schemeForClassroom, SCHEMES } = require("../utils/gradebook");
 
 // Normalizes any date string/Date to UTC midnight, so "the week starting
 // 2026-09-07" always matches regardless of what time of day it was saved.
@@ -47,9 +48,19 @@ exports.getClassroomWeeklyEvaluation = async (req, res) => {
       scores[entry.student.toString()] = entry.score;
     });
 
+    // What this classroom's weekly evaluation is out of — 10 or 20,
+    // depending on its school's scheme for its stage.
+    const scheme = await schemeForClassroom(classroomId);
+
     return res.status(200).json({
       success: true,
-      data: { students, scores, weekStart },
+      data: {
+        students,
+        scores,
+        weekStart,
+        scheme,
+        maxScore: SCHEMES[scheme].max.weeklyEvalScore,
+      },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -80,25 +91,28 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
         .json({ success: false, message: "أدخل درجة طالب واحد على الأقل." });
     }
 
-    const hasInvalidScore = gradesList.some(
-      (record) =>
-        !Number.isInteger(Number(record.score)) ||
-        record.score < 0 ||
-        record.score > 10,
-    );
-
-    if (hasInvalidScore) {
-      return res.status(400).json({
-        success: false,
-        message: "الدرجات لازم تكون رقم صحيح من غير كسور، بين 0 و10.",
-      });
-    }
-
     const classroom = await Classroom.findById(classroomId);
     if (!classroom) {
       return res
         .status(404)
         .json({ success: false, message: "الفصل غير موجود." });
+    }
+
+    // Out of 10 or 20 depending on the classroom's scheme — checked here,
+    // since the model has to allow the larger of the two.
+    const max = SCHEMES[await schemeForClassroom(classroom)].max.weeklyEvalScore;
+    const hasInvalidScore = gradesList.some(
+      (record) =>
+        !Number.isInteger(Number(record.score)) ||
+        record.score < 0 ||
+        record.score > max,
+    );
+
+    if (hasInvalidScore) {
+      return res.status(400).json({
+        success: false,
+        message: `الدرجات لازم تكون رقم صحيح من غير كسور، بين 0 و${max}.`,
+      });
     }
 
     const teacher = await User.findById(req.user.id);

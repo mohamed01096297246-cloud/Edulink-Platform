@@ -70,6 +70,17 @@ const schoolSchema = new mongoose.Schema(
       lowercase: true,
       default: "",
     },
+
+    // How each stage's coursework ("أعمال السنة") is marked — schools print
+    // their own register forms and the system has to add up to the same
+    // numbers as the paper. Unset means "classic" (see utils/gradebook.js):
+    // the scheme every school had before this existed.
+    gradebook: {
+      kindergarten: { type: String, enum: ["classic", "weekly40"] },
+      primary: { type: String, enum: ["classic", "weekly40"] },
+      preparatory: { type: String, enum: ["classic", "weekly40"] },
+      secondary: { type: String, enum: ["classic", "weekly40"] },
+    },
   },
   { timestamps: true }
 );

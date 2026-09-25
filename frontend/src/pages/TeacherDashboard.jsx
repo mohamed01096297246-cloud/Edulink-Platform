@@ -21,6 +21,9 @@ import TeacherExamGrades from "../components/Teacher/TeacherExamGrades";
 import { API_URL } from "../api/axios";
 
 const TeacherDashboard = ({ onLogout }) => {
+  // The school's marking scheme for this teacher's stage, sent at login.
+  const weekly40 =
+    JSON.parse(localStorage.getItem("userInfo") || "{}").gradebook === "weekly40";
   const [allSchedules, setAllSchedules] = useState([]);
   const [filteredSchedules, setFilteredSchedules] = useState([]);
   const [selectedDay, setSelectedDay] = useState("");
@@ -148,12 +151,17 @@ const TeacherDashboard = ({ onLogout }) => {
                 label="Attendance"
                 active={location.pathname === "/teacher/attendance"}
               />
-              <MenuLink
-                to="/teacher/behavior"
-                icon={<MessageCircle size={20} />}
-                label="Behavior"
-                active={location.pathname === "/teacher/behavior"}
-              />
+              {/* No behaviour notes on the weekly40 scheme (backend
+                  utils/gradebook.js) — مواظبة وسلوك is a weekly mark in the
+                  app instead. */}
+              {!weekly40 && (
+                <MenuLink
+                  to="/teacher/behavior"
+                  icon={<MessageCircle size={20} />}
+                  label="Behavior"
+                  active={location.pathname === "/teacher/behavior"}
+                />
+              )}
               <MenuLink
                 to="/teacher/homework"
                 icon={<BookOpen size={20} />}
@@ -288,7 +296,7 @@ const TeacherDashboard = ({ onLogout }) => {
             <Route
               path="behavior"
               element={
-                <TeacherBehavior
+                weekly40 ? <Navigate to="/teacher/attendance" replace /> : <TeacherBehavior
                   students={students}
                   loading={loadingStudents}
                   classroomId={selectedScheduleId}
