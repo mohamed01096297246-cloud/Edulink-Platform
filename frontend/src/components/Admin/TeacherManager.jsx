@@ -253,9 +253,13 @@ const TeacherManagement = () => {
 
     // Login credentials are mailed to this address and nowhere else — a
     // non-Gmail or mistyped domain loses the teacher's password silently.
-    if (!/^[a-z0-9](?:[a-z0-9._%+-]*[a-z0-9])?@gmail\.com$/i.test(
-      formData.email.trim(),
-    )) {
+    // On an edit it may stay blank: a teacher with a code login (بيانات
+    // دخول المعلمين) has no email, and blank leaves it unchanged.
+    const email = formData.email.trim();
+    if (
+      (!editMode || email) &&
+      !/^[a-z0-9](?:[a-z0-9._%+-]*[a-z0-9])?@gmail\.com$/i.test(email)
+    ) {
       showToastMessage(
         "البريد الإلكتروني لازم يكون حساب Gmail صحيح (ينتهي بـ @gmail.com)",
         "error",
@@ -724,7 +728,7 @@ const TeacherManagement = () => {
                     pattern="[0-9]{14}"
                     maxLength={14}
                     minLength={14}
-                    required
+                    required={!editMode}
                     value={formData.nationalId}
                     className="modal-input"
                     onChange={(e) =>
@@ -740,7 +744,7 @@ const TeacherManagement = () => {
                     البريد الإلكتروني (Gmail)
                   </label>
                   <input
-                    required
+                    required={!editMode}
                     type="email"
                     placeholder="example@gmail.com"
                     pattern="[a-zA-Z0-9]([a-zA-Z0-9._%+\-]*[a-zA-Z0-9])?@gmail\.com"
@@ -752,8 +756,9 @@ const TeacherManagement = () => {
                     }
                   />
                   <p className="text-[11px] font-bold text-slate-400 mr-2">
-                    كلمة السر واسم المستخدم بيتبعتوا على الإيميل ده — لازم يكون
-                    صحيح.
+                    {editMode
+                      ? "اختياري — المعلم اللي ليه كود دخول مش محتاج إيميل ولا رقم قومي. اللي تسيبه فاضي مش بيتغيّر."
+                      : "كلمة السر واسم المستخدم بيتبعتوا على الإيميل ده — لازم يكون صحيح."}
                     {!editMode && schoolInbox && formData.email === schoolInbox
                       ? " متحدد افتراضيًا على إيميل المدرسة، وتقدر تغيّره لإيميل المعلم نفسه."
                       : ""}
@@ -767,7 +772,7 @@ const TeacherManagement = () => {
                     pattern="[0-9]{11}"
                     maxLength={11}
                     minLength={11}
-                    required
+                    required={!editMode}
                     value={formData.phoneNumber}
                     className="modal-input"
                     onChange={(e) =>

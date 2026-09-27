@@ -303,14 +303,17 @@ exports.getTeacherDashboard = async (req, res) => {
 exports.updateTeacher = async (req, res) => {
   try {
     const teacherId = req.params.id;
-    const {
-      firstName,
-      lastName,
-      phoneNumber,
-      nationalId,
-      email,
-      teachingGrades,
-    } = req.body;
+    // A teacher issued a code login (staffCandidateController) may have no
+    // national ID, email or phone at all. The edit form sends those fields
+    // back blank, and a blank means "leave as is" — never a value to save:
+    // "" would fail the Gmail check, and two teachers with a blank national
+    // ID would collide on its unique index.
+    const blankToUndefined = (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value;
+    const { firstName, lastName, teachingGrades } = req.body;
+    const phoneNumber = blankToUndefined(req.body.phoneNumber);
+    const nationalId = blankToUndefined(req.body.nationalId);
+    const email = blankToUndefined(req.body.email);
 
     const teacher = await User.findOne({ _id: teacherId, role: "teacher" });
     if (!teacher || !sameSchool(req, teacher)) {
