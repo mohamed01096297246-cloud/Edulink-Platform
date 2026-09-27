@@ -22,6 +22,27 @@ import {
 // whatever comes back is held on screen until the admin has printed it,
 // and the screen says so plainly rather than letting them navigate away
 // and discover it later.
+const GENDER_SECTIONS = [
+  { key: "male", label: "البنين" },
+  { key: "female", label: "البنات" },
+  { key: "", label: "غير محدد" },
+];
+
+const byClassThenName = (a, b) =>
+  (a.classroom || "").localeCompare(b.classroom || "", "ar") ||
+  (a.fullName || "").localeCompare(b.fullName || "", "ar");
+
+// The printed sheet, split by gender; empty sections are left out.
+const sectionsOf = (rows) =>
+  GENDER_SECTIONS.map((section) => ({
+    ...section,
+    rows: rows
+      .filter((row) =>
+        section.key ? row.gender === section.key : !["male", "female"].includes(row.gender),
+      )
+      .sort(byClassThenName),
+  })).filter((section) => section.rows.length > 0);
+
 const StudentAccountManager = () => {
   const { canEdit } = useAdminScope();
   const [grades, setGrades] = useState([]);
@@ -101,7 +122,24 @@ const StudentAccountManager = () => {
     }
   };
 
-  const print = () => window.print();
+  // Which section alone goes to paper ("male" / "female"), or null for both.
+  const [printOnly, setPrintOnly] = useState(null);
+
+  useEffect(() => {
+    const reset = () => setPrintOnly(null);
+    window.addEventListener("afterprint", reset);
+    return () => window.removeEventListener("afterprint", reset);
+  }, []);
+
+  const print = () => {
+    setPrintOnly(null);
+    setTimeout(() => window.print(), 50);
+  };
+
+  const printSection = (key) => {
+    setPrintOnly(key);
+    setTimeout(() => window.print(), 50);
+  };
 
   return (
     <div className="p-8 bg-[#F8FAFC] min-h-screen" dir="rtl">
@@ -166,7 +204,7 @@ const StudentAccountManager = () => {
                   onClick={print}
                   className="px-5 py-3 bg-slate-900 text-white rounded-xl font-black text-xs flex items-center gap-2 hover:bg-indigo-600 transition-colors"
                 >
-                  <Printer size={16} /> طباعة
+                  <Printer size={16} /> طباعة الكل
                 </button>
                 <button
                   onClick={() => setIssued(null)}
@@ -177,44 +215,66 @@ const StudentAccountManager = () => {
               </div>
             </div>
 
-            <div className="p-6">
-              {/* Only on paper: which grade this sheet belongs to and when
-                  it was issued, so a printout found later is identifiable
-                  on its own. */}
-              <div className="hidden print:block mb-4">
-                <h2 className="text-xl font-black">
-                  {issued.title} — {issued.gradeName}
-                </h2>
-                <p className="text-sm font-bold">
-                  {new Date().toLocaleDateString("ar-EG")} · عدد الطلاب:{" "}
-                  {issued.rows.length}
-                </p>
-              </div>
-              <table className="w-full text-right">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="p-3 text-[11px] font-black text-slate-400 uppercase">الطالب</th>
-                    <th className="p-3 text-[11px] font-black text-slate-400 uppercase">الفصل</th>
-                    <th className="p-3 text-[11px] font-black text-slate-400 uppercase">كود الدخول</th>
-                    <th className="p-3 text-[11px] font-black text-slate-400 uppercase">كلمة المرور</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {issued.rows.map((row) => (
-                    <tr key={row.student}>
-                      <td className="p-3 font-bold text-slate-700 text-sm">{row.fullName}</td>
-                      <td className="p-3 font-bold text-slate-400 text-xs">{row.classroom || "—"}</td>
-                      <td className="p-3 font-mono font-black text-slate-800 tracking-widest">
-                        {row.username}
-                      </td>
-                      <td className="p-3 font-mono font-black text-indigo-700 tracking-widest">
-                        {row.password}
-                      </td>
+            {/* Boys and girls on separate sheets, each sorted by class then
+                name, so each list can be handed out on its own. */}
+            {sectionsOf(issued.rows).map((section, index) => (
+              <div
+                key={section.key}
+                className={`p-6 ${index > 0 ? "border-t-4 border-slate-100" : ""} ${
+                  printOnly && printOnly !== section.key ? "print-skip" : ""
+                } ${!printOnly && index > 0 ? "print-page-break" : ""}`}
+              >
+                <div className="flex items-center justify-between mb-3 no-print">
+                  <h3 className="font-black text-slate-700">
+                    {section.label}{" "}
+                    <span className="text-slate-400 text-sm">({section.rows.length})</span>
+                  </h3>
+                  <button
+                    onClick={() => printSection(section.key)}
+                    className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-black text-xs flex items-center gap-2 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                  >
+                    <Printer size={14} /> طباعة {section.label} بس
+                  </button>
+                </div>
+                {/* Only on paper: which grade this sheet belongs to and when
+                    it was issued, so a printout found later is identifiable
+                    on its own. */}
+                <div className="hidden print:block mb-4">
+                  <h2 className="text-xl font-black">
+                    {issued.title} — {issued.gradeName} — {section.label}
+                  </h2>
+                  <p className="text-sm font-bold">
+                    {new Date().toLocaleDateString("ar-EG")} · العدد: {section.rows.length}
+                  </p>
+                </div>
+                <table className="w-full text-right">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="p-3 text-[11px] font-black text-slate-400 uppercase">م</th>
+                      <th className="p-3 text-[11px] font-black text-slate-400 uppercase">الطالب</th>
+                      <th className="p-3 text-[11px] font-black text-slate-400 uppercase">الفصل</th>
+                      <th className="p-3 text-[11px] font-black text-slate-400 uppercase">كود الدخول</th>
+                      <th className="p-3 text-[11px] font-black text-slate-400 uppercase">كلمة المرور</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {section.rows.map((row, i) => (
+                      <tr key={row.student}>
+                        <td className="p-3 font-bold text-slate-400 text-xs">{i + 1}</td>
+                        <td className="p-3 font-bold text-slate-700 text-sm">{row.fullName}</td>
+                        <td className="p-3 font-bold text-slate-400 text-xs">{row.classroom || "—"}</td>
+                        <td className="p-3 font-mono font-black text-slate-800 tracking-widest">
+                          {row.username}
+                        </td>
+                        <td className="p-3 font-mono font-black text-indigo-700 tracking-widest">
+                          {row.password}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
           </div>
         )}
 
@@ -339,6 +399,8 @@ const StudentAccountManager = () => {
             border: none !important; box-shadow: none !important; margin: 0;
           }
           .no-print { display: none !important; }
+          .print-skip { display: none !important; }
+          .print-page-break { break-before: page; page-break-before: always; border: none !important; }
           body { background: white; }
           table { page-break-inside: auto; }
           tr { page-break-inside: avoid; }

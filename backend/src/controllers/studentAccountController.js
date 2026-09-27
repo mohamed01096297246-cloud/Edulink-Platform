@@ -67,6 +67,7 @@ exports.listStudentAccounts = async (req, res) => {
         return {
           _id: student._id,
           fullName: `${student.firstName} ${student.lastName}`,
+          gender: student.gender,
           grade: student.grade?.name || "",
           stage: student.grade?.stage || null,
           classroom: student.classroom?.name || "",
@@ -138,6 +139,7 @@ exports.issueStudentAccounts = async (req, res) => {
       issued.push({
         student: student._id,
         fullName: `${student.firstName} ${student.lastName}`,
+        gender: student.gender,
         classroom: student.classroom?.name || "",
         grade: student.grade?.name || "",
         username,
@@ -194,6 +196,7 @@ exports.reissueStudentPassword = async (req, res) => {
       data: {
         student: student._id,
         fullName: `${student.firstName} ${student.lastName}`,
+        gender: student.gender,
         username: account.username,
         password,
       },
