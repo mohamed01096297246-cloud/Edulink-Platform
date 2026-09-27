@@ -206,6 +206,66 @@ exports.reissueStudentPassword = async (req, res) => {
   }
 };
 
+// New passwords for every student in the selection (a grade, usually) who
+// already has an account — for a sheet that was lost, or printed in a form
+// the school can't hand out. Codes stay the same; the old passwords stop
+// working at once. Like issuing, this response is the only time the new
+// passwords can be read.
+exports.reissueGradePasswords = async (req, res) => {
+  try {
+    if (!req.body.grade && !req.body.classroom && !req.body.students) {
+      return res.status(400).json({ success: false, message: "اختر المرحلة الأول." });
+    }
+
+    const students = await resolveStudents(req, req.body);
+    if (!students) {
+      return res.status(400).json({
+        success: false,
+        message: "Please specify a school (?school=id) to reissue passwords for.",
+      });
+    }
+
+    const eligible = students.filter((s) => SELF_SERVICE_STAGES.includes(s.grade?.stage));
+    const accounts = await User.find({
+      role: "student",
+      studentProfile: { $in: eligible.map((s) => s._id) },
+    });
+    const byStudent = new Map(accounts.map((a) => [String(a.studentProfile), a]));
+
+    const issued = [];
+    for (const student of eligible) {
+      const account = byStudent.get(String(student._id));
+      if (!account) continue;
+
+      const password = generateReadablePassword();
+      account.password = password;
+      account.active = true;
+      // eslint-disable-next-line no-await-in-loop -- each save hashes its own password.
+      await account.save();
+
+      issued.push({
+        student: student._id,
+        fullName: `${student.firstName} ${student.lastName}`,
+        gender: student.gender,
+        classroom: student.classroom?.name || "",
+        grade: student.grade?.name || "",
+        username: account.username,
+        password,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: issued.length
+        ? `تم إصدار كلمات مرور جديدة لعدد ${issued.length} طالب — الكلمات القديمة بطلت. اطبع الكشف الآن.`
+        : "مفيش طلاب ليهم حسابات في الاختيار ده.",
+      data: issued,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // Grades are needed by the screen to offer a choice; kept here so the
 // eligibility rule lives in one file only.
 exports.listEligibleGrades = async (req, res) => {

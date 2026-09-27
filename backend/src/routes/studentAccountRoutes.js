@@ -4,6 +4,7 @@ const {
   listStudentAccounts,
   issueStudentAccounts,
   reissueStudentPassword,
+  reissueGradePasswords,
   listEligibleGrades,
 } = require("../controllers/studentAccountController");
 const { protect, authorize } = require("../middleware/authMiddleware");
@@ -13,6 +14,7 @@ router.use(protect, authorize("admin"));
 router.get("/grades", listEligibleGrades);
 router.get("/", listStudentAccounts);
 router.post("/issue", issueStudentAccounts);
+router.post("/reissue", reissueGradePasswords);
 router.post("/:studentId/reissue", reissueStudentPassword);
 
 module.exports = router;

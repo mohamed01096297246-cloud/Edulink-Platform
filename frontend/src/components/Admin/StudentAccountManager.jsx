@@ -105,6 +105,32 @@ const StudentAccountManager = () => {
     }
   };
 
+  const withAccount = students.filter((s) => s.hasAccount);
+
+  const reissueGrade = async () => {
+    const gradeName = grades.find((g) => g._id === grade)?.name || "";
+    const ok = window.confirm(
+      `هيتعمل كلمات مرور جديدة لـ ${withAccount.length} طالب في ${gradeName}.\n` +
+        "الأكواد هتفضل زي ما هي، بس كلمات المرور القديمة هتبطل فورًا — أي كشف مطبوع قبل كده مش هيشتغل.\n\nكمّل؟",
+    );
+    if (!ok) return;
+
+    setWorking(true);
+    try {
+      const res = await API.post("/student-accounts/reissue", { grade });
+      setIssued({
+        title: "كلمات مرور جديدة",
+        gradeName,
+        rows: res.data?.data || [],
+      });
+      showToast(res.data?.message || "تم الإصدار");
+    } catch (err) {
+      showToast(err.response?.data?.message || "تعذّرت إعادة الإصدار", "error");
+    } finally {
+      setWorking(false);
+    }
+  };
+
   const reissue = async (student) => {
     setWorking(true);
     try {
@@ -300,6 +326,17 @@ const StudentAccountManager = () => {
             >
               {working ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />}
               إصدار لـ {withoutAccount.length} طالب
+            </button>
+          )}
+
+          {canEdit && grade && withAccount.length > 0 && (
+            <button
+              onClick={reissueGrade}
+              disabled={working}
+              className="bg-white text-slate-700 border-2 border-slate-200 px-6 py-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:border-indigo-400 hover:text-indigo-700 transition-all disabled:opacity-60"
+            >
+              {working ? <Loader2 className="animate-spin" size={18} /> : <RefreshCw size={18} />}
+              كلمات مرور جديدة لـ {withAccount.length} طالب
             </button>
           )}
         </div>
