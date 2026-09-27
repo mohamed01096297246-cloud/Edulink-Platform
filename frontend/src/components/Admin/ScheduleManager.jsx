@@ -38,6 +38,8 @@ const SchedulesPage = () => {
   const [classrooms, setClassrooms] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [bells, setBells] = useState([]);
+  // من صفحة "إسناد الفصول": مين بيدرّس كل مادة في كل فصل.
+  const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // حالات الفلترة (الصف والفصل) لعرض الكروت
@@ -89,13 +91,15 @@ const SchedulesPage = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [schRes, teachRes, classRes, subjRes, bellRes] = await Promise.all([
+      const [schRes, teachRes, classRes, subjRes, bellRes, assignRes] = await Promise.all([
         API.get("/schedules"),
         API.get("/teacher"),
         API.get("/classrooms"),
         API.get("/subjects"),
         API.get("/bell-schedules"),
+        API.get("/class-assignments").catch(() => ({ data: { data: [] } })),
       ]);
+      setAssignments(assignRes.data?.data || []);
       setSchedules(Array.isArray(schRes.data) ? schRes.data : []);
       setTeachers(teachRes.data.data || []);
       setClassrooms(Array.isArray(classRes.data) ? classRes.data : []);
@@ -151,11 +155,21 @@ const SchedulesPage = () => {
       (s.grades || []).some((g) => (g._id || g) === builderGrade),
   );
 
-  // المعلمين اللي بيدرّسوا المادة المختارة ومسموحلهم بالمرحلة دي.
+  // المعلم المسند للمادة دي في الفصل ده (لو اتحدد في "إسناد الفصول").
+  const assignedTeacherFor = (subjectId) =>
+    assignments.find(
+      (a) => a.classroom?._id === builderClassroom && a.subject?._id === subjectId,
+    )?.teacher;
+  const assignedTeacher = assignedTeacherFor(periodForm.subjectId);
+
+  // المعلمين اللي بيدرّسوا المادة المختارة ومسموحلهم بالمرحلة دي — ولو المادة
+  // متسندة لمعلم في الفصل ده، يبقى هو بس.
   const eligibleTeachers = teachers.filter(
     (t) =>
-      (t.subjects || []).some((s) => s._id === periodForm.subjectId) &&
-      (t.teachingGrades || []).some((g) => g._id === builderGrade),
+      (assignedTeacher
+        ? t._id === assignedTeacher._id
+        : (t.subjects || []).some((s) => s._id === periodForm.subjectId) &&
+          (t.teachingGrades || []).some((g) => g._id === builderGrade)),
   );
 
   const classroomSchedules = schedules.filter(
@@ -245,6 +259,7 @@ const SchedulesPage = () => {
   };
 
   const handleSubjectChange = (subjectId) => {
+    const assigned = assignedTeacherFor(subjectId);
     const teachersForSubject = teachers.filter(
       (t) =>
         (t.subjects || []).some((s) => s._id === subjectId) &&
@@ -253,7 +268,11 @@ const SchedulesPage = () => {
     setPeriodForm((prev) => ({
       ...prev,
       subjectId,
-      teacherId: teachersForSubject.length === 1 ? teachersForSubject[0]._id : "",
+      teacherId: assigned
+        ? assigned._id
+        : teachersForSubject.length === 1
+          ? teachersForSubject[0]._id
+          : "",
     }));
   };
 
@@ -722,11 +741,15 @@ const SchedulesPage = () => {
                                 onChange={(e) => handleSubjectChange(e.target.value)}
                               >
                                 <option value="">اختر المادة...</option>
-                                {gradeSubjects.map((sub) => (
-                                  <option key={sub._id} value={sub._id}>
-                                    {sub.name}
-                                  </option>
-                                ))}
+                                {gradeSubjects.map((sub) => {
+                                  const assigned = assignedTeacherFor(sub._id);
+                                  return (
+                                    <option key={sub._id} value={sub._id}>
+                                      {sub.name}
+                                      {assigned ? ` — أ. ${assigned.firstName} ${assigned.lastName}` : ""}
+                                    </option>
+                                  );
+                                })}
                               </select>
                             </div>
                             <div className="space-y-1">
@@ -755,6 +778,11 @@ const SchedulesPage = () => {
                                   </option>
                                 ))}
                               </select>
+                              {assignedTeacher && (
+                                <p className="text-[10px] font-bold text-indigo-500">
+                                  المادة دي متسندة للمعلم ده في الفصل من صفحة "إسناد الفصول".
+                                </p>
+                              )}
                               {periodForm.subjectId &&
                                 eligibleTeachers.length === 0 && (
                                   <p className="text-[10px] font-bold text-rose-500">

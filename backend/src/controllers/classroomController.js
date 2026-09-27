@@ -1,6 +1,7 @@
 const Classroom = require("../models/Classroom");
 const Student = require("../models/Student");
 const Schedule = require("../models/Schedule");
+const ClassAssignment = require("../models/ClassAssignment");
 const {
   scopeFilter,
   sameSchool,
@@ -198,6 +199,7 @@ exports.deleteClassroom = async (req, res) => {
     }
 
     await classroom.deleteOne();
+    await ClassAssignment.deleteMany({ classroom: classroom._id });
 
     res.json({
       message: "تم حذف الفصل بنجاح",

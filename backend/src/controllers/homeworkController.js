@@ -4,6 +4,7 @@ const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
 const Student = require("../models/Student");
 const Schedule = require("../models/Schedule");
+const ClassAssignment = require("../models/ClassAssignment");
 const Subject = require("../models/Subject");
 const { scopeFilter, sameSchool } = require("../utils/tenant");
 const { notifyParentsOfStudents } = require("../utils/notify");
@@ -79,6 +80,19 @@ exports.createHomework = async (req, res) => {
       classrooms = [classroom];
     } else {
       classrooms = await Classroom.find({ grade: grade });
+
+      // A teacher the school assigned to particular classes of this grade
+      // (models/ClassAssignment.js) sets the homework for those classes
+      // only, not for the whole grade.
+      const assigned = new Set(
+        (
+          await ClassAssignment.find({ teacher: req.user.id, subject: subjectId }).distinct(
+            "classroom",
+          )
+        ).map(String),
+      );
+      const mine = classrooms.filter((c) => assigned.has(String(c._id)));
+      if (mine.length > 0) classrooms = mine;
     }
 
     if (classrooms.length === 0) {

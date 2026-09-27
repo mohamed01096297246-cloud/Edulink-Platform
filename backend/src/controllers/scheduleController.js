@@ -4,6 +4,7 @@ const Classroom = require("../models/Classroom");
 const Subject = require("../models/Subject");
 const Grade = require("../models/Grade");
 const BellSchedule = require("../models/BellSchedule");
+const ClassAssignment = require("../models/ClassAssignment");
 const {
   scopeFilter,
   sameSchool,
@@ -48,6 +49,18 @@ const describeConflict = (period, conflict, classroomId) => {
     ? ` في ${roomName.trim().startsWith("فصل") ? roomName : `فصل ${roomName}`}`
     : "";
   return `${label}: المعلم عنده حصة تانية${where} في نفس الوقت (${conflict.startTime}–${conflict.endTime}).`;
+};
+
+// A subject the school already assigned to a teacher in this class
+// (models/ClassAssignment.js) is timetabled with that teacher, not another.
+// Returns the refusal message, or null when the lesson agrees (or the class
+// has no assignment for that subject — the timetable decides alone then).
+const assignmentMismatch = async (classroomId, subjectId, teacherId) => {
+  if (!classroomId || !subjectId) return null;
+  const assignment = await ClassAssignment.findOne({ classroom: classroomId, subject: subjectId })
+    .populate("teacher", "firstName lastName");
+  if (!assignment || String(assignment.teacher?._id) === String(teacherId)) return null;
+  return `المادة دي في الفصل ده متسندة لأ. ${assignment.teacher?.firstName} ${assignment.teacher?.lastName} — غيّر الإسناد من صفحة "إسناد الفصول" لو عايز معلم تاني.`;
 };
 
 exports.createSchedule = async (req, res) => {
@@ -135,6 +148,9 @@ exports.createSchedule = async (req, res) => {
         message: "هذه المادة لا تُدرَّس للمرحلة الخاصة بهذا الفصل.",
       });
     }
+
+    const mismatch = await assignmentMismatch(classroom, subject, teacher);
+    if (mismatch) return res.status(400).json({ message: mismatch });
 
     const { bell, error: bellError } = await bellForClassroomDay(classroomData, day);
     if (bellError) return res.status(400).json({ message: bellError });
@@ -302,6 +318,13 @@ exports.updateSchedule = async (req, res) => {
           .json({ message: "المادة المختارة ليست من مواد هذا المعلم." });
       }
     }
+
+    const mismatch = await assignmentMismatch(
+      checkClassroom,
+      nextSubject || existingSchedule.subject,
+      checkTeacher,
+    );
+    if (mismatch) return res.status(400).json({ message: mismatch });
 
     const updatedSchedule = await Schedule.findByIdAndUpdate(
       scheduleId,

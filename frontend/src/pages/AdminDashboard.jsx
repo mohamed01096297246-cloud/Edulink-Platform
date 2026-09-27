@@ -22,6 +22,7 @@ import {
   MessageSquareText,
   Clock,
   KeyRound,
+  Link2,
 } from "lucide-react";
 import { Routes, Route, Link, useLocation } from "react-router-dom";
 import { Navigate } from "react-router-dom";
@@ -44,6 +45,7 @@ import ExamAnalytics from "../components/Admin/ExamAnalytics";
 import TeacherAttendanceManager from "../components/Admin/TeacherAttendanceManager";
 import StudentAccountManager from "../components/Admin/StudentAccountManager";
 import StaffAccountManager from "../components/Admin/StaffAccountManager";
+import ClassAssignmentManager from "../components/Admin/ClassAssignmentManager";
 
 // Grouped the way MySchool and every mature school system organizes its
 // menu — by area of the school, not one flat list — but scoped to what
@@ -77,6 +79,7 @@ const NAV_GROUPS = [
     name: "الأكاديمي",
     icon: <ClipboardList size={18} />,
     items: [
+      { name: "إسناد الفصول", icon: <Link2 size={18} />, path: "/admin/class-assignments" },
       { name: "الجدول الدراسي", icon: <Calendar size={18} />, path: "/admin/schedules" },
       { name: "الامتحانات", icon: <ClipboardCheck size={18} />, path: "/admin/schedualExamManager" },
       { name: "تحليلات النتائج", icon: <BarChart3 size={18} />, path: "/admin/exam-analytics", feature: "examAnalytics" },
@@ -260,6 +263,7 @@ const AdminDashboard = ({ onLogout }) => {
             <Route path="students/*" element={<StudentManager />} />
             <Route path="student-accounts" element={<StudentAccountManager />} />
             <Route path="staff-accounts" element={<StaffAccountManager />} />
+            <Route path="class-assignments" element={<ClassAssignmentManager />} />
             <Route path="fees" element={<FeeManager />} />
             <Route path="teachers/*" element={<TeacherManager />} />
             <Route path="staff-attendance" element={<TeacherAttendanceManager />} />

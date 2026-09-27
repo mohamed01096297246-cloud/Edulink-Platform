@@ -1,23 +1,22 @@
 const mongoose = require("mongoose");
 const Result = require("../models/Result");
 const Student = require("../models/Student");
-const Schedule = require("../models/Schedule");
+const Classroom = require("../models/Classroom");
 const Exam = require("../models/Exam");
+const { teacherClassPairs, teacherClassroomIds } = require("../utils/teacherClassrooms");
 const { sameSchool } = require("../utils/tenant");
 
 exports.getTeacherGrades = async (req, res) => {
   try {
-    const teacherSchedules = await Schedule.find({ teacher: req.user.id })
-      .populate("classroom")
-      .populate({
-        path: "classroom",
-        populate: { path: "grade" },
-      });
+    // Timetabled classes and assigned ones alike (utils/teacherClassrooms).
+    const classrooms = await Classroom.find({
+      _id: { $in: await teacherClassroomIds(req.user.id) },
+    }).populate("grade");
 
     const gradesMap = new Map();
-    teacherSchedules.forEach((sch) => {
-      if (sch.classroom && sch.classroom.grade) {
-        const grade = sch.classroom.grade;
+    classrooms.forEach((classroom) => {
+      if (classroom.grade) {
+        const grade = classroom.grade;
         gradesMap.set(grade._id.toString(), grade);
       }
     });
@@ -41,22 +40,18 @@ exports.getExamsAndClassroomsByGrade = async (req, res) => {
         .json({ success: false, message: "رقم المرحلة مطلوب." });
     }
 
-    const schedules = await Schedule.find({ teacher: req.user.id }).populate({
-      path: "classroom",
-      match: { grade: new mongoose.Types.ObjectId(gradeId) },
+    const pairs = await teacherClassPairs(req.user.id);
+    const inGrade = await Classroom.find({
+      _id: { $in: pairs.map((p) => p.classroom) },
+      grade: new mongoose.Types.ObjectId(gradeId),
     });
 
-    const classroomsMap = new Map();
-    const subjectsSet = new Set();
-
-    schedules.forEach((sch) => {
-      if (sch.classroom) {
-        classroomsMap.set(sch.classroom._id.toString(), sch.classroom);
-      }
-      if (sch.subject) {
-        subjectsSet.add(sch.subject.toString());
-      }
-    });
+    const classroomsMap = new Map(inGrade.map((c) => [c._id.toString(), c]));
+    const subjectsSet = new Set(
+      pairs
+        .filter((p) => p.subject && classroomsMap.has(String(p.classroom)))
+        .map((p) => String(p.subject)),
+    );
 
     const exams = await Exam.find({
       grade: new mongoose.Types.ObjectId(gradeId),

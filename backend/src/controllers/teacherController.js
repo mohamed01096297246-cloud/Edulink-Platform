@@ -3,6 +3,8 @@ const Subject = require("../models/Subject");
 const Schedule = require("../models/Schedule");
 const Student = require("../models/Student");
 const StaffCandidate = require("../models/StaffCandidate");
+const ClassAssignment = require("../models/ClassAssignment");
+const Classroom = require("../models/Classroom");
 const { toLatinDigits } = require("../utils/phone");
 const { sendCredentialsEmail } = require("../utils/emailService");
 const {
@@ -361,6 +363,20 @@ exports.updateTeacher = async (req, res) => {
       .populate("teachingGrades", "name academicYear")
       .select("-password");
 
+    // A subject or grade taken off the teacher takes their classes in it
+    // with it (models/ClassAssignment.js).
+    if (updateData.subjects || updateData.teachingGrades) {
+      const keptGrades = (updatedTeacher.teachingGrades || []).map((g) => g._id);
+      const keptClassrooms = await Classroom.find({ grade: { $in: keptGrades } }).distinct("_id");
+      await ClassAssignment.deleteMany({
+        teacher: teacherId,
+        $or: [
+          { subject: { $nin: (updatedTeacher.subjects || []).map((s) => s._id) } },
+          { classroom: { $nin: keptClassrooms } },
+        ],
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: "Teacher updated successfully",
@@ -398,6 +414,7 @@ exports.deleteTeacher = async (req, res) => {
     }
 
     await teacher.deleteOne();
+    await ClassAssignment.deleteMany({ teacher: teacher._id });
 
     // Back on the staff list they were registered from, so an account
     // deleted by mistake can simply be registered again.

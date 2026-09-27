@@ -1,6 +1,6 @@
-const Schedule = require("../models/Schedule");
 const Subject = require("../models/Subject");
 const Classroom = require("../models/Classroom");
+const { teacherClassPairs, teacherSubjectsIn } = require("./teacherClassrooms");
 
 // Keeps only the teacher's subjects that are actually taught to this grade.
 // Returns the current pool untouched when that would leave nothing, so a
@@ -60,15 +60,11 @@ const resolveTeacherSubject = async ({
   let pool = qualified;
 
   if (classroomId) {
-    const timetabled = await Schedule.find({
-      teacher: teacher._id,
-      classroom: classroomId,
-    }).distinct("subject");
-
-    const scheduled = timetabled
-      .filter(Boolean)
-      .map(String)
-      .filter((id) => qualified.includes(id));
+    // The class assignments made before the timetable say the same thing
+    // the timetable does, so both count here.
+    const scheduled = (await teacherSubjectsIn(teacher._id, classroomId)).filter(
+      (id) => qualified.includes(id),
+    );
 
     if (scheduled.length > 0) {
       pool = [...new Set(scheduled)];
@@ -84,14 +80,19 @@ const resolveTeacherSubject = async ({
   } else if (gradeId) {
     // Homework is set for a whole grade at once, so there is no single
     // classroom to read a timetable from — the grade itself is the narrowing.
-    const timetabled = await Schedule.find({ teacher: teacher._id })
-      .populate({ path: "classroom", select: "grade", match: { grade: gradeId } })
-      .then((rows) =>
-        rows
-          .filter((row) => row.classroom && row.subject)
-          .map((row) => String(row.subject))
-          .filter((id) => qualified.includes(id)),
-      );
+    const pairs = (await teacherClassPairs(teacher._id)).filter((p) => p.subject);
+    const inGrade = new Set(
+      (
+        await Classroom.find({
+          _id: { $in: pairs.map((p) => p.classroom) },
+          grade: gradeId,
+        }).distinct("_id")
+      ).map(String),
+    );
+    const timetabled = pairs
+      .filter((p) => inGrade.has(String(p.classroom)))
+      .map((p) => String(p.subject))
+      .filter((id) => qualified.includes(id));
 
     if (timetabled.length > 0) {
       pool = [...new Set(timetabled)];

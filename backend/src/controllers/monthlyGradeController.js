@@ -1,10 +1,10 @@
 const mongoose = require("mongoose");
 const MonthlyGrade = require("../models/MonthlyGrade");
-const Schedule = require("../models/Schedule");
 const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
 const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
+const { teacherClassroomIds } = require("../utils/teacherClassrooms");
 
 // The school year's real teaching months, in chronological order — Term 1
 // runs September through January, Term 2 runs February through May. A
@@ -36,27 +36,20 @@ const isValidMonth = (month) => ALL_SCHOOL_MONTHS.includes(Number(month));
 
 // Classrooms this teacher actually teaches within the given grade — same
 // source of truth as the homework/exam-grades screens (the teacher's own
-// Schedule entries), so a teacher can only ever pick a classroom they're
-// really assigned to.
+// timetable, plus the classes assigned to them before there was one), so a
+// teacher can only ever pick a classroom they're really assigned to.
 exports.getClassroomsForGrade = async (req, res) => {
   try {
     const { gradeId } = req.params;
 
-    const schedules = await Schedule.find({ teacher: req.user.id }).populate({
-      path: "classroom",
-      match: { grade: new mongoose.Types.ObjectId(gradeId) },
-    });
-
-    const classroomsMap = new Map();
-    schedules.forEach((sch) => {
-      if (sch.classroom) {
-        classroomsMap.set(sch.classroom._id.toString(), sch.classroom);
-      }
-    });
+    const data = await Classroom.find({
+      _id: { $in: await teacherClassroomIds(req.user.id) },
+      grade: new mongoose.Types.ObjectId(gradeId),
+    }).sort({ name: 1 });
 
     return res.status(200).json({
       success: true,
-      data: Array.from(classroomsMap.values()),
+      data,
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

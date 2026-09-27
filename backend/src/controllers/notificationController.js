@@ -1,7 +1,7 @@
 const Notification = require("../models/Notification");
 const User = require("../models/User");
 const Student = require("../models/Student");
-const Schedule = require("../models/Schedule");
+const { teacherClassroomIds } = require("../utils/teacherClassrooms");
 const { sendPushNotifications } = require("../utils/pushNotifications");
 const {
   scopeFilter,
@@ -18,12 +18,8 @@ const {
 // parents, each carrying the names of the teacher's own students under them
 // (a parent can have more than one child in the same class/teacher).
 const getTeacherParents = async (teacherId) => {
-  const schedules = await Schedule.find({ teacher: teacherId }).select(
-    "classroom",
-  );
-  const classroomIds = [
-    ...new Set(schedules.map((s) => s.classroom.toString())),
-  ];
+  // Timetabled classes and assigned ones alike (utils/teacherClassrooms).
+  const classroomIds = await teacherClassroomIds(teacherId);
 
   const students = await Student.find({
     classroom: { $in: classroomIds },
