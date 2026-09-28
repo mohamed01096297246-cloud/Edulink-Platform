@@ -5,6 +5,8 @@ const WeeklyEvaluation = require("../models/WeeklyEvaluation");
 const ClassworkNotebook = require("../models/ClassworkNotebook");
 const CourseworkOverride = require("../models/CourseworkOverride");
 const { SCHEMES, DEFAULT_SCHEME } = require("./gradebook");
+const Classroom = require("../models/Classroom");
+const { isDailyMode } = require("./dailyAttendance");
 
 // The four "أعمال السنة" columns for a single [weekStart, weekStart+6 days]
 // window. Lives here rather than inside a controller because two different
@@ -44,6 +46,13 @@ const computeWeekScores = async (
   const rangeEnd = weekEnd(weekStart);
   const rules = SCHEMES[scheme] || SCHEMES[DEFAULT_SCHEME];
 
+  // On the daily register (School.attendanceMode "daily") there is one
+  // register a day, taken in the first period, not one per lesson — so a
+  // subject's مواظبة is read off the student's days at school that week,
+  // the same figure for every subject, instead of that subject's lessons.
+  const classroomDoc = await Classroom.findById(classroomId).select("school").lean();
+  const daily = await isDailyMode(classroomDoc?.school);
+
   const [
     attendanceRecords,
     homeworks,
@@ -53,7 +62,7 @@ const computeWeekScores = async (
   ] = await Promise.all([
     Attendance.find({
       student: { $in: studentIds },
-      subject: subjectId,
+      ...(daily ? {} : { subject: subjectId }),
       date: { $gte: weekStart, $lte: rangeEnd },
       // Filtering on `subject` already excludes cover lessons, which carry
       // none — this states the rule outright rather than leaving the marks

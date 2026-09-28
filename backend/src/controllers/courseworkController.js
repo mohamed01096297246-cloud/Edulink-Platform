@@ -16,6 +16,7 @@ const {
   maxScoresFor,
 } = require("../utils/weekScores");
 const { schemeForClassroom } = require("../utils/gradebook");
+const { isDailyMode } = require("../utils/dailyAttendance");
 
 const round1 = (n) =>
   n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
@@ -59,9 +60,12 @@ exports.getClassroomCoursework = async (req, res) => {
     const studentIds = students.map((s) => s._id);
 
     // ---- مواظبة وسلوك: (نسبة الحضور × 3) + 2 ----
+    // On the daily register the student's days at school stand for every
+    // subject (see utils/weekScores.js).
+    const daily = await isDailyMode(classroom.school);
     const attendanceRecords = await Attendance.find({
       student: { $in: studentIds },
-      subject: subjectId,
+      ...(daily ? {} : { subject: subjectId }),
       date: { $gte: dateStart, $lte: dateEnd },
       // Cover lessons never carry a subject, so they are already out — kept
       // explicit because this figure becomes a mark.
