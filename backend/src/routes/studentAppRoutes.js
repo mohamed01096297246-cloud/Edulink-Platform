@@ -5,6 +5,7 @@ const {
   getSchedule,
   getHomework,
   getGrades,
+  getPerformance,
 } = require("../controllers/studentAppController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
@@ -17,5 +18,6 @@ router.get("/today", getToday);
 router.get("/schedule", getSchedule);
 router.get("/homework", getHomework);
 router.get("/grades", getGrades);
+router.get("/performance", getPerformance);
 
 module.exports = router;

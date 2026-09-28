@@ -8,6 +8,7 @@ const Attendance = require("../models/Attendance");
 const Behavior = require("../models/Behavior");
 const Notification = require("../models/Notification");
 const School = require("../models/School");
+const { studentPerformance } = require("../utils/studentPerformance");
 
 // Everything a student may read about themselves. Four screens, no more:
 // what's on today, the week's timetable, their homework, their marks. The
@@ -55,7 +56,7 @@ const schoolToday = (timeZone, now = new Date()) => {
 // means the student was deleted from the school while logged in.
 const myStudent = async (req) =>
   Student.findOne({ _id: req.user.studentProfile, school: req.user.school })
-    .populate("classroom", "name")
+    .populate("classroom", "name grade school academicYear")
     .populate("grade", "name stage");
 
 const notFound = (res) =>
@@ -233,6 +234,27 @@ exports.getHomework = async (req, res) => {
         };
       }),
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// "أدائي": the student's standing in every subject over a term — weeks,
+// month averages, tests, أعمال السنة, homework and attendance
+// (utils/studentPerformance.js). ?term=1|2, the current term by default.
+exports.getPerformance = async (req, res) => {
+  try {
+    const student = await myStudent(req);
+    if (!student) return notFound(res);
+    if (!student.classroom) {
+      return res.status(200).json({ success: true, data: { subjects: [] } });
+    }
+
+    const timeZone = await schoolTimezone(student.school);
+    const { startOfDay } = schoolToday(timeZone);
+    const data = await studentPerformance({ student, term: req.query.term, today: startOfDay });
+
+    res.status(200).json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
