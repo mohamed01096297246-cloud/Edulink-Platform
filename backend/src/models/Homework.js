@@ -12,9 +12,12 @@ const homeworkSchema = new mongoose.Schema(
       required: [true, "رقم الصفحة مطلوب (مثال: ص 45)"],
       trim: true
     },
+    // Optional: a homework set without a mark is only checked as handed in
+    // or not (see utils/homeworkMarks.js for how each kind is scored).
     totalMarks: {
       type: Number,
-      required: [true, "درجة الواجب مطلوبة"]
+      default: null,
+      min: [0, "درجة الواجب لازم تكون رقم موجب"]
     },
     dueDate: {
       type: Date,

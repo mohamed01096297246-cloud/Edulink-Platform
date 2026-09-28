@@ -103,7 +103,9 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
     const max = SCHEMES[await schemeForClassroom(classroom)].max.weeklyEvalScore;
     const hasInvalidScore = gradesList.some(
       (record) =>
-        !Number.isInteger(Number(record.score)) ||
+        record.score === null ||
+        record.score === "" ||
+        !Number.isInteger(Number(record.score) * 2) ||
         record.score < 0 ||
         record.score > max,
     );
@@ -111,7 +113,7 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
     if (hasInvalidScore) {
       return res.status(400).json({
         success: false,
-        message: `الدرجات لازم تكون رقم صحيح من غير كسور، بين 0 و${max}.`,
+        message: `الدرجات لازم تكون بين 0 و${max} (رقم صحيح أو نص درجة زي 7.5).`,
       });
     }
 

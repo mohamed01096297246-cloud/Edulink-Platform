@@ -3,6 +3,7 @@ const Homework = require("../models/Homework");
 const Student = require("../models/Student");
 const { sameSchool } = require("../utils/tenant");
 const { notifyParent } = require("../utils/notify");
+const { hasMarks } = require("../utils/homeworkMarks");
 
 // Every teacher-facing grading screen (attendance, monthly grades, weekly
 // evaluation) lets a teacher reopen and re-save — homework grading matches
@@ -32,7 +33,9 @@ exports.gradeBulkHomework = async (req, res) => {
         update: {
           $set: {
             status: record.status,
-            score: record.status === "missing" ? 0 : record.score,
+            // A homework without a mark keeps no score — handing it in is
+            // the whole of it (utils/homeworkMarks.js).
+            score: !hasMarks(homework) ? null : record.status === "missing" ? 0 : record.score,
             teacherFeedback: record.teacherFeedback,
             gradedBy: req.user.id,
             school: req.user.school,
@@ -61,7 +64,9 @@ exports.gradeBulkHomework = async (req, res) => {
         const scoreText =
           record.status === "missing"
             ? "لم يُسلَّم"
-            : `${record.score}/${homework.totalMarks}`;
+            : hasMarks(homework)
+              ? `${record.score}/${homework.totalMarks}`
+              : "تم التسليم";
 
         await notifyParent({
           parentId: student.parent._id,

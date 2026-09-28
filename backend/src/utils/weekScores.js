@@ -7,6 +7,7 @@ const CourseworkOverride = require("../models/CourseworkOverride");
 const { SCHEMES, DEFAULT_SCHEME } = require("./gradebook");
 const Classroom = require("../models/Classroom");
 const { isDailyMode } = require("./dailyAttendance");
+const { worthOf, earnedOn } = require("./homeworkMarks");
 
 // The four "أعمال السنة" columns for a single [weekStart, weekStart+6 days]
 // window. Lives here rather than inside a controller because two different
@@ -117,19 +118,22 @@ const computeWeekScores = async (
   });
 
   const homeworkIds = homeworks.map((h) => h._id);
-  const weekHomeworkMax = homeworks.reduce((sum, h) => sum + h.totalMarks, 0);
+  // A homework with no mark is worth one point, earned by handing it in
+  // (utils/homeworkMarks.js).
+  const homeworkById = new Map(homeworks.map((h) => [String(h._id), h]));
+  const weekHomeworkMax = homeworks.reduce((sum, h) => sum + worthOf(h), 0);
 
   const homeworkResults = homeworkIds.length
     ? await HomeworkResult.find({
         homework: { $in: homeworkIds },
         student: { $in: studentIds },
-      }).select("student score status")
+      }).select("student homework score status")
     : [];
 
   const homeworkByStudent = new Map();
   homeworkResults.forEach((record) => {
     const key = record.student.toString();
-    const earned = record.status === "missing" ? 0 : record.score || 0;
+    const earned = earnedOn(record, homeworkById.get(String(record.homework)));
     homeworkByStudent.set(key, (homeworkByStudent.get(key) || 0) + earned);
   });
 

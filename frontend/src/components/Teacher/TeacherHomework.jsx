@@ -244,15 +244,17 @@ const TeacherHomework = ({ grades, loading: gradesLoading }) => {
 
           <div className="space-y-3">
             <label className="text-xs font-black text-slate-400 uppercase ml-1 flex items-center gap-2">
-              <Award size={14} /> Total Marks
+              <Award size={14} /> Total Marks (optional)
             </label>
+            {/* Left blank, the homework has no mark: it is only checked as
+                handed in or not (backend utils/homeworkMarks.js). */}
             <input
               type="number"
               name="totalMarks"
-              placeholder="e.g. 10"
+              min="0"
+              placeholder="Leave empty for no mark"
               value={formData.totalMarks}
               onChange={handleChange}
-              required
               className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-slate-700 focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all outline-none"
             />
           </div>
@@ -353,7 +355,7 @@ const TeacherHomework = ({ grades, loading: gradesLoading }) => {
                       <span className="flex items-center gap-1 text-rose-500/90">
                         <Calendar size={12} /> Due: {formattedDeadline}
                       </span>
-                      <span>Marks: {hw.totalMarks} pts</span>
+                      <span>{hw.totalMarks > 0 ? `Marks: ${hw.totalMarks} pts` : "No mark — handed in or not"}</span>
                     </div>
                   </div>
 

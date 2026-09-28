@@ -184,7 +184,7 @@ function Homework({ studentId }) {
                       <Calendar size={12} /> Due: {dueDateFormatted}
                     </span>
                     <span className="text-slate-400">
-                      Total Marks: {hw.totalMarks} pts
+                      {hw.totalMarks > 0 ? `Total Marks: ${hw.totalMarks} pts` : "No mark"}
                     </span>
                   </div>
                 </div>
@@ -274,6 +274,7 @@ function Homework({ studentId }) {
                             : "text-emerald-500"
                         }
                       />
+                      {(hw?.totalMarks || res.homework?.totalMarks) > 0 ? (
                       <span className="text-sm font-black text-slate-800">
                         Score:{" "}
                         <span
@@ -287,6 +288,11 @@ function Homework({ studentId }) {
                         </span>{" "}
                         / {hw?.totalMarks || res.homework?.totalMarks || 0}
                       </span>
+                      ) : (
+                        <span className="text-sm font-black text-slate-800">
+                          {res.status === "missing" ? "Not handed in" : "Handed in"}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

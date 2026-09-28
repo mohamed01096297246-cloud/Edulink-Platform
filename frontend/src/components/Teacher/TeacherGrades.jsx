@@ -190,7 +190,9 @@ const TeacherGrades = ({ teachingGrades, classroomId }) => {
                   {selectedHomework.title}
                 </h3>
                 <p className="text-slate-400 font-bold text-sm">
-                  Max Marks: {selectedHomework.totalMarks}
+                  {selectedHomework.totalMarks > 0
+                    ? `Max Marks: ${selectedHomework.totalMarks}`
+                    : "No mark — record handed in or missing"}
                 </p>
               </div>
               <button
@@ -257,6 +259,7 @@ const TeacherGrades = ({ teachingGrades, classroomId }) => {
                         </select>
                       </td>
                       <td className="p-6">
+                        {selectedHomework.totalMarks > 0 ? (
                         <input
                           type="number"
                           min="0"
@@ -272,6 +275,9 @@ const TeacherGrades = ({ teachingGrades, classroomId }) => {
                           }
                           className="w-20 p-3 bg-slate-100 rounded-xl font-black text-center text-slate-700 border-none focus:ring-2 ring-indigo-500"
                         />
+                        ) : (
+                          <span className="text-xs font-bold text-slate-400">—</span>
+                        )}
                       </td>
                       <td className="p-6">
                         <input

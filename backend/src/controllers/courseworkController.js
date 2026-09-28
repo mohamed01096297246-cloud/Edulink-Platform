@@ -17,6 +17,7 @@ const {
 } = require("../utils/weekScores");
 const { schemeForClassroom } = require("../utils/gradebook");
 const { isDailyMode } = require("../utils/dailyAttendance");
+const { worthOf, earnedOn } = require("../utils/homeworkMarks");
 
 const round1 = (n) =>
   n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
@@ -96,7 +97,8 @@ exports.getClassroomCoursework = async (req, res) => {
     const maxMarksByHomework = new Map(
       homeworks.map((h) => [h._id.toString(), h.totalMarks]),
     );
-    const termHomeworkMax = homeworks.reduce((sum, h) => sum + h.totalMarks, 0);
+    const homeworkById = new Map(homeworks.map((h) => [h._id.toString(), h]));
+    const termHomeworkMax = homeworks.reduce((sum, h) => sum + worthOf(h), 0);
 
     const homeworkResults = await HomeworkResult.find({
       homework: { $in: homeworkIds },
@@ -109,7 +111,7 @@ exports.getClassroomCoursework = async (req, res) => {
       if (!homeworkByStudent.has(key)) {
         homeworkByStudent.set(key, 0);
       }
-      const earned = record.status === "missing" ? 0 : record.score || 0;
+      const earned = earnedOn(record, homeworkById.get(record.homework.toString()));
       homeworkByStudent.set(key, homeworkByStudent.get(key) + earned);
     });
 

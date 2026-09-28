@@ -5,6 +5,7 @@ const { requireTeacherSubject } = require("../utils/teacherSubject");
 const Student = require("../models/Student");
 const Schedule = require("../models/Schedule");
 const ClassAssignment = require("../models/ClassAssignment");
+const { marksFromInput } = require("../utils/homeworkMarks");
 const Subject = require("../models/Subject");
 const { scopeFilter, sameSchool } = require("../utils/tenant");
 const { notifyParentsOfStudents } = require("../utils/notify");
@@ -40,7 +41,9 @@ const nextSessionDate = (dayCode) => {
 
 exports.createHomework = async (req, res) => {
   try {
-    const { title, pageNumber, totalMarks, grade, classroomId } = req.body;
+    const { title, pageNumber, grade, classroomId } = req.body;
+    // Blank or 0 means a homework without a mark (utils/homeworkMarks.js).
+    const totalMarks = marksFromInput(req.body.totalMarks) ?? null;
     const teacher = await User.findById(req.user.id);
 
     const subjectId = await requireTeacherSubject(res, {
@@ -289,9 +292,12 @@ exports.updateHomework = async (req, res) => {
         .json({ message: "غير مصرح لك بتعديل هذا الواجب" });
     }
 
+    const updates = { ...req.body };
+    if ("totalMarks" in updates) updates.totalMarks = marksFromInput(updates.totalMarks) ?? null;
+
     const updatedHomework = await Homework.findByIdAndUpdate(
       homeworkId,
-      req.body,
+      updates,
       { new: true, runValidators: true },
     )
       .populate("subject", "name")
