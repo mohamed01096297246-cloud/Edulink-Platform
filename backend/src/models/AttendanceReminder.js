@@ -21,9 +21,12 @@ const attendanceReminderSchema = new mongoose.Schema(
       refPath: "kind",
     },
 
+    // "DailyAlarm" is the daily register's alarm before the first period
+    // ends — about a Schedule too, but claimed under its own kind so it
+    // never collides with that lesson's end-of-lesson reminder.
     kind: {
       type: String,
-      enum: ["Schedule", "CoverSession"],
+      enum: ["Schedule", "CoverSession", "DailyAlarm"],
       required: true,
     },
 
@@ -49,6 +52,6 @@ const attendanceReminderSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-attendanceReminderSchema.index({ session: 1, date: 1 }, { unique: true });
+attendanceReminderSchema.index({ session: 1, date: 1, kind: 1 }, { unique: true });
 
 module.exports = mongoose.model("AttendanceReminder", attendanceReminderSchema);

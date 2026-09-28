@@ -81,6 +81,21 @@ const schoolSchema = new mongoose.Schema(
       preparatory: { type: String, enum: ["classic", "weekly40"] },
       secondary: { type: String, enum: ["classic", "weekly40"] },
     },
+
+    // How the class register is kept.
+    //   lesson — every lesson takes its own register (the default; the
+    //            classic مواظبة mark is worked out from it, per subject).
+    //   daily  — one register a day per class, taken in the first period;
+    //            the class's later teachers may only add absentees, until
+    //            the end of the school day, and nothing changes after it.
+    //            An alarm goes to the first-period teacher before that
+    //            period ends if it hasn't been taken (see
+    //            utils/dailyAttendance.js).
+    attendanceMode: {
+      type: String,
+      enum: ["lesson", "daily"],
+      default: "lesson",
+    },
   },
   { timestamps: true }
 );

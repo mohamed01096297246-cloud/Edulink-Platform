@@ -13,6 +13,7 @@ const Result = require("../models/Result");
 const Behavior = require("../models/Behavior");
 const { SCHEMES, schemeForClassroom } = require("./gradebook");
 const { computeWeekScores } = require("./weekScores");
+const { isDailyMode } = require("./dailyAttendance");
 
 // "أدائي" — one student's standing in each subject over a term, built from
 // exactly the numbers their teachers record and the register prints: every
@@ -48,7 +49,7 @@ const termOf = (scheme, month) => {
   return 1;
 };
 
-const subjectPerformance = async ({ student, classroom, subject, scheme, term }) => {
+const subjectPerformance = async ({ student, classroom, subject, scheme, term, daily }) => {
   const rules = SCHEMES[scheme];
   const months = (TERM_MONTHS[scheme] || TERM_MONTHS.classic)[term].map((month) => ({
     month,
@@ -100,9 +101,10 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term })
 
   const [homework, attendance, praise, tests, monthly, exams] = await Promise.all([
     Homework.find({ ...where, createdAt: inTerm }).select("_id"),
+    // A daily register's absences belong to the day, not a subject.
     Attendance.find({
       student: student._id,
-      subject: subject._id,
+      ...(daily ? {} : { subject: subject._id }),
       date: inTerm,
       ...Attendance.GRADED_ONLY,
     }).select("status excused date"),
@@ -192,6 +194,7 @@ const studentPerformance = async ({ student, term, today }) => {
   const classroom = student.classroom;
   const scheme = await schemeForClassroom(classroom);
   const rules = SCHEMES[scheme];
+  const daily = await isDailyMode(student.school);
   const chosenTerm = [1, 2].includes(Number(term)) ? Number(term) : termOf(scheme, today.getUTCMonth() + 1);
 
   const subjects = await Subject.find({
@@ -201,7 +204,7 @@ const studentPerformance = async ({ student, term, today }) => {
 
   const perSubject = await Promise.all(
     subjects.map((subject) =>
-      subjectPerformance({ student, classroom, subject, scheme, term: chosenTerm }),
+      subjectPerformance({ student, classroom, subject, scheme, term: chosenTerm, daily }),
     ),
   );
 

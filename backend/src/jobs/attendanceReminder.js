@@ -18,6 +18,7 @@ const {
   nextWeekStart,
 } = require("../utils/attendanceWindow");
 const { groupRuns, anchorOf } = require("../utils/consecutivePeriods");
+const { clock } = require("../utils/dailyAttendance");
 
 // The lesson has just ended and the register is still empty — a nudge while
 // it is fresh. Nothing is urgent any more: the register stays open until the
@@ -40,6 +41,73 @@ const utcMidnight = (dateStr) => {
   return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 };
 
+// The daily register (School.attendanceMode "daily"): an alarm to the
+// first-period teacher of every class whose register is still empty
+// ALARM_LEAD_MS before that first period ends. Rides the app's
+// "attendance-alarm" channel, which rings with an alarm sound. The app also
+// schedules the same alarm on the phone itself from the timetable
+// (src/utils/attendanceAlarm.js in the app), so it rings even without a
+// connection; this one knows whether the register was actually taken.
+const ALARM_LEAD_MS = 10 * 60 * 1000;
+
+const alarmForSchool = async (school, now, dateStr, today, date) => {
+  const timeZone = school.timezone || "Africa/Cairo";
+  const lessons = await Schedule.find({ school: school._id, day: today })
+    .populate("teacher", "pushToken")
+    .populate("subject", "name")
+    .populate("classroom", "name")
+    .sort({ period: 1, startTime: 1 });
+
+  // Each class's first lesson of the day.
+  const firstOf = new Map();
+  for (const lesson of lessons) {
+    const key = String(lesson.classroom?._id || lesson.classroom);
+    if (!firstOf.has(key)) firstOf.set(key, lesson);
+  }
+
+  let sent = 0;
+  for (const [classroomId, first] of firstOf) {
+    const endsAt = zonedTimeToInstant(dateStr, first.endTime, timeZone);
+    if (!endsAt) continue;
+    const sinceAlarm = now.getTime() - (endsAt.getTime() - ALARM_LEAD_MS);
+    if (sinceAlarm < 0 || sinceAlarm >= LOOKBACK_MS) continue;
+
+    const classLessons = lessons.filter((l) => String(l.classroom?._id || l.classroom) === classroomId);
+    // eslint-disable-next-line no-await-in-loop
+    const taken = await Attendance.exists({ schedule: { $in: classLessons.map((l) => l._id) }, date });
+    if (taken) continue;
+
+    const token = first.teacher?.pushToken;
+    if (!token) continue;
+
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await AttendanceReminder.create({
+        session: first._id,
+        kind: "DailyAlarm",
+        date,
+        teacher: first.teacher._id,
+        school: school._id,
+      });
+    } catch (err) {
+      if (err?.code === 11000) continue;
+      throw err;
+    }
+
+    // eslint-disable-next-line no-await-in-loop
+    await sendPushNotifications(
+      [token],
+      "🚨 لازم تاخد الغياب حالاً",
+      `الحصة الأولى في ${first.classroom?.name || "الفصل"} قربت تخلص ولسه الغياب ما اتاخدش. ` +
+        "يجب أخذ الغياب حالاً وإلا تعرضت للمساءلة الإدارية.",
+      { type: "attendanceAlarm", scheduleId: String(first._id), date: dateStr },
+      { channelId: "attendance-alarm", sound: "alarm.wav", priority: "high" },
+    );
+    sent += 1;
+  }
+  return sent;
+};
+
 const remindForSchool = async (school, now) => {
   const timeZone = school.timezone || "Africa/Cairo";
   const dateStr = todayInZone(timeZone, now);
@@ -48,6 +116,12 @@ const remindForSchool = async (school, now) => {
   if (!today) return 0;
 
   const date = utcMidnight(dateStr);
+
+  // A daily-register school has no per-lesson registers to chase — only
+  // the first period's, and that one gets the alarm instead.
+  if (school.attendanceMode === "daily") {
+    return alarmForSchool(school, now, dateStr, today, date);
+  }
 
   // A cover lesson closes on the same rule as a timetabled one, so it is
   // chased the same way. Both are reduced to the shape this sweep needs.
@@ -140,8 +214,8 @@ const remindForSchool = async (school, now) => {
 };
 
 const sweep = async () => {
-  const now = new Date();
-  const schools = await School.find({ active: true }).select("timezone").lean();
+  const now = clock.now();
+  const schools = await School.find({ active: true }).select("timezone attendanceMode").lean();
 
   let sent = 0;
   for (const school of schools) {

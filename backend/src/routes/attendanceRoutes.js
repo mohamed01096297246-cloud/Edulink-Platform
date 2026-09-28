@@ -8,11 +8,20 @@ const {
   getStudentAttendance,
   updateAttendance,
   checkExistingAttendance,
+  addDailyAbsentees,
+  getDailyToday,
+  getDailyFirstLessons,
 } = require("../controllers/attendanceController");
 
 const { protect, authorize, requireUserFeature } = require("../middleware/authMiddleware");
 
 router.post("/bulk", protect, authorize("teacher"), recordBulkAttendance);
+
+// The daily register (School.attendanceMode "daily"): the teacher's classes
+// today and their registers, and adding absentees after the first period.
+router.get("/daily/today", protect, authorize("teacher"), getDailyToday);
+router.get("/daily/first-lessons", protect, authorize("teacher"), getDailyFirstLessons);
+router.post("/daily/absent", protect, authorize("teacher"), addDailyAbsentees);
 
 router.get("/", protect, authorize("teacher", "admin"), getAllAttendance);
 

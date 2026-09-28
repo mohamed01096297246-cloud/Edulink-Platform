@@ -51,6 +51,18 @@ const attendanceSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    // On a daily register (School.attendanceMode "daily"): a later teacher
+    // of the class who marked this student absent after the first period —
+    // who, and when. Unset on everything recorded with the register itself.
+    addedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: undefined,
+    },
+    addedAt: {
+      type: Date,
+      default: undefined,
+    },
     school: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "School",

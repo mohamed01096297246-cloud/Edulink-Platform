@@ -10,16 +10,22 @@ const isExpoPushToken = (token) =>
   typeof token === "string" && token.startsWith("ExponentPushToken[");
 
 // tokens: array of raw pushToken strings (nulls/invalid ones are filtered out).
-exports.sendPushNotifications = async (tokens, title, body, data = {}) => {
+// options: { channelId, sound, priority } — e.g. the attendance alarm rides
+// its own Android channel ("attendance-alarm", created by the app with an
+// alarm sound) at high priority. Without options, the default channel and
+// sound, as every other notification uses.
+exports.sendPushNotifications = async (tokens, title, body, data = {}, options = {}) => {
   const validTokens = [...new Set(tokens)].filter(isExpoPushToken);
   if (validTokens.length === 0) return;
 
   const messages = validTokens.map((to) => ({
     to,
-    sound: "default",
+    sound: options.sound || "default",
     title,
     body,
     data,
+    ...(options.channelId ? { channelId: options.channelId } : {}),
+    ...(options.priority ? { priority: options.priority } : {}),
   }));
 
   for (let i = 0; i < messages.length; i += BATCH_SIZE) {

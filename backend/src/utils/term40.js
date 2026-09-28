@@ -4,6 +4,7 @@ const TermTest = require("../models/TermTest");
 const Attendance = require("../models/Attendance");
 const { SCHEMES } = require("./gradebook");
 const { computeWeekScores } = require("./weekScores");
+const { isDailyMode } = require("./dailyAttendance");
 
 // The weekly40 scheme's month and term arithmetic (utils/gradebook.js),
 // exactly as the paper register does it:
@@ -116,9 +117,13 @@ exports.computeTerm40 = async ({ classroom, subjectId, students, term }) => {
   const termStart = monthRange(months[0].month, months[0].year).start;
   const last = months[months.length - 1];
   const termEnd = monthRange(last.month, last.year).end;
+  // On the daily register (one register a day, in the first period) an
+  // absence belongs to the day, not to a subject — every subject's sheet
+  // counts the days the student was away from school.
+  const daily = await isDailyMode(classroom.school);
   const absences = await Attendance.find({
     student: { $in: studentIds },
-    subject: subjectId,
+    ...(daily ? {} : { subject: subjectId }),
     status: "absent",
     excused: { $ne: true },
     date: { $gte: termStart, $lte: termEnd },
