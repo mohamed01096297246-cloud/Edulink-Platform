@@ -114,7 +114,17 @@ exports.getToday = async (req, res) => {
       Notification.findOne({
         school: student.school,
         target: "all",
-        $or: [{ stages: { $size: 0 } }, { stages: student.grade?.stage }],
+        $and: [
+          { $or: [{ stages: { $exists: false } }, { stages: { $size: 0 } }, { stages: student.grade?.stage }] },
+          // A teacher's notice to certain classes reaches only those classes.
+          {
+            $or: [
+              { classrooms: { $exists: false } },
+              { classrooms: { $size: 0 } },
+              ...(student.classroom ? [{ classrooms: student.classroom._id }] : []),
+            ],
+          },
+        ],
       }).sort({ createdAt: -1 }),
     ]);
 

@@ -8,6 +8,7 @@ const {
   getAllNotifications,
   getMyNotifications,
   getTeacherParentsList,
+  getTeacherClassroomsList,
   updateNotification,
   deleteNotification,
 } = require("../controllers/notificationController");
@@ -35,6 +36,9 @@ router.get(
   authorize("teacher"),
   getTeacherParentsList,
 );
+
+// The teacher's classes, to pick which ones a message goes to.
+router.get("/teacher-classrooms", protect, authorize("teacher"), getTeacherClassroomsList);
 
 router.get("/", protect, authorize("admin"), getAllNotifications);
 

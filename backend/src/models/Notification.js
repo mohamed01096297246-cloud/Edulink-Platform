@@ -46,6 +46,17 @@ const notificationSchema = new mongoose.Schema({
     default: []
   },
 
+  // Narrows a `target: "all"` notice to the families (and student accounts)
+  // with a child in one of these classes — a teacher's message to "my
+  // classes" or to the classes they picked. Empty means no narrowing by
+  // class, which is every notice from the school itself.
+  classrooms: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Classroom"
+    }
+  ],
+
   // Which specific child this notification is about, when it's an
   // auto-generated per-student event (new homework, a grade, a behavior
   // report, a board note) rather than a manually-authored broadcast —

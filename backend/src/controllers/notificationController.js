@@ -1,6 +1,7 @@
 const Notification = require("../models/Notification");
 const User = require("../models/User");
 const Student = require("../models/Student");
+const Classroom = require("../models/Classroom");
 const { teacherClassroomIds } = require("../utils/teacherClassrooms");
 const { sendPushNotifications } = require("../utils/pushNotifications");
 const {
@@ -44,6 +45,39 @@ const getTeacherParents = async (teacherId) => {
   return parentsMap;
 };
 
+// Everyone a message to these classes reaches: the parents of their
+// students, and the students' own accounts (preparatory and secondary).
+const recipientsOfClassrooms = async (classroomIds) => {
+  const students = await Student.find({
+    classroom: { $in: classroomIds },
+    active: true,
+  }).select("parent");
+  const parentIds = [...new Set(students.map((s) => String(s.parent)).filter(Boolean))];
+  const [parents, studentAccounts] = await Promise.all([
+    User.find({ _id: { $in: parentIds }, role: "parent" }).select("pushToken"),
+    User.find({ role: "student", active: true, studentProfile: { $in: students.map((s) => s._id) } }).select("pushToken"),
+  ]);
+  return [...parents, ...studentAccounts];
+};
+
+// The classes a teacher can address, for the picker on their notifications
+// screen.
+exports.getTeacherClassroomsList = async (req, res) => {
+  try {
+    const classrooms = await Classroom.find({ _id: { $in: await teacherClassroomIds(req.user.id) } })
+      .populate("grade", "name")
+      .select("name grade")
+      .sort({ name: 1 })
+      .lean();
+    res.status(200).json({
+      success: true,
+      data: classrooms.map((c) => ({ _id: c._id, name: c.name, grade: c.grade?.name || "" })),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 exports.getTeacherParentsList = async (req, res) => {
   try {
     const parentsMap = await getTeacherParents(req.user.id);
@@ -63,7 +97,8 @@ exports.getTeacherParentsList = async (req, res) => {
 
 exports.createNotification = async (req, res) => {
   try {
-    const { title, message, target, parentId } = req.body;
+    const { title, message, parentId } = req.body;
+    let { target } = req.body;
     const school = creationSchool(req);
 
     if (!school) {
@@ -82,11 +117,16 @@ exports.createNotification = async (req, res) => {
     // both the recipient list for "all" and the allowed choices for
     // "parent" come from the exact same set, so a teacher can never reach a
     // parent outside their own classes.
+    //
+    // "all" from a teacher means all of their own classes, and "classrooms"
+    // the ones they picked (each of which must be theirs). Either way the
+    // notice is stored narrowed to those classes, so it appears only in the
+    // feeds of families with a child there — not only pushed to them.
     let recipients = null;
+    let classrooms = [];
     if (req.user.role === "teacher") {
-      const parentsMap = await getTeacherParents(req.user.id);
-
       if (target === "parent") {
+        const parentsMap = await getTeacherParents(req.user.id);
         if (!parentsMap.has(parentId)) {
           return res.status(403).json({
             message: "غير مصرح لك بإرسال إشعار لولي أمر هذا ليس من طلابك.",
@@ -94,7 +134,24 @@ exports.createNotification = async (req, res) => {
         }
         recipients = [parentsMap.get(parentId).parent];
       } else {
-        recipients = Array.from(parentsMap.values()).map((v) => v.parent);
+        const mine = await teacherClassroomIds(req.user.id);
+        if (target === "classrooms") {
+          const picked = [...new Set((req.body.classroomIds || []).map(String))];
+          if (picked.length === 0) {
+            return res.status(400).json({ message: "اختار فصل واحد على الأقل." });
+          }
+          if (!picked.every((id) => mine.includes(id))) {
+            return res.status(403).json({ message: "غير مصرح لك بإرسال إشعار لفصل مش من فصولك." });
+          }
+          classrooms = picked;
+        } else {
+          classrooms = mine;
+        }
+        if (classrooms.length === 0) {
+          return res.status(400).json({ message: "مفيش فصول مسندة ليك لسه." });
+        }
+        target = "all";
+        recipients = await recipientsOfClassrooms(classrooms);
       }
     }
 
@@ -122,6 +179,7 @@ exports.createNotification = async (req, res) => {
       target: target || "all",
       parent: target === "parent" ? parentId : null,
       stages: req.stageScope ? req.stageScope.stages : [],
+      classrooms,
       createdBy: req.user._id,
       school,
     });
@@ -195,6 +253,11 @@ exports.getParentNotifications = async (req, res) => {
     // before stages existed, and every notice from whoever oversees the
     // whole school.
     const stages = await stagesOfParent(req.user);
+    // A notice narrowed to classes (a teacher's) shows only to families with
+    // a child in one of them.
+    const myClassrooms = (
+      await Student.find({ _id: { $in: req.user.linkedStudents || [] } }).distinct("classroom")
+    ).filter(Boolean);
 
     const notifications = await Notification.find({
       school: req.user.school,
@@ -205,10 +268,21 @@ exports.getParentNotifications = async (req, res) => {
           // written before this field existed has no `stages` key at all,
           // and `$size` matches only an array that is actually there. Without
           // it, adding this filter would have emptied every parent's feed.
-          $or: [
-            { stages: { $exists: false } },
-            { stages: { $size: 0 } },
-            { stages: { $in: stages } },
+          $and: [
+            {
+              $or: [
+                { stages: { $exists: false } },
+                { stages: { $size: 0 } },
+                { stages: { $in: stages } },
+              ],
+            },
+            {
+              $or: [
+                { classrooms: { $exists: false } },
+                { classrooms: { $size: 0 } },
+                { classrooms: { $in: myClassrooms } },
+              ],
+            },
           ],
         },
         { target: "parent", parent: req.user._id },
@@ -305,7 +379,8 @@ exports.getMyNotifications = async (req, res) => {
       type: { $nin: ["homework", "homeworkGrade", "behavior", "boardNote"] },
     })
       .sort({ createdAt: -1 })
-      .populate("parent", "firstName lastName");
+      .populate("parent", "firstName lastName")
+      .populate({ path: "classrooms", select: "name grade", populate: { path: "grade", select: "name" } });
 
     res.status(200).json({ success: true, data: notifications });
   } catch (err) {
