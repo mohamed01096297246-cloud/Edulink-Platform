@@ -3,6 +3,7 @@ const Schedule = require("../models/Schedule");
 const CoverSession = require("../models/CoverSession");
 const School = require("../models/School");
 const Student = require("../models/Student");
+const Classroom = require("../models/Classroom");
 const mongoose = require("mongoose");
 const { scopeFilter, mergeWhere, stageStudentWhere } = require("../utils/tenant");
 const {
@@ -427,6 +428,117 @@ exports.getDailyFirstLessons = async (req, res) => {
     return res.json({ success: true, data: { enabled: true, alarmLeadMinutes: 10, lessons } });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// سجل الحضور — the school's register for one day, class by class, for the
+// administration to review or print. Any past day can be opened.
+//
+// A student's status for the day is the day's register: on the daily
+// register that is the one record taken in the first period (plus anyone
+// added later); on days recorded lesson by lesson (before the daily
+// register, or a school still on it) it is the earliest lesson's record,
+// with how many of that day's lessons the student missed alongside.
+exports.getAttendanceRegister = async (req, res) => {
+  try {
+    const timeZone = await schoolTimezone(req.user.school || req.query.school);
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || "")
+      ? req.query.date
+      : todayInZone(timeZone);
+
+    const extra = {};
+    if (req.query.grade) extra.grade = req.query.grade;
+    if (req.query.classroom) extra._id = req.query.classroom;
+    const filter = scopeFilter(req, extra, "grade");
+    if (!filter) {
+      return res.status(400).json({ message: "Please specify a school (?school=id)." });
+    }
+
+    const classrooms = await Classroom.find(filter)
+      .populate("grade", "name")
+      .select("name grade")
+      .lean();
+    classrooms.sort(
+      (a, b) =>
+        String(a.grade?.name || "").localeCompare(String(b.grade?.name || ""), "ar") ||
+        String(a.name).localeCompare(String(b.name), "ar"),
+    );
+    const classroomIds = classrooms.map((c) => c._id);
+
+    const [students, records] = await Promise.all([
+      Student.find({ classroom: { $in: classroomIds }, active: true })
+        .select("firstName lastName classroom gender")
+        .sort({ firstName: 1, lastName: 1 })
+        .lean(),
+      Attendance.find({
+        date: utcMidnight(date),
+        school: req.user.school || req.query.school,
+        ...Attendance.GRADED_ONLY,
+      })
+        .populate("schedule", "period classroom startTime")
+        .populate("recordedBy", "firstName lastName")
+        .populate("addedBy", "firstName lastName")
+        .lean(),
+    ]);
+
+    const recordsOf = new Map();
+    for (const r of records) {
+      const key = String(r.student);
+      if (!recordsOf.has(key)) recordsOf.set(key, []);
+      recordsOf.get(key).push(r);
+    }
+    const periodOf = (r) => r.schedule?.period ?? 99;
+
+    const totals = { students: 0, present: 0, absent: 0, late: 0, excused: 0, unrecorded: 0 };
+    const classes = classrooms.map((classroom) => {
+      const roster = students.filter((s) => String(s.classroom) === String(classroom._id));
+      let takenBy = null;
+      let takenAt = null;
+
+      const rows = roster.map((s) => {
+        const mine = (recordsOf.get(String(s._id)) || []).sort((a, b) => periodOf(a) - periodOf(b));
+        const day = mine[0];
+        if (day && (!takenAt || new Date(day.createdAt) < takenAt)) {
+          takenAt = new Date(day.createdAt);
+          takenBy = day.recordedBy ? `${day.recordedBy.firstName} ${day.recordedBy.lastName}` : "";
+        }
+        return {
+          _id: s._id,
+          name: `${s.firstName} ${s.lastName}`,
+          gender: s.gender,
+          status: day ? day.status : null,
+          excused: day?.excused === true,
+          addedBy: day?.addedBy ? `${day.addedBy.firstName} ${day.addedBy.lastName}` : "",
+          lessons: mine.length,
+          absentLessons: mine.filter((r) => r.status === "absent").length,
+        };
+      });
+
+      const counts = {
+        students: rows.length,
+        present: rows.filter((r) => r.status === "present").length,
+        absent: rows.filter((r) => r.status === "absent").length,
+        late: rows.filter((r) => r.status === "late").length,
+        excused: rows.filter((r) => r.status === "absent" && r.excused).length,
+        unrecorded: rows.filter((r) => !r.status).length,
+      };
+      Object.keys(totals).forEach((k) => { totals[k] += counts[k]; });
+
+      return {
+        classroomId: classroom._id,
+        classroom: classroom.name,
+        grade: classroom.grade?.name || "",
+        taken: rows.some((r) => r.status),
+        takenBy,
+        takenAt,
+        counts,
+        students: rows,
+      };
+    });
+
+    res.json({ success: true, data: { date, day: weekdayOf(date), totals, classes } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
