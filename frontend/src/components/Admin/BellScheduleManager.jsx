@@ -53,9 +53,20 @@ const BellScheduleManager = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
-  const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 5000);
+  // A save that went through but left something on the timetable to look
+  // at (lessons with no time in the new set, a teacher double-booked) comes
+  // back with `warnings` — shown longer, in amber, and closable.
+  const showToast = (message, type = "success", warnings = []) => {
+    const hasWarnings = type === "success" && warnings && warnings.length > 0;
+    setToast({
+      show: true,
+      message: hasWarnings ? [message, ...warnings].join("\n") : message,
+      type: hasWarnings ? "warning" : type,
+    });
+    setTimeout(
+      () => setToast({ show: false, message: "", type: "success" }),
+      hasWarnings ? 20000 : 5000,
+    );
   };
 
   const fetchData = async () => {
@@ -145,7 +156,7 @@ const BellScheduleManager = () => {
       const res = editingId
         ? await API.put(`/bell-schedules/${editingId}`, payload)
         : await API.post("/bell-schedules", payload);
-      showToast(res.data.message, "success");
+      showToast(res.data.message, "success", res.data.warnings);
       setModalOpen(false);
       fetchData();
     } catch (err) {
@@ -158,7 +169,7 @@ const BellScheduleManager = () => {
   const handleDelete = async () => {
     try {
       const res = await API.delete(`/bell-schedules/${deleteTarget._id}`);
-      showToast(res.data.message, "success");
+      showToast(res.data.message, "success", res.data.warnings);
       fetchData();
     } catch (err) {
       showToast(err.response?.data?.message || "فشل الحذف", "error");
@@ -188,15 +199,26 @@ const BellScheduleManager = () => {
             className={`flex items-start gap-3 px-6 py-4 rounded-2xl shadow-xl border ${
               toast.type === "success"
                 ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                : "bg-rose-50 border-rose-200 text-rose-800"
+                : toast.type === "warning"
+                  ? "bg-amber-50 border-amber-200 text-amber-900"
+                  : "bg-rose-50 border-rose-200 text-rose-800"
             }`}
           >
             {toast.type === "success" ? (
               <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
             ) : (
-              <AlertCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+              <AlertCircle
+                size={18}
+                className={`${toast.type === "warning" ? "text-amber-600" : "text-rose-600"} shrink-0 mt-0.5`}
+              />
             )}
-            <span className="font-bold text-sm">{toast.message}</span>
+            <span className="font-bold text-sm whitespace-pre-line flex-1">{toast.message}</span>
+            <button
+              onClick={() => setToast({ show: false, message: "", type: "success" })}
+              className="p-1 rounded-lg hover:bg-black/5 shrink-0"
+            >
+              <X size={14} />
+            </button>
           </div>
         </div>
       )}
@@ -513,7 +535,8 @@ const BellScheduleManager = () => {
             <div className="space-y-2">
               <h3 className="text-xl font-black text-slate-800">حذف "{deleteTarget.name}"</h3>
               <p className="text-sm font-medium text-slate-500">
-                لو فيه حصص متسجلة في الجدول بتعتمد على المواعيد دي، الحذف هيترفض لحد ما تنقلها أو تمسحها.
+                الحصص المتسجلة في الجدول على المواعيد دي مش هتتمسح — هتفضل على
+                مواعيدها الحالية، ولما تضيف مواعيد جديدة للمراحل والأيام دي هتتظبط عليها لوحدها.
               </p>
             </div>
             <div className="flex gap-3">

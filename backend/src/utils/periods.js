@@ -76,7 +76,8 @@ const validateBellShape = ({ name, grades, days, periods, breaks }) => {
 // of bell schedules, without writing anything: which stored periods need
 // new times, which would be left with no period at that time (e.g. a 7th
 // period on a day that now only has six), and which teachers would end up
-// double-booked. Callers apply `ops` only if the plan is clean.
+// double-booked. bellScheduleController applies `ops` either way and reports
+// the other two as warnings — the timetable never blocks re-timing the day.
 const planRetime = ({ schedules, classroomGrade, bells }) => {
   const ops = [];
   const orphans = [];

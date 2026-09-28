@@ -31,9 +31,17 @@ const listNames = (items, max = 5) =>
 
 // Every change to the school's bells goes through here: the candidate set is
 // checked for overlapping coverage, then replayed against the timetable that
-// already exists. Nothing is saved if a stored period would be left with no
-// time, or if two of a teacher's periods would now overlap — the admin gets
-// told exactly which, so they can fix the timetable or the times first.
+// already exists.
+//
+// The timetable never blocks a change to the times — schools re-time their
+// day during the year, and the admin must be free to edit or delete a set
+// even while lessons sit on it. So the change is always saved, and:
+//   * every lesson whose period still exists moves to its new time;
+//   * a lesson whose period no longer exists (a deleted set, a day that now
+//     has fewer periods) keeps the time it had — it is not deleted — and
+//     moves by itself as soon as a set covering it is added again;
+//   * a teacher left with two overlapping lessons is named in a warning,
+//     for the admin to sort out on the timetable page.
 const applyBells = async (school, candidateBells, persist) => {
   for (let i = 0; i < candidateBells.length; i += 1) {
     for (let j = i + 1; j < candidateBells.length; j += 1) {
@@ -57,13 +65,15 @@ const applyBells = async (school, candidateBells, persist) => {
   const schedules = await Schedule.find({ school }).select("teacher classroom day period startTime endTime").lean();
   const plan = planRetime({ schedules, classroomGrade, bells: candidateBells });
 
+  const warnings = [];
+
   if (plan.orphans.length > 0) {
     const where = plan.orphans.map(
       (s) => `${classroomName.get(String(s.classroom))} يوم ${DAY_NAMES[s.day]} ${periodLabel(s.period)}`,
     );
-    return {
-      error: `التعديل ده هيسيب حصص متسجلة في الجدول من غير ميعاد: ${listNames(where)}. امسحها أو انقلها من صفحة الجدول الأول.`,
-    };
+    warnings.push(
+      `${plan.orphans.length} حصة في الجدول ملهاش ميعاد في المواعيد دي (${listNames(where, 3)}) — فضلت على ميعادها القديم لحد ما تضيف مواعيد ليها أو تعدّلها من صفحة الجدول.`,
+    );
   }
 
   if (plan.teacherClashes.length > 0) {
@@ -74,14 +84,14 @@ const applyBells = async (school, candidateBells, persist) => {
       ([a, b]) =>
         `أ. ${teacherName.get(String(a.teacher))} يوم ${DAY_NAMES[a.day]} (${classroomName.get(String(a.classroom))} ${periodLabel(a.period)} مع ${classroomName.get(String(b.classroom))} ${periodLabel(b.period)})`,
     );
-    return {
-      error: `بالمواعيد دي هيبقى فيه معلمين عندهم حصتين في نفس الوقت: ${listNames(where, 3)}. عدّل الجدول الأول.`,
-    };
+    warnings.push(
+      `بالمواعيد الجديدة فيه معلمين عندهم حصتين في نفس الوقت: ${listNames(where, 3)}. عدّلها من صفحة الجدول.`,
+    );
   }
 
   const saved = await persist();
   if (plan.ops.length > 0) await Schedule.bulkWrite(plan.ops);
-  return { saved, retimed: plan.ops.length };
+  return { saved, retimed: plan.ops.length, warnings };
 };
 
 const respondApplied = (res, status, result, verb) => {
@@ -93,6 +103,7 @@ const respondApplied = (res, status, result, verb) => {
         ? `${verb}، واتعدّلت مواعيد ${result.retimed} حصة في الجدول.`
         : verb,
     retimed: result.retimed,
+    warnings: result.warnings,
     data: result.saved,
   });
 };
@@ -165,7 +176,7 @@ exports.deleteBellSchedule = async (req, res) => {
     const result = await applyBells(existing.school, others, () => existing.deleteOne());
     if (result.error) return res.status(400).json({ message: result.error });
 
-    res.json({ success: true, message: "تم حذف مجموعة المواعيد" });
+    res.json({ success: true, message: "تم حذف مجموعة المواعيد", warnings: result.warnings });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
