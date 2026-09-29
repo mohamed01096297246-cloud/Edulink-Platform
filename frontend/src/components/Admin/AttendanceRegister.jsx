@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import API from "../../api/axios";
+import useAdminScope from "../../hooks/useAdminScope";
 import {
   ClipboardList,
   ChevronRight,
@@ -11,13 +12,21 @@ import {
   XCircle,
   Clock,
   UserX,
+  Pencil,
+  Save,
+  X,
 } from "lucide-react";
 
 // سجل الحضور: the school's register for any day, class by class — who was
 // present, absent or late, who took each class's register, and which
 // classes never took one. Filters narrow it (grade, class, status) and the
 // print button prints exactly what is on screen, each class on its own page.
-// Backend: GET /attendance/register.
+//
+// The administration can also take or correct a class's register here, for
+// any past day — the teachers' window closes with the school day, and a
+// missed or wrong register is the administration's to put right. One class
+// is edited at a time; every change is recorded as the administration's.
+// Backend: GET / PUT /attendance/register.
 
 const pad = (n) => String(n).padStart(2, "0");
 const toKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -50,6 +59,7 @@ const FILTERS = [
 ];
 
 const AttendanceRegister = () => {
+  const { canEdit } = useAdminScope();
   const [date, setDate] = useState(toKey(new Date()));
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,10 +68,17 @@ const AttendanceRegister = () => {
   const [classroom, setClassroom] = useState("");
   const [status, setStatus] = useState("all");
 
+  // The class being taken or corrected, and each student's status in it.
+  const [editing, setEditing] = useState(null); // { classroomId, draft: { [id]: { status, excused } } }
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState(null); // { type: "ok" | "err", text }
+  const [reloadKey, setReloadKey] = useState(0);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError("");
+    setEditing(null);
     API.get("/attendance/register", { params: { date } })
       .then((res) => {
         if (!cancelled) setData(res.data?.data || null);
@@ -75,7 +92,53 @@ const AttendanceRegister = () => {
     return () => {
       cancelled = true;
     };
-  }, [date]);
+  }, [date, reloadKey]);
+
+  // A class nobody took starts with everyone present — the usual day, so the
+  // administration only marks who was missing.
+  const startEdit = (c) => {
+    const draft = {};
+    c.students.forEach((s) => {
+      draft[s._id] = { status: s.status || "present", excused: s.excused === true };
+    });
+    setEditing({ classroomId: c.classroomId, draft });
+    setNotice(null);
+  };
+
+  const setRow = (studentId, patch) =>
+    setEditing((prev) => ({
+      ...prev,
+      draft: { ...prev.draft, [studentId]: { ...prev.draft[studentId], ...patch } },
+    }));
+
+  const changesIn = (c) =>
+    c.students.filter((s) => {
+      const d = editing?.draft[s._id];
+      return d && (d.status !== s.status || (d.status === "absent" && d.excused !== (s.excused === true)));
+    }).length;
+
+  const saveEdit = async (c) => {
+    setSaving(true);
+    setNotice(null);
+    try {
+      const res = await API.put("/attendance/register", {
+        classroomId: c.classroomId,
+        date,
+        students: Object.entries(editing.draft).map(([student, d]) => ({
+          student,
+          status: d.status,
+          excused: d.status === "absent" && d.excused,
+        })),
+      });
+      setNotice({ type: "ok", text: `${c.grade} ${c.classroom}: ${res.data?.message || "اتحفظ"}` });
+      setEditing(null);
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setNotice({ type: "err", text: err.response?.data?.message || "تعذّر حفظ السجل" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const grades = useMemo(
     () => [...new Set((data?.classes || []).map((c) => c.grade))].filter(Boolean),
@@ -257,15 +320,35 @@ const AttendanceRegister = () => {
               </div>
             )}
 
+            {notice && (
+              <div
+                className={`rounded-2xl p-4 mb-6 text-sm font-bold no-print ${
+                  notice.type === "ok"
+                    ? "bg-emerald-50 border border-emerald-100 text-emerald-800"
+                    : "bg-rose-50 border border-rose-100 text-rose-700"
+                }`}
+              >
+                {notice.text}
+              </div>
+            )}
+
             {shownClasses.length === 0 ? (
               <div className="bg-white rounded-3xl border border-slate-100 p-16 text-center text-slate-400 font-bold">
                 {status === "all" ? "مفيش فصول في الاختيار ده." : `مفيش طلاب ${filterLabel === "الكل" ? "" : `في "${filterLabel}"`} اليوم ده.`}
               </div>
             ) : (
-              shownClasses.map((c, index) => (
+              shownClasses.map((c, index) => {
+                const isEditing = editing && String(editing.classroomId) === String(c.classroomId);
+                // Editing shows the whole class whatever the status filter —
+                // correcting half a register would be easy to get wrong.
+                const rowsShown = isEditing ? c.students : c.rows;
+                const changes = isEditing ? changesIn(c) : 0;
+                return (
                 <div
                   key={c.classroomId}
-                  className={`bg-white rounded-3xl border border-slate-100 shadow-sm mb-6 overflow-hidden class-sheet ${index > 0 ? "page-break" : ""}`}
+                  className={`bg-white rounded-3xl border shadow-sm mb-6 overflow-hidden class-sheet ${index > 0 ? "page-break" : ""} ${
+                    isEditing ? "border-indigo-300 ring-2 ring-indigo-100" : "border-slate-100"
+                  }`}
                 >
                   <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-2">
                     <div>
@@ -278,15 +361,61 @@ const AttendanceRegister = () => {
                           : "الغياب ما اتاخدش في الفصل ده اليوم ده"}
                       </p>
                     </div>
-                    <div className="flex gap-2 text-xs font-black">
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-black">
                       <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700">حاضر {c.counts.present}</span>
                       <span className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700">غائب {c.counts.absent}</span>
                       {c.counts.late > 0 && (
                         <span className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700">متأخر {c.counts.late}</span>
                       )}
                       <span className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600">من {c.counts.students}</span>
+
+                      {canEdit && !isEditing && c.students.length > 0 && (
+                        <button
+                          onClick={() => startEdit(c)}
+                          disabled={Boolean(editing)}
+                          className={`no-print flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all disabled:opacity-30 ${
+                            c.taken
+                              ? "bg-slate-900 text-white hover:bg-indigo-600"
+                              : "bg-indigo-600 text-white hover:bg-indigo-700"
+                          }`}
+                          title={editing ? "خلّص تعديل الفصل التاني الأول" : ""}
+                        >
+                          <Pencil size={13} /> {c.taken ? "تعديل" : "تسجيل الغياب"}
+                        </button>
+                      )}
                     </div>
                   </div>
+
+                  {isEditing && (
+                    <div className="no-print px-5 py-3 bg-indigo-50/60 border-b border-indigo-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                      <p className="text-xs font-bold text-indigo-800">
+                        {c.taken
+                          ? "غيّر حالة أي طالب واضغط حفظ — التعديل هيتسجّل باسم الإدارة."
+                          : "كل الطلاب حاضرين مبدئيًا — علّم على الغايبين بس واضغط حفظ."}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setEditing(null)}
+                          disabled={saving}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-slate-600 bg-white border border-slate-200 hover:bg-slate-50"
+                        >
+                          <X size={14} /> إلغاء
+                        </button>
+                        <button
+                          onClick={() => saveEdit(c)}
+                          disabled={saving || changes === 0}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40"
+                        >
+                          {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                          {changes === 0
+                            ? "مفيش تغيير"
+                            : c.taken
+                              ? `حفظ ${changes} تعديل`
+                              : `تسجيل غياب ${changes} طالب`}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <table className="w-full text-right">
                     <thead>
                       <tr className="bg-slate-50/60 border-b border-slate-100">
@@ -297,21 +426,52 @@ const AttendanceRegister = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {c.rows.map((s, i) => {
+                      {rowsShown.map((s, i) => {
                         const st = STATUS[s.status] || STATUS.none;
                         const notes = [
                           s.status === "absent" ? (s.excused ? "بعذر" : "بدون عذر") : "",
                           s.addedBy ? `أضافه أ. ${s.addedBy} بعد الحصة الأولى` : "",
+                          s.editedBy ? `عدّلته الإدارة (${s.editedBy})` : "",
                           s.lessons > 1 && s.absentLessons > 0 && s.absentLessons < s.lessons
                             ? `غاب ${s.absentLessons} من ${s.lessons} حصص`
                             : "",
                         ].filter(Boolean);
+                        const d = isEditing ? editing.draft[s._id] : null;
                         return (
-                          <tr key={s._id}>
+                          <tr key={s._id} className={d && d.status !== s.status ? "bg-indigo-50/40" : ""}>
                             <td className="p-3 text-xs font-bold text-slate-400">{i + 1}</td>
                             <td className="p-3 text-sm font-bold text-slate-700">{s.name}</td>
                             <td className="p-3">
-                              <span className={`px-2.5 py-1 rounded-lg text-xs font-black ${st.cls}`}>{st.label}</span>
+                              {d ? (
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {["present", "absent", "late"].map((key) => (
+                                    <button
+                                      key={key}
+                                      onClick={() => setRow(s._id, { status: key })}
+                                      className={`px-2.5 py-1 rounded-lg text-xs font-black border transition-all ${
+                                        d.status === key
+                                          ? `${STATUS[key].cls} border-current`
+                                          : "bg-white text-slate-400 border-slate-200 hover:border-slate-300"
+                                      }`}
+                                    >
+                                      {STATUS[key].label}
+                                    </button>
+                                  ))}
+                                  {d.status === "absent" && (
+                                    <label className="flex items-center gap-1 text-xs font-bold text-slate-600 mr-1 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={d.excused}
+                                        onChange={(e) => setRow(s._id, { excused: e.target.checked })}
+                                        className="accent-indigo-600"
+                                      />
+                                      بعذر
+                                    </label>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className={`px-2.5 py-1 rounded-lg text-xs font-black ${st.cls}`}>{st.label}</span>
+                              )}
                             </td>
                             <td className="p-3 text-xs font-bold text-slate-500">{notes.join(" · ")}</td>
                           </tr>
@@ -320,7 +480,8 @@ const AttendanceRegister = () => {
                     </tbody>
                   </table>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         )}

@@ -5,7 +5,7 @@ const School = require("../models/School");
 const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
 const mongoose = require("mongoose");
-const { scopeFilter, mergeWhere, stageStudentWhere } = require("../utils/tenant");
+const { scopeFilter, mergeWhere, stageStudentWhere, sameSchool } = require("../utils/tenant");
 const {
   getAttendanceWindow,
   WINDOW_MESSAGES,
@@ -18,6 +18,7 @@ const {
   clock,
   isDailyMode,
   dailyState,
+  classroomDay,
   utcMidnight,
   DAILY_MESSAGES,
 } = require("../utils/dailyAttendance");
@@ -478,6 +479,7 @@ exports.getAttendanceRegister = async (req, res) => {
         .populate("schedule", "period classroom startTime")
         .populate("recordedBy", "firstName lastName")
         .populate("addedBy", "firstName lastName")
+        .populate("editedBy", "firstName lastName")
         .lean(),
     ]);
 
@@ -509,6 +511,7 @@ exports.getAttendanceRegister = async (req, res) => {
           status: day ? day.status : null,
           excused: day?.excused === true,
           addedBy: day?.addedBy ? `${day.addedBy.firstName} ${day.addedBy.lastName}` : "",
+          editedBy: day?.editedBy ? `${day.editedBy.firstName} ${day.editedBy.lastName}` : "",
           lessons: mine.length,
           absentLessons: mine.filter((r) => r.status === "absent").length,
         };
@@ -539,6 +542,112 @@ exports.getAttendanceRegister = async (req, res) => {
     res.json({ success: true, data: { date, day: weekdayOf(date), totals, classes } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// سجل الحضور, written: the administration taking or correcting a class's
+// register for a day the teachers can no longer reach. The teachers' window
+// (the end of the school day, on the daily register) binds teachers, not the
+// school's administration — putting a missed day right is exactly its job —
+// so no window applies here.
+//
+// A student's status for the day is their earliest-period record, the same
+// reading getAttendanceRegister uses, so a correction lands on that record;
+// a student with none gets one on the class's first lesson of the day,
+// which is where the daily register files it. Only a real change is written,
+// and every one carries who made it and when (editedBy / editedAt).
+exports.saveAttendanceRegister = async (req, res) => {
+  try {
+    const { classroomId, date, students } = req.body;
+
+    if (!classroomId || !/^\d{4}-\d{2}-\d{2}$/.test(date || "") || !Array.isArray(students)) {
+      return res.status(400).json({ success: false, message: "بيانات التسجيل ناقصة." });
+    }
+
+    const timeZone = await schoolTimezone(req.user.school);
+    if (date > todayInZone(timeZone)) {
+      return res.status(400).json({
+        success: false,
+        message: "مينفعش تسجّل غياب ليوم لسه ما جاش.",
+      });
+    }
+
+    const classroom = await Classroom.findById(classroomId).select("name grade school");
+    if (!classroom || !sameSchool(req, classroom)) {
+      return res.status(404).json({ success: false, message: "الفصل غير موجود." });
+    }
+
+    const { lessons, first } = await classroomDay(classroom._id, weekdayOf(date));
+    if (!first) {
+      return res.status(400).json({
+        success: false,
+        message: "الفصل ده مالوش حصص في اليوم ده، فمفيش غياب يتسجّل.",
+      });
+    }
+
+    const roster = new Set(
+      (await Student.find({ classroom: classroom._id, active: true }).distinct("_id")).map(String),
+    );
+
+    const existing = await Attendance.find({
+      schedule: { $in: lessons.map((lesson) => lesson._id) },
+      date: utcMidnight(date),
+    }).populate("schedule", "period");
+
+    const dayRecord = new Map();
+    existing
+      .sort((a, b) => (a.schedule?.period ?? 99) - (b.schedule?.period ?? 99))
+      .forEach((record) => {
+        const key = String(record.student);
+        if (!dayRecord.has(key)) dayRecord.set(key, record);
+      });
+
+    const STATUSES = ["present", "absent", "late"];
+    const now = clock.now();
+    let created = 0;
+    let changed = 0;
+
+    for (const item of students) {
+      const id = String(item.student || "");
+      if (!roster.has(id) || !STATUSES.includes(item.status)) continue;
+
+      const excused = item.status === "absent" && item.excused === true;
+      const record = dayRecord.get(id);
+
+      if (record) {
+        if (record.status === item.status && (record.excused === true) === excused) continue;
+        // eslint-disable-next-line no-await-in-loop -- one class, a few dozen students.
+        await Attendance.updateOne(
+          { _id: record._id },
+          { $set: { status: item.status, excused, editedBy: req.user.id, editedAt: now } },
+        );
+        changed += 1;
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        await Attendance.create({
+          student: id,
+          schedule: first._id,
+          subject: first.subject?._id || first.subject,
+          date: utcMidnight(date),
+          status: item.status,
+          excused,
+          recordedBy: req.user.id,
+          editedBy: req.user.id,
+          editedAt: now,
+          school: classroom.school,
+        });
+        created += 1;
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: created || changed ? "تم حفظ سجل الحضور." : "مفيش تغيير يتحفظ.",
+      created,
+      changed,
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 

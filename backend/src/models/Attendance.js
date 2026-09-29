@@ -63,6 +63,19 @@ const attendanceSchema = new mongoose.Schema(
       type: Date,
       default: undefined,
     },
+    // The administration correcting a register after the teachers' window
+    // closed (سجل الحضور): who changed this record, and when. Unset on
+    // anything a teacher recorded and nobody has touched since — so a
+    // report can always tell a teacher's register from a correction.
+    editedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: undefined,
+    },
+    editedAt: {
+      type: Date,
+      default: undefined,
+    },
     school: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "School",
