@@ -3,9 +3,10 @@ const Subject = require("../models/Subject");
 const Grade = require("../models/Grade");
 const User = require("../models/User");
 const { normalizeArabicName } = require("../utils/arabicName");
-const { scopeFilter } = require("../utils/tenant");
+const { scopeFilter, sameSchool, userInStage } = require("../utils/tenant");
 const {
   generateAccountCode,
+  isAccountCode,
   generateReadablePassword,
 } = require("../utils/generateCredentials");
 
@@ -122,30 +123,62 @@ exports.listStaffAccounts = async (req, res) => {
       StaffCandidate.find(filter).sort({ serial: 1, normalizedName: 1 }).lean(),
       Subject.find({ school: filter.school }).select("name code").lean(),
     ]);
-    const accounts = await User.find({
-      _id: { $in: candidates.map((c) => c.registeredUser).filter(Boolean) },
-      role: "teacher",
-    })
+    const linkedIds = candidates.map((c) => c.registeredUser).filter(Boolean);
+    const accounts = await User.find({ _id: { $in: linkedIds }, role: "teacher" })
       .select("username")
       .lean();
     const usernameOf = new Map(accounts.map((a) => [String(a._id), a.username]));
 
+    // Teachers who never came through the list — registered one by one from
+    // the teacher form. They have an account already (a phone number as its
+    // username, the password sent to the school's inbox), but the school
+    // hands logins out on paper, so they need a code and a printable password
+    // like everyone else; without this row they could not get one.
+    const others = await User.find({
+      school: filter.school,
+      role: "teacher",
+      _id: { $nin: linkedIds },
+    })
+      .populate("subjects", "name")
+      .select("firstName lastName username phoneNumber subjects")
+      .sort({ firstName: 1, lastName: 1 })
+      .lean();
+
     res.status(200).json({
       success: true,
-      data: candidates.map((c) => {
-        const matched = matchSubjects(c.subjectLabel, subjects);
-        return {
-          _id: c._id,
-          serial: c.serial,
-          fullName: c.fullName,
-          subjectLabel: c.subjectLabel,
-          subjects: matched.map((s) => s.name),
-          phone: c.phones[0] || "",
-          hasAccount: !!c.registeredUser,
-          username: c.registeredUser ? usernameOf.get(String(c.registeredUser)) || null : null,
-          issuable: !c.registeredUser && matched.length > 0,
-        };
-      }),
+      data: [
+        ...candidates.map((c) => {
+          const matched = matchSubjects(c.subjectLabel, subjects);
+          const username = c.registeredUser
+            ? usernameOf.get(String(c.registeredUser)) || null
+            : null;
+          return {
+            _id: c._id,
+            kind: "candidate",
+            serial: c.serial,
+            fullName: c.fullName,
+            subjectLabel: c.subjectLabel,
+            subjects: matched.map((s) => s.name),
+            phone: c.phones[0] || "",
+            hasAccount: !!c.registeredUser,
+            username,
+            coded: isAccountCode(username),
+            issuable: !c.registeredUser && matched.length > 0,
+          };
+        }),
+        ...others.map((t) => ({
+          _id: t._id,
+          kind: "teacher",
+          fullName: `${t.firstName} ${t.lastName}`.trim(),
+          subjectLabel: "",
+          subjects: (t.subjects || []).map((s) => s.name),
+          phone: t.phoneNumber || "",
+          hasAccount: true,
+          username: t.username,
+          coded: isAccountCode(t.username),
+          issuable: false,
+        })),
+      ],
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -240,6 +273,48 @@ exports.issueStaffAccounts = async (req, res) => {
     });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+// A login for a teacher who never came through the list (registered from
+// the teacher form). One who still signs in with a phone number gets a
+// code in its place, the way the list issues them; one who already has a
+// code keeps it and only gets a new password — the same as a reissue.
+// Either way the password is new: the old one was never printable (it went
+// to an inbox, or was hashed on issue), and a login sheet needs one that is.
+exports.issueTeacherLogin = async (req, res) => {
+  try {
+    const teacher = await User.findOne({ _id: req.params.id, role: "teacher" }).populate(
+      "subjects",
+      "name",
+    );
+    if (!teacher || !sameSchool(req, teacher) || !(await userInStage(req, teacher))) {
+      return res.status(404).json({ success: false, message: "المعلم غير موجود." });
+    }
+
+    const newCode = !isAccountCode(teacher.username);
+    if (newCode) teacher.username = await generateAccountCode(User);
+
+    const password = generateReadablePassword();
+    teacher.password = password;
+    teacher.active = true;
+    await teacher.save();
+
+    res.status(200).json({
+      success: true,
+      message: newCode
+        ? "تم إصدار كود دخول وكلمة مرور. اطبعهم الآن — كلمة المرور لن تظهر مرة أخرى، ورقم التليفون مش هيشتغل كاسم دخول تاني."
+        : "تم إصدار كلمة مرور جديدة. اطبعها الآن — لن تظهر مرة أخرى.",
+      data: {
+        candidate: teacher._id,
+        fullName: `${teacher.firstName} ${teacher.lastName}`.trim(),
+        subject: (teacher.subjects || []).map((s) => s.name).join("، "),
+        username: teacher.username,
+        password,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 

@@ -76,6 +76,9 @@ const generateAccountCode = async (UserModel) => {
   throw new Error("تعذّر توليد كود دخول غير مستخدم. حاول مرة أخرى.");
 };
 
+// Whether a username is one of those codes rather than a phone number.
+const isAccountCode = (username) => /^\d{6}$/.test(String(username || ""));
+
 // A coded account's password is printed once, never changed and never
 // recovered (it is stored hashed), so it has to survive being read off
 // paper — by a twelve-year-old, among others: no 0/O, no 1/l/I, and
@@ -96,5 +99,6 @@ module.exports = {
   generatePassword,
   resolveUsername,
   generateAccountCode,
+  isAccountCode,
   generateReadablePassword,
 };

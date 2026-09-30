@@ -52,7 +52,9 @@ const StaffAccountManager = () => {
 
   const issuable = staff.filter((s) => s.issuable);
   const withAccount = staff.filter((s) => s.hasAccount);
-  const noSubject = staff.filter((s) => !s.hasAccount && !s.issuable);
+  const noSubject = staff.filter((s) => s.kind !== "teacher" && !s.hasAccount && !s.issuable);
+  // Registered from the teacher form, still signing in with a phone number.
+  const needCode = staff.filter((s) => s.kind === "teacher" && !s.coded);
 
   const issueAll = async () => {
     setWorking(true);
@@ -76,6 +78,34 @@ const StaffAccountManager = () => {
       showToast(res.data.message);
     } catch (err) {
       showToast(err.response?.data?.message || "تعذّرت إعادة الإصدار", "error");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  // A teacher from the form: a code in place of their phone number (and a
+  // new password), or — once they have a code — just a new password.
+  const issueLogin = async (member) => {
+    if (
+      !member.coded &&
+      !window.confirm(
+        `هيتعمل لـ«${member.fullName}» كود دخول وكلمة مرور جديدة، ورقم التليفون مش هيشتغل كاسم دخول بعد كده. تكمّل؟`,
+      )
+    ) {
+      return;
+    }
+
+    setWorking(true);
+    try {
+      const res = await API.post(`/staff-candidates/teachers/${member._id}/login`);
+      setIssued({
+        title: member.coded ? "كلمة مرور جديدة" : "بيانات دخول المعلمين",
+        rows: [res.data.data],
+      });
+      showToast(res.data.message);
+      if (!member.coded) load();
+    } catch (err) {
+      showToast(err.response?.data?.message || "تعذّر إصدار بيانات الدخول", "error");
     } finally {
       setWorking(false);
     }
@@ -114,7 +144,7 @@ const StaffAccountManager = () => {
                 بيانات دخول المعلمين
               </h1>
               <p className="text-slate-400 font-medium text-sm italic">
-                من قائمة المعلمين — كود دخول لكل معلم مع كلمة مرور ثابتة
+                كل معلمي المدرسة — كود دخول لكل معلم مع كلمة مرور ثابتة
               </p>
             </div>
           </div>
@@ -202,6 +232,16 @@ const StaffAccountManager = () => {
           </div>
         )}
 
+        {canEdit && needCode.length > 0 && (
+          <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-6 no-print">
+            <p className="text-[12px] font-black text-indigo-800">
+              {needCode.length} معلم اتضافوا من فورم المعلمين ولسه بيدخلوا برقم التليفون:{" "}
+              {needCode.map((s) => s.fullName).join("، ")}. اضغط «إصدار كود» جنب كل واحد
+              عشان تطبعله كود وكلمة مرور زي باقي المعلمين.
+            </p>
+          </div>
+        )}
+
         {noSubject.length > 0 && (
           <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-6 no-print">
             <p className="text-[12px] font-black text-amber-800">
@@ -214,7 +254,8 @@ const StaffAccountManager = () => {
         <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden no-print">
           <div className="p-6 border-b border-slate-100">
             <p className="font-black text-slate-700 text-sm">
-              {staff.length} في القائمة — {withAccount.length} لهم حسابات
+              {staff.length} معلم — {withAccount.length} لهم حسابات
+              {needCode.length > 0 ? `، ${needCode.length} محتاجين كود` : ""}
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -237,13 +278,20 @@ const StaffAccountManager = () => {
                 ) : staff.length === 0 ? (
                   <tr>
                     <td colSpan="4" className="p-12 text-center text-slate-400 font-bold">
-                      مفيش قائمة معلمين متسجّلة للمدرسة دي.
+                      مفيش معلمين في المدرسة دي لسه.
                     </td>
                   </tr>
                 ) : (
                   staff.map((member) => (
                     <tr key={member._id} className="hover:bg-indigo-50/30 transition-colors">
-                      <td className="p-5 font-black text-slate-700 text-sm">{member.fullName}</td>
+                      <td className="p-5 font-black text-slate-700 text-sm">
+                        {member.fullName}
+                        {member.kind === "teacher" && (
+                          <span className="mr-2 px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-100 text-slate-500">
+                            مضاف يدويًا
+                          </span>
+                        )}
+                      </td>
                       <td className="p-5 font-bold text-slate-400 text-xs">
                         {member.subjects.length ? member.subjects.join("، ") : (
                           <span className="text-amber-600">
@@ -252,7 +300,11 @@ const StaffAccountManager = () => {
                         )}
                       </td>
                       <td className="p-5">
-                        {member.username ? (
+                        {member.username && member.kind === "teacher" && !member.coded ? (
+                          <span className="text-[11px] font-black text-slate-400">
+                            بيدخل برقم التليفون
+                          </span>
+                        ) : member.username ? (
                           <span className="font-mono font-black text-slate-800 tracking-widest">
                             {member.username}
                           </span>
@@ -263,15 +315,28 @@ const StaffAccountManager = () => {
                         )}
                       </td>
                       <td className="p-5 text-center">
-                        {canEdit && member.hasAccount && (
+                        {canEdit && member.kind === "teacher" && !member.coded ? (
                           <button
-                            onClick={() => reissue(member)}
+                            onClick={() => issueLogin(member)}
                             disabled={working}
-                            title="كلمة مرور جديدة"
-                            className="p-3 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all disabled:opacity-50"
+                            className="px-4 py-2 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 transition-all disabled:opacity-50 inline-flex items-center gap-1.5"
                           >
-                            <RefreshCw size={18} />
+                            <ShieldCheck size={14} /> إصدار كود
                           </button>
+                        ) : (
+                          canEdit &&
+                          member.hasAccount && (
+                            <button
+                              onClick={() =>
+                                member.kind === "teacher" ? issueLogin(member) : reissue(member)
+                              }
+                              disabled={working}
+                              title="كلمة مرور جديدة"
+                              className="p-3 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all disabled:opacity-50"
+                            >
+                              <RefreshCw size={18} />
+                            </button>
+                          )
                         )}
                       </td>
                     </tr>
