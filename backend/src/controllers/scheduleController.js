@@ -319,9 +319,12 @@ exports.updateSchedule = async (req, res) => {
     delete updates.endTime;
     delete updates.periods;
     delete updates.school;
-    // An empty teacher means "no change", not "remove the teacher" — turning
-    // a taught lesson into one with no teacher is a delete and a new booking.
-    if (!updates.teacher) delete updates.teacher;
+    // An empty teacher means "no change". Removing the teacher has to be
+    // asked for by name (`noTeacher: true`), so a form that simply omits the
+    // field can never strip a teacher off a lesson by accident.
+    const dropTeacher = req.body.noTeacher === true;
+    delete updates.noTeacher;
+    if (!updates.teacher || dropTeacher) delete updates.teacher;
 
     if (period !== undefined && !(Number.isInteger(Number(period)) && Number(period) >= 1)) {
       return res.status(400).json({ message: "رقم الحصة غير صحيح." });
@@ -329,7 +332,7 @@ exports.updateSchedule = async (req, res) => {
 
     const checkPeriod = period !== undefined ? Number(period) : existingSchedule.period;
     const checkClassroom = classroom || existingSchedule.classroom;
-    const checkTeacher = teacher || existingSchedule.teacher;
+    const checkTeacher = dropTeacher ? null : teacher || existingSchedule.teacher;
     const checkDay = day || existingSchedule.day;
 
     let checkTimes = {
@@ -365,7 +368,7 @@ exports.updateSchedule = async (req, res) => {
       updates.endTime = slot.endTime;
     }
 
-    if (day || teacher || classroom || period !== undefined) {
+    if (day || (teacher && !dropTeacher) || classroom || period !== undefined) {
       // With no teacher there is no teacher to double-book — and a bare
       // `{ teacher: undefined }` would be dropped from the query, leaving an
       // $or that matches every lesson of the day.
@@ -426,7 +429,11 @@ exports.updateSchedule = async (req, res) => {
 
     const updatedSchedule = await Schedule.findByIdAndUpdate(
       scheduleId,
-      { ...updates, ...(nextSubject ? { subject: nextSubject } : {}) },
+      {
+        ...updates,
+        ...(nextSubject ? { subject: nextSubject } : {}),
+        ...(dropTeacher ? { $unset: { teacher: 1 } } : {}),
+      },
       { new: true, runValidators: true },
     )
       .populate("teacher", "firstName lastName")

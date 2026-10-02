@@ -68,9 +68,6 @@ const SchedulesPage = () => {
   const [addingDay, setAddingDay] = useState(null);
   const [editingPeriodId, setEditingPeriodId] = useState(null);
   // Whether the period being edited already has no teacher. Only then is
-  // "بدون معلم" offered while editing: taking the teacher off a taught lesson
-  // is a delete and a new booking, never a quiet edit.
-  const [editingTeacherless, setEditingTeacherless] = useState(false);
   const [periodForm, setPeriodForm] = useState({
     periods: [],
     subjectId: "",
@@ -230,10 +227,7 @@ const SchedulesPage = () => {
     setPeriodForm({ periods: [], subjectId: "", teacherId: "" });
     setPeriodError("");
     setEditingPeriodId(null);
-    setEditingTeacherless(false);
   };
-
-  const allowNoTeacher = !editingPeriodId || editingTeacherless;
 
   const openBuilder = () => {
     setBuilderOpen(true);
@@ -257,7 +251,6 @@ const SchedulesPage = () => {
     setBuilderClassroom(schedule.classroom?._id || "");
     setAddingDay(schedule.day);
     setEditingPeriodId(schedule._id);
-    setEditingTeacherless(!schedule.teacher);
     setPeriodForm({
       periods: schedule.period ? [schedule.period] : [],
       subjectId: schedule.subject?._id || "",
@@ -287,7 +280,7 @@ const SchedulesPage = () => {
         ? assigned._id
         : teachersForSubject.length === 1
           ? teachersForSubject[0]._id
-          : teachersForSubject.length === 0 && allowNoTeacher
+          : teachersForSubject.length === 0
             ? NO_TEACHER
             : "",
     }));
@@ -318,6 +311,7 @@ const SchedulesPage = () => {
         await API.put(`/schedules/${editingPeriodId}`, {
           ...payload,
           period: periodForm.periods[0],
+          ...(periodForm.teacherId === NO_TEACHER ? { noTeacher: true } : {}),
         });
         showToast("تم تحديث الحصة بنجاح", "success");
       } else {
@@ -796,9 +790,7 @@ const SchedulesPage = () => {
                                     {t.firstName} {t.lastName}
                                   </option>
                                 ))}
-                                {allowNoTeacher && (
-                                  <option value={NO_TEACHER}>بدون معلم — اسم المادة بس</option>
-                                )}
+                                <option value={NO_TEACHER}>بدون معلم — اسم المادة بس</option>
                               </select>
                               {assignedTeacher && periodForm.teacherId !== NO_TEACHER && (
                                 <p className="text-[10px] font-bold text-indigo-500">
