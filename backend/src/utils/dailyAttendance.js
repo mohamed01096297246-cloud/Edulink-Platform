@@ -27,14 +27,24 @@ const utcMidnight = (dateStr) => {
   return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 };
 
-// A class's lessons on a weekday, in period order. The first one is where
-// the day's register lives.
+// The lesson a class's day's register lives in: its first lesson that has a
+// teacher. A period with no teacher (طابور, نشاط) can open the day on the
+// timetable, but nobody could take a register in it — so the register
+// moves to the first lesson someone actually teaches. Every place that asks
+// "which is the first lesson" (the register, the server's alarm, the
+// phone's alarm) goes through here, so they can never disagree.
+//
+// Takes lessons already in period order. Works on populated or raw ids.
+const registerLesson = (lessons) => lessons.find((lesson) => lesson.teacher) || null;
+
+// A class's lessons on a weekday, in period order, and the one its day's
+// register lives in.
 const classroomDay = async (classroomId, day) => {
   const lessons = await Schedule.find({ classroom: classroomId, day })
     .populate("teacher", "firstName lastName pushToken")
     .populate("subject", "name")
     .sort({ period: 1, startTime: 1 });
-  return { lessons, first: lessons[0] || null };
+  return { lessons, first: registerLesson(lessons) };
 };
 
 // When the class's school day ends: the last period of its bell that day,
@@ -123,6 +133,7 @@ module.exports = {
   clock,
   isDailyMode,
   utcMidnight,
+  registerLesson,
   classroomDay,
   dayEndTime,
   dailyRecords,

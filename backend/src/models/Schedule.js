@@ -2,10 +2,15 @@ const mongoose = require("mongoose");
 
 const scheduleSchema = new mongoose.Schema(
   {
+    // Optional: a slot can name only a subject, for a period the class still
+    // has but no teacher runs in the app (طابور, نشاط, مكتبة). Such a lesson
+    // shows on the class's timetable and nowhere else — no teacher's screen,
+    // no attendance, no marks, and it is never the lesson the day's register
+    // is taken in (utils/dailyAttendance.registerLesson skips it).
     teacher: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: undefined,
     },
     subject: {
       type: mongoose.Schema.Types.ObjectId,

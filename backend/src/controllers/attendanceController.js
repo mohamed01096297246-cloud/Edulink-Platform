@@ -19,6 +19,7 @@ const {
   isDailyMode,
   dailyState,
   classroomDay,
+  registerLesson,
   utcMidnight,
   DAILY_MESSAGES,
 } = require("../utils/dailyAttendance");
@@ -403,15 +404,25 @@ exports.getDailyFirstLessons = async (req, res) => {
       .populate("classroom", "name")
       .select("classroom day period startTime endTime");
     const classroomIds = [...new Set(mine.map((l) => String(l.classroom?._id || l.classroom)))];
+    // The teacher is populated, not just selected, so a lesson whose teacher
+    // no longer exists counts as having none — the same reading the register
+    // itself makes (utils/dailyAttendance.classroomDay).
     const all = await Schedule.find({ classroom: { $in: classroomIds } })
-      .select("classroom day period startTime")
+      .select("classroom day period startTime teacher")
+      .populate("teacher", "_id")
       .sort({ period: 1, startTime: 1 })
       .lean();
 
-    const firstOf = new Map();
+    const byDay = new Map();
     for (const lesson of all) {
       const key = `${lesson.classroom}|${lesson.day}`;
-      if (!firstOf.has(key)) firstOf.set(key, String(lesson._id));
+      if (!byDay.has(key)) byDay.set(key, []);
+      byDay.get(key).push(lesson);
+    }
+    const firstOf = new Map();
+    for (const [key, dayLessons] of byDay) {
+      const first = registerLesson(dayLessons);
+      if (first) firstOf.set(key, String(first._id));
     }
 
     const lessons = mine
@@ -581,7 +592,9 @@ exports.saveAttendanceRegister = async (req, res) => {
     if (!first) {
       return res.status(400).json({
         success: false,
-        message: "الفصل ده مالوش حصص في اليوم ده، فمفيش غياب يتسجّل.",
+        message: lessons.length
+          ? "حصص الفصل ده في اليوم ده كلها من غير معلم، فمفيش حصة يتسجّل عليها الغياب."
+          : "الفصل ده مالوش حصص في اليوم ده، فمفيش غياب يتسجّل.",
       });
     }
 

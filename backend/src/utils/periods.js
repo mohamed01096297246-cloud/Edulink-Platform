@@ -106,7 +106,15 @@ const planRetime = ({ schedules, classroomGrade, bells }) => {
     for (let j = i + 1; j < next.length; j += 1) {
       const a = next[i];
       const b = next[j];
-      if (String(a.teacher) === String(b.teacher) && a.day === b.day && timesOverlap(a, b)) {
+      // Two periods with no teacher (طابور in one class, نشاط in another)
+      // share no teacher — without the guard both read "undefined" and
+      // would be reported as one person double-booked.
+      if (
+        a.teacher &&
+        String(a.teacher) === String(b.teacher) &&
+        a.day === b.day &&
+        timesOverlap(a, b)
+      ) {
         teacherClashes.push([a, b]);
       }
     }

@@ -143,10 +143,12 @@ exports.getCoverageNeeded = async (req, res) => {
       const slotStart = toMinutes(slot.startTime);
       const slotEnd = toMinutes(slot.endTime);
 
+      // A period with no teacher (طابور, نشاط) keeps nobody busy.
       const busyTeacherIds = new Set(
         allTodaysSchedules
           .filter(
             (s) =>
+              s.teacher &&
               s._id.toString() !== slot._id.toString() &&
               overlaps(slotStart, slotEnd, toMinutes(s.startTime), toMinutes(s.endTime)),
           )

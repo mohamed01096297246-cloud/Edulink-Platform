@@ -18,7 +18,7 @@ const {
   nextWeekStart,
 } = require("../utils/attendanceWindow");
 const { groupRuns, anchorOf } = require("../utils/consecutivePeriods");
-const { clock } = require("../utils/dailyAttendance");
+const { clock, registerLesson } = require("../utils/dailyAttendance");
 
 // The lesson has just ended and the register is still empty — a nudge while
 // it is fresh. Nothing is urgent any more: the register stays open until the
@@ -58,11 +58,20 @@ const alarmForSchool = async (school, now, dateStr, today, date) => {
     .populate("classroom", "name")
     .sort({ period: 1, startTime: 1 });
 
-  // Each class's first lesson of the day.
-  const firstOf = new Map();
+  // Each class's register lesson: its first lesson with a teacher (see
+  // utils/dailyAttendance.registerLesson — a طابور or نشاط period with no
+  // teacher can open the day, but the alarm belongs to whoever takes the
+  // register).
+  const byClass = new Map();
   for (const lesson of lessons) {
     const key = String(lesson.classroom?._id || lesson.classroom);
-    if (!firstOf.has(key)) firstOf.set(key, lesson);
+    if (!byClass.has(key)) byClass.set(key, []);
+    byClass.get(key).push(lesson);
+  }
+  const firstOf = new Map();
+  for (const [key, classLessons] of byClass) {
+    const first = registerLesson(classLessons);
+    if (first) firstOf.set(key, first);
   }
 
   let sent = 0;

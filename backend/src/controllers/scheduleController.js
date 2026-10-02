@@ -63,6 +63,80 @@ const assignmentMismatch = async (classroomId, subjectId, teacherId) => {
   return `المادة دي في الفصل ده متسندة لأ. ${assignment.teacher?.firstName} ${assignment.teacher?.lastName} — غيّر الإسناد من صفحة "إسناد الفصول" لو عايز معلم تاني.`;
 };
 
+// A period that names only a subject (طابور, نشاط, مكتبة) — on the class's
+// timetable and nowhere else. Kept apart from the teacher path below rather
+// than threaded through it, so booking an ordinary lesson runs exactly as it
+// always has. None of the teacher's rules apply; what is left is that the
+// subject is taught to this grade and the class is free at that time.
+const createTeacherlessSchedule = async (req, res, { classroom, day, subjectId, periods, school }) => {
+  if (!subjectId) {
+    return res.status(400).json({ message: "اختار المادة — الحصة من غير معلم لازم يبقى ليها اسم مادة." });
+  }
+
+  const classroomData = await Classroom.findById(classroom);
+  if (!classroomData || classroomData.school.toString() !== school.toString()) {
+    return res.status(404).json({ message: "Classroom not found" });
+  }
+  if (!inStage(req, classroomData.grade)) {
+    return res.status(403).json({ message: STAGE_DENIED });
+  }
+
+  const subjectDoc = await Subject.findById(subjectId);
+  if (
+    !subjectDoc ||
+    String(subjectDoc.school) !== String(school) ||
+    !subjectDoc.coversGrade(classroomData.grade)
+  ) {
+    return res.status(400).json({ message: "هذه المادة لا تُدرَّس للمرحلة الخاصة بهذا الفصل." });
+  }
+
+  const { bell, error: bellError } = await bellForClassroomDay(classroomData, day);
+  if (bellError) return res.status(400).json({ message: bellError });
+
+  const missing = periods.filter((p) => !slotFor(bell, p));
+  if (missing.length > 0) {
+    return res.status(400).json({
+      message: `${missing.map(periodLabel).join(" و")} مش موجودة يوم ${DAY_NAMES[day]} للمرحلة دي.`,
+    });
+  }
+
+  const slots = periods.map((period) => {
+    const slot = slotFor(bell, period);
+    return { period, startTime: slot.startTime, endTime: slot.endTime };
+  });
+
+  const existing = await Schedule.find({ day, classroom }).populate("classroom", "name");
+  const problems = slots
+    .map((slot) => {
+      const conflict = existing.find((sch) => timesOverlap(slot, sch));
+      return conflict ? describeConflict(slot.period, conflict, classroom) : null;
+    })
+    .filter(Boolean);
+  if (problems.length > 0) {
+    return res.status(400).json({ message: problems.join(" ") });
+  }
+
+  const created = await Schedule.insertMany(
+    slots.map((slot) => ({
+      subject: subjectDoc._id,
+      classroom,
+      day,
+      period: slot.period,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      school,
+    })),
+  );
+
+  return res.status(201).json({
+    message:
+      created.length === 1
+        ? "تمت إضافة الحصة (من غير معلم)"
+        : `تمت إضافة ${created.length} حصص (من غير معلم)`,
+    schedules: created,
+  });
+};
+
 exports.createSchedule = async (req, res) => {
   try {
     const { teacher, classroom, day, subjectId } = req.body;
@@ -88,6 +162,10 @@ exports.createSchedule = async (req, res) => {
       return res.status(400).json({
         message: "Please specify a school (?school=id) to create a schedule for.",
       });
+    }
+
+    if (!teacher) {
+      return createTeacherlessSchedule(req, res, { classroom, day, subjectId, periods, school });
     }
 
     const teacherData = await User.findOne({ _id: teacher, role: "teacher" });
@@ -241,6 +319,9 @@ exports.updateSchedule = async (req, res) => {
     delete updates.endTime;
     delete updates.periods;
     delete updates.school;
+    // An empty teacher means "no change", not "remove the teacher" — turning
+    // a taught lesson into one with no teacher is a delete and a new booking.
+    if (!updates.teacher) delete updates.teacher;
 
     if (period !== undefined && !(Number.isInteger(Number(period)) && Number(period) >= 1)) {
       return res.status(400).json({ message: "رقم الحصة غير صحيح." });
@@ -285,10 +366,15 @@ exports.updateSchedule = async (req, res) => {
     }
 
     if (day || teacher || classroom || period !== undefined) {
+      // With no teacher there is no teacher to double-book — and a bare
+      // `{ teacher: undefined }` would be dropped from the query, leaving an
+      // $or that matches every lesson of the day.
       const candidates = await Schedule.find({
         _id: { $ne: scheduleId },
         day: checkDay,
-        $or: [{ teacher: checkTeacher }, { classroom: checkClassroom }],
+        $or: checkTeacher
+          ? [{ teacher: checkTeacher }, { classroom: checkClassroom }]
+          : [{ classroom: checkClassroom }],
       }).populate("classroom", "name");
 
       const conflict = candidates.find((sch) => timesOverlap(checkTimes, sch));
@@ -305,7 +391,7 @@ exports.updateSchedule = async (req, res) => {
     // teacher does not hold.
     const nextSubject = req.body.subjectId || subject;
 
-    if (nextSubject) {
+    if (nextSubject && checkTeacher) {
       const ownerId = teacher || existingSchedule.teacher;
       const owner = await User.findById(ownerId).select("subjects");
       const holds = (owner?.subjects || []).some(
@@ -317,14 +403,26 @@ exports.updateSchedule = async (req, res) => {
           .status(400)
           .json({ message: "المادة المختارة ليست من مواد هذا المعلم." });
       }
+    } else if (nextSubject) {
+      // A lesson with no teacher: the subject only has to be one this
+      // class's grade is taught.
+      const classroomDoc = await Classroom.findById(checkClassroom).select("grade");
+      const subjectDoc = await Subject.findById(nextSubject);
+      if (!subjectDoc || !classroomDoc || !subjectDoc.coversGrade(classroomDoc.grade)) {
+        return res
+          .status(400)
+          .json({ message: "هذه المادة لا تُدرَّس للمرحلة الخاصة بهذا الفصل." });
+      }
     }
 
-    const mismatch = await assignmentMismatch(
-      checkClassroom,
-      nextSubject || existingSchedule.subject,
-      checkTeacher,
-    );
-    if (mismatch) return res.status(400).json({ message: mismatch });
+    if (checkTeacher) {
+      const mismatch = await assignmentMismatch(
+        checkClassroom,
+        nextSubject || existingSchedule.subject,
+        checkTeacher,
+      );
+      if (mismatch) return res.status(400).json({ message: mismatch });
+    }
 
     const updatedSchedule = await Schedule.findByIdAndUpdate(
       scheduleId,

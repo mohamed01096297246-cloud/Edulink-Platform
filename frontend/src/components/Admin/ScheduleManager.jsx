@@ -32,6 +32,11 @@ const dayOrder = Object.keys(daysMapping);
 // الحفظ — هنا بنعرضها بس عشان الأدمن يشوف الوقت وهو بيختار.
 const PERIOD_NAMES = ["", "الأولى", "الثانية", "الثالثة", "الرابعة", "الخامسة", "السادسة", "السابعة", "الثامنة", "التاسعة", "العاشرة", "الحادية عشرة", "الثانية عشرة"];
 
+// The teacher picker's value for a period that names only a subject (طابور،
+// نشاط، مكتبة) — shown on the class's timetable, taught by nobody in the app.
+// Posted to the server as an empty teacher.
+const NO_TEACHER = "__none__";
+
 const SchedulesPage = () => {
   const [schedules, setSchedules] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -62,6 +67,10 @@ const SchedulesPage = () => {
   const [builderClassroom, setBuilderClassroom] = useState("");
   const [addingDay, setAddingDay] = useState(null);
   const [editingPeriodId, setEditingPeriodId] = useState(null);
+  // Whether the period being edited already has no teacher. Only then is
+  // "بدون معلم" offered while editing: taking the teacher off a taught lesson
+  // is a delete and a new booking, never a quiet edit.
+  const [editingTeacherless, setEditingTeacherless] = useState(false);
   const [periodForm, setPeriodForm] = useState({
     periods: [],
     subjectId: "",
@@ -221,7 +230,10 @@ const SchedulesPage = () => {
     setPeriodForm({ periods: [], subjectId: "", teacherId: "" });
     setPeriodError("");
     setEditingPeriodId(null);
+    setEditingTeacherless(false);
   };
+
+  const allowNoTeacher = !editingPeriodId || editingTeacherless;
 
   const openBuilder = () => {
     setBuilderOpen(true);
@@ -245,10 +257,11 @@ const SchedulesPage = () => {
     setBuilderClassroom(schedule.classroom?._id || "");
     setAddingDay(schedule.day);
     setEditingPeriodId(schedule._id);
+    setEditingTeacherless(!schedule.teacher);
     setPeriodForm({
       periods: schedule.period ? [schedule.period] : [],
       subjectId: schedule.subject?._id || "",
-      teacherId: schedule.teacher?._id || "",
+      teacherId: schedule.teacher?._id || NO_TEACHER,
     });
     setPeriodError("");
   };
@@ -265,6 +278,8 @@ const SchedulesPage = () => {
         (t.subjects || []).some((s) => s._id === subjectId) &&
         (t.teachingGrades || []).some((g) => g._id === builderGrade),
     );
+    // A subject nobody teaches at this grade (نشاط, طابور) is almost always a
+    // period that only needs its name on the timetable — start it there.
     setPeriodForm((prev) => ({
       ...prev,
       subjectId,
@@ -272,7 +287,9 @@ const SchedulesPage = () => {
         ? assigned._id
         : teachersForSubject.length === 1
           ? teachersForSubject[0]._id
-          : "",
+          : teachersForSubject.length === 0 && allowNoTeacher
+            ? NO_TEACHER
+            : "",
     }));
   };
 
@@ -284,14 +301,14 @@ const SchedulesPage = () => {
       return;
     }
     if (!periodForm.subjectId || !periodForm.teacherId) {
-      setPeriodError("اختار المادة والمعلم.");
+      setPeriodError('اختار المادة والمعلم (أو "بدون معلم").');
       return;
     }
 
     setPeriodSaving(true);
     try {
       const payload = {
-        teacher: periodForm.teacherId,
+        teacher: periodForm.teacherId === NO_TEACHER ? "" : periodForm.teacherId,
         subjectId: periodForm.subjectId,
         classroom: builderClassroom,
         day,
@@ -480,7 +497,7 @@ const SchedulesPage = () => {
                         <p className="text-sm font-bold text-slate-800">
                           {s.teacher
                             ? `أ. ${s.teacher.firstName} ${s.teacher.lastName}`
-                            : "معلم غير معروف"}
+                            : "بدون معلم"}
                         </p>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
                           المعلم
@@ -650,7 +667,9 @@ const SchedulesPage = () => {
                               {s.subject?.name || "بدون مادة"}
                             </span>
                             <span className="text-xs font-bold text-slate-400 truncate">
-                              أ. {s.teacher?.firstName} {s.teacher?.lastName}
+                              {s.teacher
+                                ? `أ. ${s.teacher.firstName} ${s.teacher.lastName}`
+                                : "بدون معلم"}
                             </span>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
@@ -703,7 +722,7 @@ const SchedulesPage = () => {
                                     onClick={() => togglePeriod(p)}
                                     title={
                                       taken
-                                        ? `محجوزة: ${taken.subject?.name || ""} — أ. ${taken.teacher?.firstName || ""}`
+                                        ? `محجوزة: ${taken.subject?.name || ""} — ${taken.teacher ? `أ. ${taken.teacher.firstName}` : "بدون معلم"}`
                                         : ""
                                     }
                                     className={`p-2.5 rounded-xl border-2 text-center transition-all ${
@@ -777,18 +796,28 @@ const SchedulesPage = () => {
                                     {t.firstName} {t.lastName}
                                   </option>
                                 ))}
+                                {allowNoTeacher && (
+                                  <option value={NO_TEACHER}>بدون معلم — اسم المادة بس</option>
+                                )}
                               </select>
-                              {assignedTeacher && (
+                              {assignedTeacher && periodForm.teacherId !== NO_TEACHER && (
                                 <p className="text-[10px] font-bold text-indigo-500">
                                   المادة دي متسندة للمعلم ده في الفصل من صفحة "إسناد الفصول".
                                 </p>
                               )}
-                              {periodForm.subjectId &&
+                              {periodForm.teacherId === NO_TEACHER ? (
+                                <p className="text-[10px] font-bold text-slate-500">
+                                  الحصة هتظهر في جدول الفصل باسم المادة بس — من غير غياب ولا درجات،
+                                  ومش هتظهر لأي معلم.
+                                </p>
+                              ) : (
+                                periodForm.subjectId &&
                                 eligibleTeachers.length === 0 && (
                                   <p className="text-[10px] font-bold text-rose-500">
                                     مفيش معلم مسند لهذه المادة في هذه المرحلة.
                                   </p>
-                                )}
+                                )
+                              )}
                             </div>
                           </div>
                           <div className="flex gap-2 pt-1">
