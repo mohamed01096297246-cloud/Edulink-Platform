@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import API from "../../api/axios";
+import GradeEntryReport from "./GradeEntryReport";
 import {
   BarChart3,
   Loader2,
@@ -8,12 +9,19 @@ import {
   TrendingDown,
   Users,
   CheckCircle2,
+  ClipboardCheck,
 } from "lucide-react";
 
 // A read-only report over grades teachers have already entered — no new
 // data entry, just the "where are we weak" answer a principal actually
 // wants instead of scrolling raw grade tables.
+const TABS = [
+  { key: "entry", label: "رصد الدرجات", icon: <ClipboardCheck size={16} /> },
+  { key: "exams", label: "نتائج الامتحانات", icon: <BarChart3 size={16} /> },
+];
+
 const ExamAnalytics = () => {
+  const [tab, setTab] = useState("entry");
   const [exams, setExams] = useState([]);
   const [selectedExam, setSelectedExam] = useState("");
   const [report, setReport] = useState(null);
@@ -53,10 +61,13 @@ const ExamAnalytics = () => {
               <BarChart3 className="text-indigo-600" size={36} /> تحليلات النتائج
             </h1>
             <p className="text-slate-500 font-bold mt-1 uppercase text-xs tracking-widest">
-              المتوسطات، نسب النجاح، ونقاط الضعف
+              {tab === "entry"
+                ? "مين من المعلمين رصد درجات فصوله ومين لأ — بالأسبوع وبالشهر"
+                : "المتوسطات، نسب النجاح، ونقاط الضعف"}
             </p>
           </div>
 
+          {tab === "exams" && (
           <select
             value={selectedExam}
             onChange={(e) => setSelectedExam(e.target.value)}
@@ -69,9 +80,27 @@ const ExamAnalytics = () => {
               </option>
             ))}
           </select>
+          )}
         </div>
 
-        {loading ? (
+        <div className="flex gap-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-1.5 w-fit">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black transition-all ${
+                tab === t.key ? "bg-indigo-600 text-white shadow-md shadow-indigo-100" : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "entry" ? (
+          <GradeEntryReport />
+        ) : loading ? (
           <div className="flex justify-center py-24">
             <Loader2 className="animate-spin text-indigo-600" size={40} />
           </div>

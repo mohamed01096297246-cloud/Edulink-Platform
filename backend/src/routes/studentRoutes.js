@@ -13,6 +13,7 @@ const {
 } = require("../controllers/studentController");
 
 const { protect, authorize } = require("../middleware/authMiddleware");
+const { getStudentRecord } = require("../controllers/studentRecordController");
 
 router.post("/", protect, authorize("admin"), createStudent);
 router.post(
@@ -31,6 +32,7 @@ router.get(
   getUnassignedStudents,
 );
 router.get("/parent/:parentId", protect, getStudentsByParent);
+router.get("/:id/record", protect, authorize("admin"), getStudentRecord);
 router.get("/:id", protect, getStudent);
 
 router.put("/:id", protect, authorize("admin"), updateStudent);

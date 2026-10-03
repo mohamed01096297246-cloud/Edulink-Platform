@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import API from "../../api/axios";
 import useAdminScope from "../../hooks/useAdminScope";
 import StagePicker from "./StagePicker";
+import StudentRecord from "./StudentRecord";
 import { toLatinDigits } from "../../utils/phone";
 import {
   UserPlus,
@@ -47,6 +48,8 @@ const StudentManagement = () => {
   const [editMode, setEditMode] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [parentInbox, setParentInbox] = useState(DEFAULT_PARENT_EMAIL);
+  // The student whose full record is open (StudentRecord), if any.
+  const [recordStudentId, setRecordStudentId] = useState(null);
 
   const [toast, setToast] = useState({
     show: false,
@@ -515,9 +518,13 @@ const StudentManagement = () => {
                             {student.lastName ? student.lastName[0] : ""}
                           </div>
                           <div>
-                            <p className="font-black text-slate-700">
+                            <button
+                              onClick={() => setRecordStudentId(student._id)}
+                              className="font-black text-slate-700 hover:text-indigo-600 hover:underline text-right"
+                              title="عرض السجل الكامل"
+                            >
                               {student.firstName} {student.lastName}
-                            </p>
+                            </button>
                             <p className="text-[10px] font-bold text-slate-400 uppercase">
                               {student.gender === "male" ? "ذكر" : "أنثى"}
                             </p>
@@ -539,7 +546,14 @@ const StudentManagement = () => {
                       </td>
                       <td className="p-6 text-center">
                         <div className="flex justify-center gap-2">
-                          {canEdit ? (
+                          <button
+                            onClick={() => setRecordStudentId(student._id)}
+                            className="flex items-center gap-1.5 px-3 py-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-all text-xs font-black"
+                            title="السجل الكامل للطالب"
+                          >
+                            <ClipboardList size={16} /> السجل
+                          </button>
+                          {canEdit && (
                             <>
                               <button
                                 onClick={() => handleEdit(student)}
@@ -554,10 +568,6 @@ const StudentManagement = () => {
                                 <Trash2 size={20} />
                               </button>
                             </>
-                          ) : (
-                            <span className="text-slate-300 text-xs font-black">
-                              —
-                            </span>
                           )}
                         </div>
                       </td>
@@ -569,6 +579,13 @@ const StudentManagement = () => {
           </div>
         </div>
       </div>
+
+      {recordStudentId && (
+        <StudentRecord
+          studentId={recordStudentId}
+          onClose={() => setRecordStudentId(null)}
+        />
+      )}
 
       {deleteModal.show && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
