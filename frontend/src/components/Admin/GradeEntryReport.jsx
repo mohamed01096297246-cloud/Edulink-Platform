@@ -7,10 +7,10 @@ import { todayIso, sinceLabel } from "../../utils/reportPeriod";
 import { Loader2, AlertCircle, Users, CheckCircle2, CircleDashed, XCircle, ChevronDown, Search } from "lucide-react";
 
 // رصد الدرجات — which teachers recorded marks for their classes in a week or
-// a month, and which didn't. Each class is measured against its own
-// school's register: Al-Rahma's تقييم أسبوعي + كراسة الحصة, the weekly40
-// تقييم أسبوعي + مواظبة وسلوك. The server does the counting; this only
-// lays it out.
+// a month, and which didn't. Each class shows exactly its own school's
+// register columns, each in its own cell — Al-Rahma's مواظبة · واجب ·
+// تقييم أسبوعي · كراسة الحصة, the weekly40 الواجب المنزلي · تقييم أسبوعي ·
+// مواظبة وسلوك. The server does the counting; this only lays it out.
 
 const STATUS = {
   complete: { label: "رصد كامل", pill: "bg-emerald-50 text-emerald-700 border-emerald-100", dot: "bg-emerald-500" },
@@ -18,7 +18,15 @@ const STATUS = {
   none: { label: "لم يرصد", pill: "bg-rose-50 text-rose-700 border-rose-100", dot: "bg-rose-500" },
 };
 
-const SECOND_LABEL = { classwork: "كراسة الحصة", conduct: "مواظبة وسلوك" };
+// The register's columns for one teacher's classes, in the register's own
+// order. A teacher on one school has one set; the union only matters for
+// someone teaching across stages that mark differently.
+const COLUMN_ORDER = ["attendance", "homework", "weekly", "classwork", "conduct"];
+const registerColumns = (classes) => {
+  const seen = new Map();
+  for (const c of classes) for (const col of c.columns) if (!seen.has(col.key)) seen.set(col.key, col);
+  return COLUMN_ORDER.filter((k) => seen.has(k)).map((k) => seen.get(k));
+};
 
 const n = (value) => Number(value || 0).toLocaleString("ar-EG");
 
@@ -194,11 +202,11 @@ const GradeEntryReport = () => {
                         <tr>
                           <th className="p-3 pr-5">الفصل</th>
                           <th className="p-3">المادة</th>
-                          <th className="p-3">التقييم الأسبوعي</th>
-                          <th className="p-3">الكراسة / المواظبة</th>
-                          <th className="p-3">الواجبات المصححة</th>
-                          <th className="p-3">اختبارات</th>
-                          <th className="p-3">ملاحظات سلوك</th>
+                          {registerColumns(t.classes).map((col) => (
+                            <th key={col.key} className="p-3 whitespace-nowrap">
+                              {col.label} <span className="font-bold">/{n(col.max)}</span>
+                            </th>
+                          ))}
                           <th className="p-3 pl-5">الحالة</th>
                         </tr>
                       </thead>
@@ -212,33 +220,20 @@ const GradeEntryReport = () => {
                               </span>
                             </td>
                             <td className="p-3 font-bold text-slate-600 whitespace-nowrap">{c.subject}</td>
-                            <td className="p-3">
-                              <Coverage cell={c.weekly} students={c.students} period={report.period} weeks={weeks} />
-                            </td>
-                            <td className="p-3">
-                              <span className="block text-[10px] font-black text-slate-400 mb-1">
-                                {SECOND_LABEL[c.second.kind]}
-                              </span>
-                              <Coverage cell={c.second} students={c.students} period={report.period} weeks={weeks} />
-                            </td>
-                            <td className="p-3 text-xs font-bold text-slate-600 whitespace-nowrap tabular-nums">
-                              {c.homework.set === 0 ? (
-                                <span className="text-slate-300">مفيش واجب</span>
-                              ) : (
-                                <>
-                                  {n(c.homework.graded)}/{n(c.homework.expected)}
-                                  <span className="block text-[10px] text-slate-400">
-                                    {n(c.homework.set)} {c.homework.set === 1 ? "واجب" : "واجبات"}
-                                  </span>
-                                </>
-                              )}
-                            </td>
-                            <td className="p-3 text-xs font-bold text-slate-600 tabular-nums">
-                              {c.monthlyTests + c.termTests > 0 ? n(c.monthlyTests + c.termTests) : "—"}
-                            </td>
-                            <td className="p-3 text-xs font-bold text-slate-600 tabular-nums">
-                              {c.behaviorNotes > 0 ? n(c.behaviorNotes) : "—"}
-                            </td>
+                            {registerColumns(t.classes).map((col) => {
+                              const cell = c.columns.find((x) => x.key === col.key);
+                              return (
+                                <td key={col.key} className="p-3">
+                                  {!cell ? (
+                                    <span className="text-slate-300 text-xs font-bold">—</span>
+                                  ) : !cell.applicable ? (
+                                    <span className="text-slate-300 text-xs font-bold whitespace-nowrap">مفيش واجب</span>
+                                  ) : (
+                                    <Coverage cell={cell} students={c.students} period={report.period} weeks={weeks} />
+                                  )}
+                                </td>
+                              );
+                            })}
                             <td className="p-3 pl-5">
                               <span className={`px-2.5 py-1 rounded-full text-[11px] font-black border whitespace-nowrap ${STATUS[c.status].pill}`}>
                                 {STATUS[c.status].label}

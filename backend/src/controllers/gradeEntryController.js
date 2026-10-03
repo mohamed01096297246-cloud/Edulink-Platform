@@ -4,6 +4,7 @@ const Schedule = require("../models/Schedule");
 const ClassAssignment = require("../models/ClassAssignment");
 const Student = require("../models/Student");
 const School = require("../models/School");
+const Attendance = require("../models/Attendance");
 const WeeklyEvaluation = require("../models/WeeklyEvaluation");
 const ClassworkNotebook = require("../models/ClassworkNotebook");
 const CourseworkOverride = require("../models/CourseworkOverride");
@@ -11,48 +12,83 @@ const Homework = require("../models/Homework");
 const HomeworkResult = require("../models/HomeworkResult");
 const MonthlyGrade = require("../models/MonthlyGrade");
 const TermTest = require("../models/TermTest");
-const Behavior = require("../models/Behavior");
 // Registered for the populates below, not used directly.
 require("../models/Subject");
 require("../models/User");
 require("../models/Grade");
 const { scopeFilter } = require("../utils/tenant");
 const { SCHEMES, schemeFor } = require("../utils/gradebook");
+const { isDailyMode } = require("../utils/dailyAttendance");
 const { reportPeriod, weekKey } = require("../utils/reportPeriod");
 
 // "رصد الدرجات" — for a week or a month, which teachers have recorded marks
 // for their classes and which have not. Read only, over the same documents
 // the teacher's app writes; nothing here is entered or changed.
 //
-// What a class owes each week depends on its school's scheme for that
-// stage (utils/gradebook.js), so two schools are measured against their own
-// registers:
-//   classic   تقييم أسبوعي + كراسة الحصة
-//   weekly40  تقييم أسبوعي + مواظبة وسلوك
-// Homework, monthly or term tests and behaviour notes are reported
-// alongside, but a class that sets no homework isn't behind for it.
+// Each class is shown with exactly the columns of its own school's register
+// (utils/gradebook.js), in the register's order, each column on its own:
+//   classic   مواظبة · واجب · تقييم أسبوعي · كراسة الحصة
+//   weekly40  الواجب المنزلي · تقييم أسبوعي · مواظبة وسلوك
+// A column counts a student as recorded when the register would print a
+// number for them that week.
+
+const REGISTER_COLUMNS = {
+  classic: [
+    // Worked out from the attendance register, or set by the teacher.
+    { key: "attendance", label: "مواظبة", maxField: "attendanceScore", entered: false },
+    { key: "homework", label: "واجب", maxField: "homeworkScore", entered: false },
+    { key: "weekly", label: "تقييم أسبوعي", maxField: "weeklyEvalScore", entered: true },
+    { key: "classwork", label: "كراسة الحصة", maxField: "classworkScore", entered: true },
+  ],
+  weekly40: [
+    { key: "homework", label: "الواجب المنزلي", maxField: "homeworkScore", entered: false },
+    { key: "weekly", label: "تقييم أسبوعي", maxField: "weeklyEvalScore", entered: true },
+    { key: "conduct", label: "مواظبة وسلوك", maxField: "attendanceScore", entered: true },
+  ],
+};
 
 const pairKey = (classroom, subject) => `${classroom}:${subject}`;
 
-// Every entry of one kind in the window, as { pair → { students, weeks } }.
-const tally = (docs, keyOf) => {
+const newBucket = () => ({ students: new Set(), weeks: new Map(), last: null });
+
+const add = (bucket, student, date, updatedAt) => {
+  bucket.students.add(String(student));
+  const week = weekKey(date).getTime();
+  if (!bucket.weeks.has(week)) bucket.weeks.set(week, new Set());
+  bucket.weeks.get(week).add(String(student));
+  if (updatedAt && (!bucket.last || updatedAt > bucket.last)) bucket.last = updatedAt;
+};
+
+// Every entry of one kind in the window, grouped by `keyOf`.
+const tally = (docs, keyOf, dateOf = (d) => d.weekStart) => {
   const out = new Map();
   for (const doc of docs) {
     const key = keyOf(doc);
-    if (!out.has(key)) out.set(key, { students: new Set(), weeks: new Map(), last: null });
-    const bucket = out.get(key);
-    bucket.students.add(String(doc.student));
-    const week = weekKey(doc.weekStart).getTime();
-    if (!bucket.weeks.has(week)) bucket.weeks.set(week, new Set());
-    bucket.weeks.get(week).add(String(doc.student));
-    if (!bucket.last || doc.updatedAt > bucket.last) bucket.last = doc.updatedAt;
+    if (!out.has(key)) out.set(key, newBucket());
+    add(out.get(key), doc.student, dateOf(doc), doc.updatedAt);
   }
   return out;
 };
 
-// One required column for one class, measured against the period.
-//   week   — how many of the class's students have a mark
-//   month  — how many of the month's weeks have marks for the whole class
+// Two sources for one column (a computed number and a teacher's correction).
+const merge = (a, b) => {
+  if (!a) return b;
+  if (!b) return a;
+  const out = newBucket();
+  for (const src of [a, b]) {
+    src.students.forEach((s) => out.students.add(s));
+    src.weeks.forEach((set, week) => {
+      if (!out.weeks.has(week)) out.weeks.set(week, new Set());
+      set.forEach((s) => out.weeks.get(week).add(s));
+    });
+    if (src.last && (!out.last || src.last > out.last)) out.last = src.last;
+  }
+  return out;
+};
+
+// One column for one class, measured against the period.
+//   week   — how many of the class's students have a number
+//   month  — how many of the month's weeks have one for the whole class
 const measure = (bucket, size, weeks, period) => {
   if (!bucket) return { students: 0, weeksDone: 0, weeksPartial: 0, full: false, any: false };
   let weeksDone = 0;
@@ -64,7 +100,7 @@ const measure = (bucket, size, weeks, period) => {
   }
   const students = period === "week" ? bucket.weeks.get(weeks[0]?.getTime())?.size || 0 : bucket.students.size;
   const full = weeks.length > 0 && weeksDone >= weeks.length;
-  return { students, weeksDone, weeksPartial, full, any: true };
+  return { students, weeksDone, weeksPartial, full, any: weeksDone + weeksPartial > 0 };
 };
 
 const rank = { none: 0, partial: 1, complete: 2 };
@@ -88,6 +124,9 @@ exports.getGradeEntry = async (req, res) => {
     const schoolIds = [...new Set(classrooms.map((c) => String(c.school)))];
     const schools = await School.find({ _id: { $in: schoolIds } }).select("gradebook").lean();
     const schoolById = new Map(schools.map((s) => [String(s._id), s]));
+    const dailyBySchool = new Map(
+      await Promise.all(schoolIds.map(async (id) => [id, await isDailyMode(id)])),
+    );
     const schemeOf = (classroom) => schemeFor(schoolById.get(String(classroom.school)), classroom.grade?.stage);
 
     // Who teaches what: the school's assignments first, then the timetable.
@@ -105,8 +144,8 @@ exports.getGradeEntry = async (req, res) => {
         .lean(),
     ]);
 
-    const pairs = new Map(); // `${teacher}:${classroom}:${subject}` → pair
-    const covered = new Set(); // classroom:subject already owned by an assignment
+    const pairs = new Map();
+    const covered = new Set();
     for (const row of assigned) {
       if (!row.teacher || !row.subject) continue;
       covered.add(pairKey(row.classroom, row.subject._id));
@@ -119,63 +158,89 @@ exports.getGradeEntry = async (req, res) => {
       pairs.set(`${row.teacher._id}:${key}`, row);
     }
 
-    const sizes = new Map(
-      (
-        await Student.aggregate([
-          { $match: { classroom: { $in: classIds }, active: { $ne: false } } },
-          { $group: { _id: "$classroom", n: { $sum: 1 } } },
-        ])
-      ).map((r) => [String(r._id), r.n]),
-    );
-
-    const inClasses = { classroom: { $in: classIds } };
-    const weekWindow = { $gte: range.start, $lte: range.end };
-    const months = [];
-    for (let d = new Date(range.start); d <= range.end; d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1))) {
-      months.push({ month: d.getUTCMonth() + 1, year: d.getUTCFullYear() });
+    const students = await Student.find({ classroom: { $in: classIds }, active: { $ne: false } })
+      .select("_id classroom")
+      .lean();
+    const sizes = new Map();
+    const classOfStudent = new Map();
+    for (const s of students) {
+      sizes.set(String(s.classroom), (sizes.get(String(s.classroom)) || 0) + 1);
+      classOfStudent.set(String(s._id), String(s.classroom));
     }
 
-    const [evaluations, notebooks, conduct, homework, monthly, termTests, notes] = await Promise.all([
-      WeeklyEvaluation.find({ ...inClasses, weekStart: weekWindow }).select("classroom subject student weekStart updatedAt").lean(),
-      ClassworkNotebook.find({ ...inClasses, weekStart: weekWindow }).select("classroom subject student weekStart updatedAt").lean(),
-      CourseworkOverride.find({ ...inClasses, weekStart: weekWindow, attendanceScore: { $ne: null } })
-        .select("classroom subject student weekStart updatedAt")
+    const inClasses = { classroom: { $in: classIds } };
+    const window = { $gte: range.start, $lte: range.end };
+    const classicClassIds = classrooms.filter((c) => schemeOf(c) === "classic").map((c) => c._id);
+    const classicStudentIds = students
+      .filter((s) => classicClassIds.some((id) => String(id) === String(s.classroom)))
+      .map((s) => s._id);
+
+    const [evaluations, notebooks, overrides, homework, attendance] = await Promise.all([
+      WeeklyEvaluation.find({ ...inClasses, weekStart: window }).select("classroom subject student weekStart updatedAt").lean(),
+      ClassworkNotebook.find({ ...inClasses, weekStart: window }).select("classroom subject student weekStart updatedAt").lean(),
+      CourseworkOverride.find({ ...inClasses, weekStart: window })
+        .select("classroom subject student weekStart attendanceScore homeworkScore updatedAt")
         .lean(),
-      Homework.find({ ...inClasses, createdAt: weekWindow }).select("classroom subject createdAt").lean(),
-      range.period === "month"
-        ? MonthlyGrade.find({ ...inClasses, $or: months }).select("classroom subject student").lean()
+      Homework.find({ ...inClasses, createdAt: window }).select("classroom subject createdAt").lean(),
+      // Only the classic register has an attendance column worked out from
+      // the register; weekly40's مواظبة وسلوك is typed by the teacher.
+      classicStudentIds.length
+        ? Attendance.find({ student: { $in: classicStudentIds }, date: window, ...Attendance.GRADED_ONLY })
+            .select("student subject date")
+            .lean()
         : [],
-      TermTest.find({ ...inClasses, updatedAt: weekWindow }).select("classroom subject student").lean(),
-      Behavior.find({ ...inClasses, date: weekWindow }).select("classroom subject").lean(),
     ]);
 
     const homeworkResults = homework.length
-      ? await HomeworkResult.find({ homework: { $in: homework.map((h) => h._id) } }).select("homework updatedAt").lean()
+      ? await HomeworkResult.find({ homework: { $in: homework.map((h) => h._id) } }).select("homework student updatedAt").lean()
       : [];
 
     const byPair = (doc) => pairKey(doc.classroom, doc.subject);
-    const evalTally = tally(evaluations, byPair);
-    const notebookTally = tally(notebooks, byPair);
-    const conductTally = tally(conduct, byPair);
+    const weeklyTally = tally(evaluations, byPair);
+    const classworkTally = tally(notebooks, byPair);
+    const attendanceOverride = tally(
+      overrides.filter((o) => o.attendanceScore !== null && o.attendanceScore !== undefined),
+      byPair,
+    );
+    const homeworkOverride = tally(
+      overrides.filter((o) => o.homeworkScore !== null && o.homeworkScore !== undefined),
+      byPair,
+    );
 
-    const count = (docs) => {
-      const out = new Map();
-      for (const doc of docs) out.set(byPair(doc), (out.get(byPair(doc)) || 0) + 1);
-      return out;
+    // A homework belongs to the week it was set in (utils/weekScores.js).
+    const homeworkById = new Map(homework.map((h) => [String(h._id), h]));
+    const homeworkTally = tally(
+      homeworkResults.map((r) => {
+        const h = homeworkById.get(String(r.homework));
+        return { classroom: h.classroom, subject: h.subject, student: r.student, weekStart: h.createdAt, updatedAt: r.updatedAt };
+      }),
+      byPair,
+    );
+    const homeworkSet = new Map();
+    for (const h of homework) homeworkSet.set(byPair(h), (homeworkSet.get(byPair(h)) || 0) + 1);
+
+    // On a daily register a day's attendance stands for every subject; on a
+    // per-lesson one it belongs to the lesson's subject.
+    const attendanceByClass = tally(attendance, (a) => classOfStudent.get(String(a.student)), (a) => a.date);
+    const attendanceByPair = tally(
+      attendance.filter((a) => a.subject),
+      (a) => pairKey(classOfStudent.get(String(a.student)), a.subject),
+      (a) => a.date,
+    );
+
+    const sources = (key, classroom) => {
+      const daily = dailyBySchool.get(String(classroom.school));
+      return {
+        attendance: merge(
+          daily ? attendanceByClass.get(String(classroom._id)) : attendanceByPair.get(key),
+          attendanceOverride.get(key),
+        ),
+        homework: merge(homeworkTally.get(key), homeworkOverride.get(key)),
+        weekly: weeklyTally.get(key),
+        classwork: classworkTally.get(key),
+        conduct: attendanceOverride.get(key),
+      };
     };
-    const homeworkSet = count(homework);
-    const monthlyCount = count(monthly);
-    const termCount = count(termTests);
-    const noteCount = count(notes);
-
-    const homeworkPair = new Map(homework.map((h) => [String(h._id), byPair(h)]));
-    const homeworkGraded = new Map();
-    const homeworkLast = new Map();
-    for (const r of homeworkResults) {
-      const key = homeworkPair.get(String(r.homework));
-      homeworkGraded.set(key, (homeworkGraded.get(key) || 0) + 1);
-      if (!homeworkLast.get(key) || r.updatedAt > homeworkLast.get(key)) homeworkLast.set(key, r.updatedAt);
-    }
 
     const teachers = new Map();
     for (const row of pairs.values()) {
@@ -187,30 +252,31 @@ exports.getGradeEntry = async (req, res) => {
       const scheme = schemeOf(classroom);
       const rules = SCHEMES[scheme];
       const key = pairKey(row.classroom, row.subject._id);
-
-      const weekly = measure(evalTally.get(key), size, range.weeks, range.period);
-      const second = rules.classwork
-        ? { kind: "classwork", ...measure(notebookTally.get(key), size, range.weeks, range.period) }
-        : { kind: "conduct", ...measure(conductTally.get(key), size, range.weeks, range.period) };
-
+      const src = sources(key, classroom);
       const set = homeworkSet.get(key) || 0;
-      const graded = homeworkGraded.get(key) || 0;
 
-      // Behaviour notes are reported, but they are not marks.
-      const tests = (monthlyCount.get(key) || 0) + (termCount.get(key) || 0);
-      const anything = weekly.any || second.any || graded > 0 || tests > 0;
+      const columns = REGISTER_COLUMNS[scheme].map((col) => ({
+        key: col.key,
+        label: col.label,
+        max: rules.max[col.maxField],
+        entered: col.entered,
+        // No homework set in the period means nothing to print in that column.
+        applicable: col.key === "homework" ? set > 0 || Boolean(src.homework) : true,
+        ...measure(src[col.key], size, range.weeks, range.period),
+      }));
+
+      // Complete when every column the teacher fills in is in for the whole
+      // class, and so is the homework if any was set. The classic مواظبة
+      // follows the attendance register on its own and isn't the teacher's
+      // marking to do.
+      const owed = columns.filter((c) => c.entered || (c.key === "homework" && c.applicable));
+      const teacherAny = columns.some((c) => c.any && c.key !== "attendance");
       let status = "none";
-      if (weekly.full && second.full) status = "complete";
-      else if (anything) status = "partial";
-      // Nothing is owed yet for a week that hasn't started.
-      if (range.weeks.length === 0) status = anything ? "complete" : "none";
+      if (owed.every((c) => c.full)) status = "complete";
+      else if (teacherAny) status = "partial";
+      if (range.weeks.length === 0) status = teacherAny ? "complete" : "none";
 
-      const lastDates = [
-        evalTally.get(key)?.last,
-        notebookTally.get(key)?.last,
-        conductTally.get(key)?.last,
-        homeworkLast.get(key),
-      ].filter(Boolean);
+      const lasts = ["homework", "weekly", "classwork", "conduct"].map((k) => src[k]?.last).filter(Boolean);
 
       const teacherId = String(row.teacher._id);
       if (!teachers.has(teacherId)) {
@@ -228,13 +294,9 @@ exports.getGradeEntry = async (req, res) => {
         scheme,
         students: size,
         status,
-        weekly,
-        second,
-        homework: { set, graded, expected: set * size },
-        monthlyTests: monthlyCount.get(key) || 0,
-        termTests: termCount.get(key) || 0,
-        behaviorNotes: noteCount.get(key) || 0,
-        lastEntryAt: lastDates.length ? new Date(Math.max(...lastDates.map((d) => new Date(d).getTime()))) : null,
+        homeworkSet: set,
+        columns,
+        lastEntryAt: lasts.length ? new Date(Math.max(...lasts.map((d) => new Date(d).getTime()))) : null,
       });
     }
 
