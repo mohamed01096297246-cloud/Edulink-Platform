@@ -12,7 +12,7 @@ const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { getCurrentTermWindow } = require("../utils/termWindow");
 const {
   computeWeekScores,
-  normalizeDate,
+  toWeekStart,
   maxScoresFor,
 } = require("../utils/weekScores");
 const { schemeForClassroom } = require("../utils/gradebook");
@@ -242,7 +242,7 @@ exports.getClassroomCoursework = async (req, res) => {
 exports.getClassroomWeekCoursework = async (req, res) => {
   try {
     const { classroomId } = req.params;
-    const weekStart = normalizeDate(req.query.weekStart);
+    const weekStart = toWeekStart(req.query.weekStart);
 
     if (!weekStart) {
       return res.status(400).json({
@@ -311,7 +311,7 @@ const EDITABLE_COLUMNS = ["attendanceScore", "homeworkScore", "classworkScore"];
 exports.saveWeekCourseworkOverrides = async (req, res) => {
   try {
     const { classroomId, weekStart: rawWeekStart, list } = req.body;
-    const weekStart = normalizeDate(rawWeekStart);
+    const weekStart = toWeekStart(rawWeekStart);
 
     if (!classroomId) {
       return res

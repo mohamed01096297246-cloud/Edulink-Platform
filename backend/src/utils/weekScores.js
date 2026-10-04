@@ -30,6 +30,18 @@ const normalizeDate = (value) => {
   return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 };
 
+// The Sunday that starts the school week a date falls in. A week runs
+// Saturday to Friday, so a teacher who picks the Saturday, the Monday or the
+// Tuesday of a week still lands on that week's Sunday — the date the app
+// offers as "الأسبوع الأول، الثاني…". Every screen that reads or saves a
+// week's marks goes through this, so one week is always one weekStart.
+const toWeekStart = (value) => {
+  const date = normalizeDate(value);
+  if (!date) return null;
+  const sinceSaturday = (date.getUTCDay() + 1) % 7;
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() - sinceSaturday + 1));
+};
+
 const weekEnd = (weekStart) => {
   const end = new Date(weekStart);
   end.setUTCDate(end.getUTCDate() + 6);
@@ -219,4 +231,4 @@ const computeWeekScores = async (
   return scores;
 };
 
-module.exports = { computeWeekScores, normalizeDate, weekEnd, MAX_SCORES, maxScoresFor };
+module.exports = { computeWeekScores, normalizeDate, toWeekStart, weekEnd, MAX_SCORES, maxScoresFor };

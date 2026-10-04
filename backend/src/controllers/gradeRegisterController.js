@@ -15,7 +15,7 @@ const { schemeForClassroom } = require("../utils/gradebook");
 const { monthWeekScores, computeTerm40 } = require("../utils/term40");
 // Shared with the weekly-evaluation screen, so what the teacher edits on
 // screen is literally the same number that lands in the printed register.
-const { computeWeekScores, normalizeDate } = require("../utils/weekScores");
+const { computeWeekScores, toWeekStart } = require("../utils/weekScores");
 
 const sortByArabicName = (students) =>
   [...students].sort((a, b) =>
@@ -28,7 +28,7 @@ const sortByArabicName = (students) =>
 exports.exportWeeklyRegister = async (req, res) => {
   try {
     const { classroomId } = req.params;
-    const weekStart = normalizeDate(req.query.weekStart);
+    const weekStart = toWeekStart(req.query.weekStart);
 
     if (!weekStart) {
       return res.status(400).json({

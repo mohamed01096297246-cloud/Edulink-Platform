@@ -3,19 +3,12 @@ const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
 const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
-
-// Normalizes any date string/Date to UTC midnight, so "the week starting
-// 2026-09-07" always matches regardless of what time of day it was saved.
-const normalizeDate = (value) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-};
+const { toWeekStart } = require("../utils/weekScores");
 
 exports.getClassroomClassworkNotebook = async (req, res) => {
   try {
     const { classroomId } = req.params;
-    const weekStart = normalizeDate(req.query.weekStart);
+    const weekStart = toWeekStart(req.query.weekStart);
 
     if (!weekStart) {
       return res.status(400).json({
@@ -59,7 +52,7 @@ exports.getClassroomClassworkNotebook = async (req, res) => {
 exports.saveBulkClassworkNotebook = async (req, res) => {
   try {
     const { classroomId, weekStart: rawWeekStart, gradesList } = req.body;
-    const weekStart = normalizeDate(rawWeekStart);
+    const weekStart = toWeekStart(rawWeekStart);
 
     if (!classroomId) {
       return res
