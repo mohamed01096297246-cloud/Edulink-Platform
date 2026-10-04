@@ -4,6 +4,29 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { hasStagePrincipals } = require("../utils/tenant");
 const { schemeForTeacher } = require("../utils/gradebook");
+const { toLatinDigits, canonicalMobile } = require("../utils/phone");
+
+// A username is matched as typed first. Failing that, one that reads as a
+// mobile number is tried in its 11-digit form, since that is how phone
+// usernames are stored: a parent (or a Google Play reviewer) who types
+// "+20 100 000 0000", "00201000000000" or the number in Arabic digits
+// still reaches the account. Codes typed in Arabic digits are read too.
+const findLoginUser = async (raw) => {
+  const typed = String(raw).trim();
+  const exact = await User.findOne({ username: typed }).select("+password");
+  if (exact) return exact;
+
+  const latin = toLatinDigits(typed);
+  const digits = latin.replace(/[\s\-+()]/g, "");
+  const candidates = [latin, digits, /^\d+$/.test(digits) ? canonicalMobile(digits) : null].filter(
+    (c) => c && c !== typed,
+  );
+  for (const candidate of [...new Set(candidates)]) {
+    const user = await User.findOne({ username: candidate }).select("+password");
+    if (user) return user;
+  }
+  return null;
+};
 
 exports.login = async (req, res) => {
   try {
@@ -15,7 +38,7 @@ exports.login = async (req, res) => {
         .json({ message: "من فضلك أدخل اسم المستخدم وكلمة المرور" });
     }
 
-    const user = await User.findOne({ username: username.trim() }).select("+password");
+    const user = await findLoginUser(username);
 
     if (!user) {
       return res

@@ -22,6 +22,8 @@ const canonicalMobile = (digits) => {
   let d = digits;
   if (d.startsWith("0020")) d = d.slice(3);
   else if (d.startsWith("20") && d.length === 12) d = d.slice(1);
+  // "+20 010…" — the country code put in front of the local 0.
+  else if (d.startsWith("200") && d.length === 13) d = d.slice(2);
   if (d.length === 10 && d.startsWith("1")) d = `0${d}`;
   return EGYPT_MOBILE.test(d) ? d : null;
 };
