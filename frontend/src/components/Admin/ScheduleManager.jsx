@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import API from "../../api/axios";
+import useAdminScope from "../../hooks/useAdminScope";
+import ClassTimetable from "./ClassTimetable";
 import {
   Calendar,
   Clock,
@@ -38,6 +40,7 @@ const PERIOD_NAMES = ["", "الأولى", "الثانية", "الثالثة", "�
 const NO_TEACHER = "__none__";
 
 const SchedulesPage = () => {
+  const { canEdit } = useAdminScope();
   const [schedules, setSchedules] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [classrooms, setClassrooms] = useState([]);
@@ -49,6 +52,9 @@ const SchedulesPage = () => {
 
   // حالات الفلترة (الصف والفصل) لعرض الكروت
   const [selectedClassroom, setSelectedClassroom] = useState("");
+  // The page opens on the first class's timetable; after that the admin's
+  // own choice (including "every class") is left alone across reloads.
+  const pickedFirstClass = useRef(false);
   const [todayOnly, setTodayOnly] = useState(false);
 
   const [toast, setToast] = useState({
@@ -108,7 +114,17 @@ const SchedulesPage = () => {
       setAssignments(assignRes.data?.data || []);
       setSchedules(Array.isArray(schRes.data) ? schRes.data : []);
       setTeachers(teachRes.data.data || []);
-      setClassrooms(Array.isArray(classRes.data) ? classRes.data : []);
+      const loadedClassrooms = Array.isArray(classRes.data) ? classRes.data : [];
+      setClassrooms(loadedClassrooms);
+      if (!pickedFirstClass.current && loadedClassrooms.length) {
+        pickedFirstClass.current = true;
+        const first = [...loadedClassrooms].sort(
+          (a, b) =>
+            String(a.grade?.name || "").localeCompare(String(b.grade?.name || ""), "ar") ||
+            String(a.name).localeCompare(String(b.name), "ar"),
+        )[0];
+        setSelectedClassroom(first._id);
+      }
       setSubjects(Array.isArray(subjRes.data) ? subjRes.data : []);
       setBells(bellRes.data.data || []);
     } catch (err) {
@@ -257,6 +273,17 @@ const SchedulesPage = () => {
       teacherId: schedule.teacher?._id || NO_TEACHER,
     });
     setPeriodError("");
+  };
+
+  // A blank square on the timetable: open the builder on that class and day
+  // with that period already ticked.
+  const openBuilderForSlot = (classroom, day, period) => {
+    setBuilderOpen(true);
+    setBuilderGrade(classroom.grade?._id || "");
+    setBuilderClassroom(classroom._id);
+    setAddingDay(day);
+    resetPeriodForm();
+    setPeriodForm({ periods: [period], subjectId: "", teacherId: "" });
   };
 
   const startAddingPeriod = (day) => {
@@ -421,6 +448,18 @@ const SchedulesPage = () => {
             <div className="bg-white rounded-[2.5rem] border border-slate-100 p-6 flex justify-center py-40">
               <Loader2 className="animate-spin text-indigo-500" size={48} />
             </div>
+          ) : selectedClassroom && !todayOnly ? (
+            <ClassTimetable
+              classroom={classrooms.find((c) => c._id === selectedClassroom)}
+              lessons={schedules.filter((s) => s.classroom?._id === selectedClassroom)}
+              bells={bells}
+              canEdit={canEdit}
+              onEdit={openBuilderForEdit}
+              onAdd={(day, period) =>
+                openBuilderForSlot(classrooms.find((c) => c._id === selectedClassroom), day, period)
+              }
+              onDelete={(lesson) => setDeleteId(lesson._id)}
+            />
           ) : filteredSchedules.length === 0 ? (
             <div className="bg-white rounded-[2.5rem] border border-slate-100 p-6 text-center py-32 text-slate-400 font-bold uppercase tracking-wider">
               {todayOnly && !todayKey
