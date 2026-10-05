@@ -155,6 +155,36 @@ exports.createNotification = async (req, res) => {
       }
     }
 
+    // An admin can narrow a notice to part of the school: one grade (every
+    // class in it) or the classes they pick. Stored like a teacher's — as
+    // `target: "all"` narrowed to those classes — so it shows only in the
+    // feeds of families and students with a child there.
+    if (req.user.role !== "teacher" && (target === "grade" || target === "classrooms")) {
+      const wanted =
+        target === "grade"
+          ? { grade: req.body.gradeId }
+          : { _id: { $in: [...new Set((req.body.classroomIds || []).map(String))] } };
+      if (target === "grade" && !req.body.gradeId) {
+        return res.status(400).json({ message: "اختار المرحلة." });
+      }
+      if (target === "classrooms" && !(req.body.classroomIds || []).length) {
+        return res.status(400).json({ message: "اختار فصل واحد على الأقل." });
+      }
+
+      // Only classes of the sender's own school — and stages, for a principal.
+      const found = await Classroom.find(scopeFilter(req, wanted, "grade")).select("_id").lean();
+      if (target === "classrooms" && found.length !== new Set(req.body.classroomIds.map(String)).size) {
+        return res.status(403).json({ message: "فيه فصل مش من الفصول اللي تقدر تبعتلها." });
+      }
+      if (found.length === 0) {
+        return res.status(400).json({ message: "المرحلة دي مافيهاش فصول." });
+      }
+
+      classrooms = found.map((c) => c._id);
+      target = "all";
+      recipients = await recipientsOfClassrooms(classrooms);
+    }
+
     // The same rule for a principal over part of the school: a named
     // recipient has to be one of their own families. Checked before the
     // notice is written, not just before it is pushed — an unsent notice
@@ -186,7 +216,7 @@ exports.createNotification = async (req, res) => {
 
     // Notifications go out by push only. Email is reserved for handing over
     // login credentials; a parent's inbox is not a second notification feed.
-    if (req.user.role === "teacher") {
+    if (req.user.role === "teacher" || classrooms.length > 0) {
       await sendPushNotifications(
         recipients.map((p) => p.pushToken),
         title,
@@ -358,7 +388,9 @@ exports.getAllNotifications = async (req, res) => {
       type: { $nin: ["homework", "homeworkGrade", "behavior", "boardNote"] },
     })
       .sort({ createdAt: -1 })
-      .populate("createdBy", "name role");
+      .populate("createdBy", "name role")
+      // So the log can say which classes a narrowed notice went to.
+      .populate({ path: "classrooms", select: "name grade", populate: { path: "grade", select: "name" } });
 
     res.json(notifications);
   } catch (err) {

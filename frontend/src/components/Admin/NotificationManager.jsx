@@ -13,11 +13,28 @@ import {
   AlertCircle,
   CheckCircle2,
   Search,
+  School,
+  Check,
 } from "lucide-react";
+
+// Who a notice can go to. A grade or a set of classes narrows it to the
+// families (and student accounts) with a child there.
+const TARGETS = [
+  { key: "all", label: "كل أولياء الأمور" },
+  { key: "grade", label: "مرحلة دراسية" },
+  { key: "classrooms", label: "فصول محددة" },
+  { key: "parent", label: "ولي أمر محدد" },
+];
+
+const EMPTY_FORM = { title: "", message: "", target: "all", parentId: "", gradeId: "", classroomIds: [] };
 
 const AdminNotifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [parents, setParents] = useState([]);
+  const [grades, setGrades] = useState([]);
+  const [classrooms, setClassrooms] = useState([]);
+  // Narrows the class chips to one grade while picking.
+  const [classGradeFilter, setClassGradeFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -33,12 +50,7 @@ const AdminNotifications = () => {
     type: "success",
   });
 
-  const [formData, setFormData] = useState({
-    title: "",
-    message: "",
-    target: "all",
-    parentId: "",
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -65,6 +77,10 @@ const AdminNotifications = () => {
         parentsRes.data ||
         [];
       setParents(fetchedParents);
+
+      const [gradesRes, classroomsRes] = await Promise.all([API.get("/grades"), API.get("/classrooms")]);
+      setGrades(gradesRes.data?.data || gradesRes.data || []);
+      setClassrooms(classroomsRes.data?.data || classroomsRes.data || []);
     } catch (err) {
       console.error("خطأ في جلب البيانات:", err.response?.data || err.message);
     } finally {
@@ -82,6 +98,14 @@ const AdminNotifications = () => {
         });
         showToast(response.data.message || "تم تحديث الإشعار بنجاح", "success");
       } else {
+        if (formData.target === "grade" && !formData.gradeId) {
+          showToast("اختار المرحلة الأول.", "error");
+          return;
+        }
+        if (formData.target === "classrooms" && formData.classroomIds.length === 0) {
+          showToast("اختار فصل واحد على الأقل.", "error");
+          return;
+        }
         const response = await API.post("/notifications", formData);
         showToast(response.data.message || "تم إرسال الإشعار بنجاح", "success");
       }
@@ -110,7 +134,30 @@ const AdminNotifications = () => {
     setEditingId(null);
     setSearchQuery("");
     setIsDropdownOpen(false);
-    setFormData({ title: "", message: "", target: "all", parentId: "" });
+    setClassGradeFilter("");
+    setFormData(EMPTY_FORM);
+  };
+
+  const gradeIdOf = (c) => String(c.grade?._id || c.grade || "");
+  const gradeName = (id) => grades.find((g) => String(g._id) === String(id))?.name || "";
+  const toggleClassroom = (id) =>
+    setFormData((prev) => ({
+      ...prev,
+      classroomIds: prev.classroomIds.includes(id)
+        ? prev.classroomIds.filter((x) => x !== id)
+        : [...prev.classroomIds, id],
+    }));
+  const pickableClassrooms = classrooms
+    .filter((c) => !classGradeFilter || gradeIdOf(c) === classGradeFilter)
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), "ar"));
+
+  // "لـ فصل 1/1، فصل 1/2" — which classes a narrowed notice went to.
+  const audienceLabel = (n) => {
+    if (n.target === "parent") return "خاص";
+    if (!n.classrooms?.length) return "للجميع";
+    return n.classrooms.length > 3
+      ? `لـ ${n.classrooms.length.toLocaleString("ar-EG")} فصول`
+      : `لـ ${n.classrooms.map((c) => c.name).join("، ")}`;
   };
 
   // تصفية الآباء بناءً على جملة البحث المدخلة
@@ -201,7 +248,7 @@ const AdminNotifications = () => {
                               : "bg-amber-500 text-white"
                           }`}
                         >
-                          {n.target === "all" ? "للجميع" : "خاص"}
+                          {audienceLabel(n)}
                         </span>
                         <h3 className="font-black text-slate-800">{n.title}</h3>
                       </div>
@@ -272,8 +319,11 @@ const AdminNotifications = () => {
                       setFormData({ ...formData, target: e.target.value })
                     }
                   >
-                    <option value="all">كل أولياء الأمور</option>
-                    <option value="parent">ولي أمر محدد</option>
+                    {TARGETS.map((t) => (
+                      <option key={t.key} value={t.key}>
+                        {t.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -293,6 +343,82 @@ const AdminNotifications = () => {
                 />
               </div>
               </div>
+
+              {formData.target === "grade" && !editingId && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-400 uppercase mr-2">
+                    المرحلة الدراسية — هيوصل لكل فصولها
+                  </label>
+                  <select
+                    className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-sm"
+                    value={formData.gradeId}
+                    onChange={(e) => setFormData({ ...formData, gradeId: e.target.value })}
+                  >
+                    <option value="">اختار المرحلة…</option>
+                    {grades.map((g) => (
+                      <option key={g._id} value={g._id}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                  {formData.gradeId && (
+                    <p className="text-xs font-bold text-slate-400 mr-2">
+                      {classrooms
+                        .filter((c) => gradeIdOf(c) === formData.gradeId)
+                        .map((c) => c.name)
+                        .join("، ") || "المرحلة دي مافيهاش فصول."}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {formData.target === "classrooms" && !editingId && (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="text-xs font-black text-slate-400 uppercase mr-2">
+                      اختار الفصول ({formData.classroomIds.length.toLocaleString("ar-EG")} مختار)
+                    </label>
+                    <select
+                      className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 outline-none font-bold text-xs"
+                      value={classGradeFilter}
+                      onChange={(e) => setClassGradeFilter(e.target.value)}
+                    >
+                      <option value="">كل المراحل</option>
+                      {grades.map((g) => (
+                        <option key={g._id} value={g._id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-1">
+                    {pickableClassrooms.map((c) => {
+                      const picked = formData.classroomIds.includes(c._id);
+                      return (
+                        <button
+                          key={c._id}
+                          type="button"
+                          onClick={() => toggleClassroom(c._id)}
+                          aria-pressed={picked}
+                          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border-2 transition-all ${
+                            picked
+                              ? "bg-indigo-600 border-indigo-600 text-white"
+                              : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300"
+                          }`}
+                        >
+                          {picked ? <Check size={14} /> : <School size={14} />}
+                          {c.name}
+                          {!classGradeFilter && (
+                            <span className={`font-bold ${picked ? "text-white/70" : "text-slate-400"}`}>
+                              {gradeName(gradeIdOf(c))}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* حقل اختيار الأب المطور مع ميزة البحث السريع */}
               {formData.target === "parent" && !editingId && (
