@@ -12,7 +12,7 @@ const { hasMarks } = require("../utils/homeworkMarks");
 exports.gradeBulkHomework = async (req, res) => {
   try {
     const { homeworkId } = req.params;
-    const { grades } = req.body;
+    let { grades } = req.body;
 
     const homework = await Homework.findById(homeworkId).populate(
       "subject",
@@ -25,6 +25,15 @@ exports.gradeBulkHomework = async (req, res) => {
       return res
         .status(403)
         .json({ message: "غير مصرح لك بتصحيح هذا الواجب" });
+    }
+
+    // Marks only for students of the class the homework was set to.
+    const inClass = new Set(
+      (await Student.find({ classroom: homework.classroom }).distinct("_id")).map(String),
+    );
+    grades = (grades || []).filter((g) => inClass.has(String(g.studentId)));
+    if (grades.length === 0) {
+      return res.status(400).json({ message: "مفيش طلاب من فصل الواجب ده في الدرجات." });
     }
 
     const bulkOps = grades.map((record) => ({

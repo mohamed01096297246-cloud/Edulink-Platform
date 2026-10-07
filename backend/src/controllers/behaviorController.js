@@ -3,7 +3,9 @@ const Behavior = require("../models/Behavior");
 const Student = require("../models/Student");
 const Schedule = require("../models/Schedule");
 const Subject = require("../models/Subject");
-const { scopeFilter } = require("../utils/tenant");
+const { scopeFilter, sameSchool } = require("../utils/tenant");
+const User = require("../models/User");
+const { teacherMayUse } = require("../utils/teacherSubject");
 const { notifyParent } = require("../utils/notify");
 
 
@@ -38,11 +40,27 @@ exports.recordBulkBehavior = async (req, res) => {
       });
     }
 
+    // Only on a lesson of the teacher's own — notes go straight to parents,
+    // so a lesson id from someone else's timetable (or another school) must
+    // not become a way to write to their families.
+    const teacher = await User.findById(req.user.id).select("school subjects teachingGrades");
+    const ownLesson = String(currentSchedule.teacher) === String(req.user.id);
+    if (
+      String(currentSchedule.school) !== String(teacher?.school) ||
+      !(ownLesson || (await teacherMayUse(teacher, { classroomId: currentSchedule.classroom })))
+    ) {
+      return res.status(403).json({ success: false, message: "الحصة دي مش في جدولك." });
+    }
+
     const [year, month, day] = selectedDate.split("-").map(Number);
     const pureDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 
+    // And only for students of that lesson's class.
+    const inClass = new Set(
+      (await Student.find({ classroom: currentSchedule.classroom }).distinct("_id")).map(String),
+    );
     const validRecords = (behaviorRecords || []).filter(
-      (r) => r.type && r.note && r.note.trim().length > 0,
+      (r) => r.type && r.note && r.note.trim().length > 0 && inClass.has(String(r.studentId)),
     );
 
     if (validRecords.length === 0) {
@@ -242,7 +260,7 @@ exports.getStudentBehavior = async (req, res) => {
 exports.deleteBehavior = async (req, res) => {
   try {
     const behavior = await Behavior.findById(req.params.id);
-    if (!behavior) {
+    if (!behavior || !sameSchool(req, behavior)) {
       return res
         .status(404)
         .json({ success: false, message: "سجل السلوك غير موجود" });

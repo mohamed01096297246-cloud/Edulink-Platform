@@ -5,6 +5,8 @@ const Classroom = require("../models/Classroom");
 const Exam = require("../models/Exam");
 const { teacherClassPairs, teacherClassroomIds } = require("../utils/teacherClassrooms");
 const { sameSchool } = require("../utils/tenant");
+const User = require("../models/User");
+const { teacherMayUse } = require("../utils/teacherSubject");
 
 exports.getTeacherGrades = async (req, res) => {
   try {
@@ -85,9 +87,53 @@ exports.getClassroomStudentsForMarks = async (req, res) => {
   }
 };
 
+// Before any exam mark is written: the exam and every student must be the
+// caller's own school's (and stage's), and a teacher may only mark a subject
+// they hold, for students in classes they teach. Sends the refusal itself
+// and returns false, or returns true to carry on.
+const mayWriteMarks = async (req, res, { examId, subjectId, studentIds }) => {
+  const exam = await Exam.findById(examId).select("school grade");
+  if (!exam || !sameSchool(req, exam)) {
+    res.status(404).json({ success: false, message: "الامتحان غير موجود." });
+    return false;
+  }
+
+  const ids = [...new Set((studentIds || []).map(String))];
+  const students = await Student.find({ _id: { $in: ids } }).select("school grade classroom");
+  if (students.length !== ids.length || students.some((s) => !sameSchool(req, s))) {
+    res.status(403).json({ success: false, message: "فيه طالب مش من طلابك." });
+    return false;
+  }
+
+  if (req.user.role === "teacher") {
+    const teacher = await User.findById(req.user.id).select("subjects teachingGrades school");
+    const holds = (teacher.subjects || []).some((id) => String(id) === String(subjectId));
+    if (!holds) {
+      res.status(403).json({ success: false, message: "المادة دي مش من موادك." });
+      return false;
+    }
+    const classes = [...new Set(students.map((s) => String(s.classroom)))];
+    for (const classroomId of classes) {
+      if (!(await teacherMayUse(teacher, { classroomId }))) {
+        res.status(403).json({ success: false, message: "فيه طالب مش من فصولك." });
+        return false;
+      }
+    }
+  }
+  return true;
+};
+
+// An existing mark is the school's of the student it belongs to.
+const markInReach = async (req, result) => {
+  if (!result) return false;
+  const student = await Student.findById(result.student).select("school grade classroom");
+  return Boolean(student && sameSchool(req, student));
+};
+
 exports.addGrade = async (req, res) => {
   try {
     const { studentId, examId, subjectId, grade } = req.body;
+    if (!(await mayWriteMarks(req, res, { examId, subjectId, studentIds: [studentId] }))) return undefined;
 
     const result = await Result.findOneAndUpdate(
       { student: studentId, exam: examId, subject: subjectId },
@@ -169,6 +215,7 @@ exports.addBulkGrades = async (req, res) => {
         .json({ success: false, message: "لازم ترسل قائمة درجات" });
     }
     const studentIds = gradesList.map((r) => r.studentId);
+    if (!(await mayWriteMarks(req, res, { examId, subjectId, studentIds }))) return undefined;
     const existingResults = await Result.find({
       exam: examId,
       subject: subjectId,
@@ -217,6 +264,10 @@ exports.updateGrade = async (req, res) => {
         .json({ message: "الدرجة لازم تكون بين 0 و100" });
     }
 
+    if (!(await markInReach(req, await Result.findById(id).select("student")))) {
+      return res.status(404).json({ message: "سجل الدرجة غير موجود" });
+    }
+
     const updatedResult = await Result.findByIdAndUpdate(
       id,
       {
@@ -253,10 +304,10 @@ exports.updateGrade = async (req, res) => {
 exports.deleteGrade = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await Result.findByIdAndDelete(id);
-
-    if (!result)
+    if (!(await markInReach(req, await Result.findById(id).select("student")))) {
       return res.status(404).json({ message: "سجل الدرجة غير موجود" });
+    }
+    await Result.deleteOne({ _id: id });
 
     res
       .status(200)
