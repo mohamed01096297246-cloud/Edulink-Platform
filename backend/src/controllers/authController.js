@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const { hasStagePrincipals } = require("../utils/tenant");
 const { schemeForTeacher } = require("../utils/gradebook");
 const { toLatinDigits, canonicalMobile } = require("../utils/phone");
+const throttle = require("../utils/loginThrottle");
 
 // A username is matched as typed first. Failing that, one that reads as a
 // mobile number is tried in its 11-digit form, since that is how phone
@@ -40,7 +41,20 @@ exports.login = async (req, res) => {
 
     const user = await findLoginUser(username);
 
+    // Password guessing is capped (utils/loginThrottle.js). An unknown
+    // username is counted the same way, so the answer never reveals
+    // whether an account exists.
+    const account = user ? String(user._id) : `typed:${String(username).trim()}`;
+    const address = req.ip || "";
+    const wait = throttle.lockedFor(account, address);
+    if (wait) {
+      return res.status(429).json({
+        message: `محاولات دخول غلط كتير. استنى ${wait} دقيقة وجرّب تاني.`,
+      });
+    }
+
     if (!user) {
+      throttle.recordFailure(account, address);
       return res
         .status(401)
         .json({ message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
@@ -58,10 +72,13 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
+      throttle.recordFailure(account, address);
       return res
         .status(401)
         .json({ message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
     }
+
+    throttle.clear(account);
 
     let school = null;
     if (user.school) {

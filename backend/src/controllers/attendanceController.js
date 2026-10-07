@@ -765,7 +765,10 @@ exports.getAttendanceById = async (req, res) => {
         ],
       });
 
-    if (!attendance)
+    // Reached by id, so it has to be checked: the record belongs to the
+    // school (and stage) of the student it is about.
+    const owner = attendance && (await Student.findById(attendance.student?._id || attendance.student).select("school grade classroom"));
+    if (!attendance || !owner || !sameSchool(req, owner))
       return res.status(404).json({ message: "سجل الحضور غير موجود" });
 
     res.json({ success: true, data: attendance });

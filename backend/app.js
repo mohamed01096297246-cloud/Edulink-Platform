@@ -7,6 +7,10 @@ require("dotenv").config();
 const app = express();
 
 
+// Behind DigitalOcean's load balancer: read the visitor's address from the
+// one proxy in front of us, so per-address limits (login) see real clients.
+app.set("trust proxy", 1);
+
 app.use(helmet());
 app.use(cors());
 app.use(compression());
