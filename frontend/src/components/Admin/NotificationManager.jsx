@@ -151,6 +151,14 @@ const AdminNotifications = () => {
     .filter((c) => !classGradeFilter || gradeIdOf(c) === classGradeFilter)
     .sort((a, b) => String(a.name).localeCompare(String(b.name), "ar"));
 
+  // Who sent it: a teacher by name, an admin as الإدارة with their name.
+  const senderLabel = (u) => {
+    if (!u) return "الإدارة";
+    const name = `${u.firstName || ""} ${u.lastName || ""}`.trim();
+    if (u.role === "teacher") return name ? `أ. ${name}` : "معلم";
+    return name ? `الإدارة (${name})` : "الإدارة";
+  };
+
   // "لـ فصل 1/1، فصل 1/2" — which classes a narrowed notice went to.
   const audienceLabel = (n) => {
     if (n.target === "parent") return "خاص";
@@ -256,7 +264,7 @@ const AdminNotifications = () => {
                         {n.message}
                       </p>
                       <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase tracking-widest">
-                        بواسطة: {n.createdBy?.name || "الإدارة"} •{" "}
+                        بواسطة: {senderLabel(n.createdBy)} •{" "}
                         {new Date(n.createdAt).toLocaleDateString()}
                       </p>
                     </div>

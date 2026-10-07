@@ -319,7 +319,7 @@ exports.getParentNotifications = async (req, res) => {
       ],
     })
       .sort({ createdAt: -1 })
-      .populate("createdBy", "name role")
+      .populate("createdBy", "firstName lastName role")
       .lean();
 
     // `readBy` is a per-school list that could name any parent; the client
@@ -388,7 +388,7 @@ exports.getAllNotifications = async (req, res) => {
       type: { $nin: ["homework", "homeworkGrade", "behavior", "boardNote"] },
     })
       .sort({ createdAt: -1 })
-      .populate("createdBy", "name role")
+      .populate("createdBy", "firstName lastName role")
       // So the log can say which classes a narrowed notice went to.
       .populate({ path: "classrooms", select: "name grade", populate: { path: "grade", select: "name" } });
 
