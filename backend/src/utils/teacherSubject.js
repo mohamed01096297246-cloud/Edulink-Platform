@@ -126,9 +126,43 @@ const ambiguousResponse = (res, options) =>
     options,
   });
 
+// Whether this teacher may read or write marks for this class (or, for
+// homework set to a whole grade, this grade): it has to be in their own
+// school, and be one they teach — on the timetable, assigned to them, or in
+// a grade they are set to teach. Without this, a teacher could name any
+// classroom id, even another school's, and read or overwrite its marks.
+const teacherMayUse = async (teacher, { classroomId, gradeId }) => {
+  const teachingGrades = new Set((teacher.teachingGrades || []).map((g) => String(g._id || g)));
+  const school = String(teacher.school || "");
+
+  if (classroomId) {
+    const classroom = await Classroom.findById(classroomId).select("school grade").lean();
+    if (!classroom || String(classroom.school) !== school) return false;
+    if (teachingGrades.has(String(classroom.grade))) return true;
+    const pairs = await teacherClassPairs(teacher._id);
+    return pairs.some((p) => String(p.classroom) === String(classroomId));
+  }
+
+  if (gradeId) {
+    const Grade = require("../models/Grade");
+    const grade = await Grade.findById(gradeId).select("school").lean();
+    if (!grade || String(grade.school) !== school) return false;
+    if (teachingGrades.has(String(gradeId))) return true;
+    const pairs = await teacherClassPairs(teacher._id);
+    return Classroom.exists({ _id: { $in: pairs.map((p) => p.classroom) }, grade: gradeId }).then(Boolean);
+  }
+
+  return true;
+};
+
 // Wraps the whole thing for controllers: either you get a subjectId back, or
 // the response has already been sent and you stop.
 const requireTeacherSubject = async (res, args) => {
+  if (args.teacher && !(await teacherMayUse(args.teacher, args))) {
+    res.status(403).json({ success: false, message: "الفصل ده مش من فصولك." });
+    return null;
+  }
+
   const outcome = await resolveTeacherSubject(args);
 
   if (outcome.error) {
@@ -145,6 +179,7 @@ const requireTeacherSubject = async (res, args) => {
 };
 
 module.exports = {
+  teacherMayUse,
   resolveTeacherSubject,
   requireTeacherSubject,
   ambiguousResponse,
