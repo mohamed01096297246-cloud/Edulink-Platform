@@ -114,7 +114,7 @@ app.get("/", (req, res) => {
 // actually serve a database-backed request. Reporting DB state here is
 // what lets Render/Railway/etc. hold traffic on the old instance until the
 // new one can genuinely handle a request, giving zero-downtime deploys.
-app.get("/health", (req, res) => {
+const health = (req, res) => {
   const mongoose = require("mongoose");
   const dbReady = mongoose.connection.readyState === 1; // 1 = connected
 
@@ -122,7 +122,11 @@ app.get("/health", (req, res) => {
     status: dbReady ? "ok" : "not_ready",
     db: dbReady ? "connected" : "disconnected",
   });
-});
+};
+app.get("/health", health);
+// The same check where the outside world can reach it: on the live site
+// only /api/* is routed to this server (/health is the web panel's).
+app.get("/api/health", health);
 
 
 app.use((req, res) => {

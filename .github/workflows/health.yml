@@ -1,0 +1,35 @@
+# Every three hours, from outside, the live site is checked the way a user
+# would meet it: the API answers with its database connected, the demo
+# parent can sign in, and the web panel loads. If any of it fails the run
+# goes red and GitHub emails the repository owner.
+name: Live health check
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    env:
+      SITE: https://edulink-app-ac5cd.ondigitalocean.app
+    steps:
+      - name: API and database
+        run: |
+          body=$(curl -sS -m 30 --retry 2 --retry-delay 20 "$SITE/api/health")
+          echo "$body"
+          echo "$body" | grep -q '"db":"connected"'
+
+      - name: Sign-in works (Google Play demo parent)
+        run: |
+          code=$(curl -sS -m 30 --retry 2 --retry-delay 20 -o login.json -w '%{http_code}' \
+            -X POST "$SITE/api/auth/login" -H 'Content-Type: application/json' \
+            -d '{"username":"01000000000","password":"Review2026"}')
+          echo "HTTP $code"
+          test "$code" = "200"
+          grep -q '"token"' login.json
+
+      - name: Web panel loads
+        run: |
+          curl -sS -m 30 --retry 2 --retry-delay 20 "$SITE/" | grep -q 'static/js/main'

@@ -45,3 +45,11 @@ describe("login", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("health", () => {
+  test("/api/health reports the database connection", async () => {
+    const res = await f.request(f.app).get("/api/health");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: "ok", db: "connected" });
+  });
+});
