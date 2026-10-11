@@ -38,7 +38,13 @@ exports.protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
 
-    const user = await User.findById(decoded.userId).select("-password");
+    let user = await User.findById(decoded.userId).select("-password");
+
+    // A phone still signed in to a parent account that has since been merged
+    // into the family's account carries on as that account.
+    if (user && user.mergedInto) {
+      user = await User.findById(user.mergedInto).select("-password");
+    }
 
     if (!user) {
       return res.status(401).json({

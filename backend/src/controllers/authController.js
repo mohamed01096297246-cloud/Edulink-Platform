@@ -39,7 +39,7 @@ exports.login = async (req, res) => {
         .json({ message: "من فضلك أدخل اسم المستخدم وكلمة المرور" });
     }
 
-    const user = await findLoginUser(username);
+    let user = await findLoginUser(username);
 
     // Password guessing is capped (utils/loginThrottle.js). An unknown
     // username is counted the same way, so the answer never reveals
@@ -60,13 +60,13 @@ exports.login = async (req, res) => {
         .json({ message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
     }
 
-    if (!user.active) {
-      return res
-        .status(403)
-        .json({
-          message:
-            "هذا الحساب موقوف حاليًا، برجاء التواصل مع إدارة المدرسة",
-        });
+    const stopped = () =>
+      res.status(403).json({
+        message: "هذا الحساب موقوف حاليًا، برجاء التواصل مع إدارة المدرسة",
+      });
+
+    if (!user.active && !user.mergedInto) {
+      return stopped();
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -79,6 +79,14 @@ exports.login = async (req, res) => {
     }
 
     throttle.clear(account);
+
+    // An account merged into the family's account signs in as that account.
+    if (user.mergedInto) {
+      user = await User.findById(user.mergedInto);
+      if (!user || !user.active) {
+        return stopped();
+      }
+    }
 
     let school = null;
     if (user.school) {

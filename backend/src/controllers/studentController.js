@@ -104,6 +104,9 @@ exports.createStudent = async (req, res) => {
       phoneNumber: parentPhone,
       role: "parent",
     }).session(session);
+    if (existingParent?.mergedInto) {
+      existingParent = await User.findById(existingParent.mergedInto).session(session);
+    }
 
     if (existingParent) {
       if (existingParent.school.toString() !== school.toString()) {
@@ -275,7 +278,8 @@ async function applyParentEdits(req, student) {
     return { error: "رقم هاتف ولي الأمر لازم يكون 11 رقم." };
   }
 
-  const other = await User.findOne({ phoneNumber: phone, role: "parent" });
+  let other = await User.findOne({ phoneNumber: phone, role: "parent" });
+  if (other?.mergedInto) other = await User.findById(other.mergedInto);
   if (other) {
     if (String(other.school) !== String(student.school)) {
       return { error: "رقم الهاتف ده مسجل لولي أمر في مدرسة تانية." };

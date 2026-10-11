@@ -182,6 +182,16 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+
+    // Set on a parent account whose children were moved onto another account
+    // of the same parent (one family that had been registered under two
+    // phones). The old account is switched off but its username and password
+    // still work: signing in with them opens the family's account instead.
+    mergedInto: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
   {
     timestamps: true, 
