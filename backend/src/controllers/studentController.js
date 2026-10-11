@@ -332,7 +332,9 @@ async function applyParentEdits(req, student) {
   }
   body.parent = String(created._id);
   return {
-    notice: `اتعمل حساب ولي أمر جديد للطالب (اسم المستخدم ${username}) وبيانات الدخول اتبعتت على ${created.email || "—"}.`,
+    notice: created.email
+      ? `اتعمل حساب ولي أمر جديد للطالب (اسم المستخدم ${username}) وبيانات الدخول اتبعتت على ${created.email}.`
+      : `اتعمل حساب ولي أمر جديد للطالب — اسم المستخدم ${username}، كلمة السر ${password}. ادّيهم لولي الأمر.`,
   };
 }
 
