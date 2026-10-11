@@ -233,6 +233,109 @@ exports.createStudent = async (req, res) => {
   }
 };
 
+// The edit form carries the parent's name, phone and email, but they live on
+// the parent's own account, not on the Student — so they need handling here
+// rather than being passed through to Student. The phone decides which
+// account is meant, the same way it does at registration:
+//  - same phone: edit that account (one person, shared by all their children)
+//  - another parent's phone: move the student to that parent
+//  - a phone nobody has: if the student is the only child on the account,
+//    the number was simply wrong and is corrected; otherwise this student
+//    belonged to someone else all along and gets a parent account of their own.
+// Sets req.body.parent when the student changes hands, for the relinking below.
+async function applyParentEdits(req, student) {
+  const body = req.body;
+  const firstName = (body.parentFirstName || "").trim();
+  const lastName = (body.parentLastName || "").trim();
+  const email = (body.parentEmail || "").trim();
+  const phone = toLatinDigits(body.parentPhone || "").trim();
+  delete body.parentFirstName;
+  delete body.parentLastName;
+  delete body.parentEmail;
+  delete body.parentPhone;
+  if (body.parent) return {}; // an explicit relink wins over the form fields
+
+  const current = await User.findById(student.parent);
+  if (!current) return {};
+
+  const named = {
+    ...(firstName && { firstName }),
+    ...(lastName && { lastName }),
+    ...(email && { email }),
+  };
+
+  if (!phone || phone === current.phoneNumber) {
+    if (Object.keys(named).length) {
+      await User.findByIdAndUpdate(current._id, { $set: named }, { runValidators: true });
+    }
+    return {};
+  }
+
+  if (!/^[0-9]{11}$/.test(phone)) {
+    return { error: "رقم هاتف ولي الأمر لازم يكون 11 رقم." };
+  }
+
+  const other = await User.findOne({ phoneNumber: phone, role: "parent" });
+  if (other) {
+    if (String(other.school) !== String(student.school)) {
+      return { error: "رقم الهاتف ده مسجل لولي أمر في مدرسة تانية." };
+    }
+    body.parent = String(other._id);
+    return {
+      notice: `اتنقل الطالب لحساب ولي الأمر ${other.firstName} ${other.lastName} (${other.username}).`,
+    };
+  }
+
+  const siblings = await Student.countDocuments({
+    parent: current._id,
+    _id: { $ne: student._id },
+  });
+  if (!siblings) {
+    await User.findByIdAndUpdate(
+      current._id,
+      { $set: { ...named, phoneNumber: phone } },
+      { runValidators: true },
+    );
+    return {};
+  }
+
+  const username = await resolveUsername(phone, User);
+  const password = generatePassword();
+  const parentName = `${firstName || current.firstName} ${lastName || current.lastName}`;
+  const created = await User.create({
+    firstName: firstName || current.firstName,
+    lastName: lastName || current.lastName,
+    phoneNumber: phone,
+    email: email || current.email,
+    role: "parent",
+    school: student.school,
+    username,
+    password,
+    active: true,
+  });
+  if (created.email) {
+    try {
+      await sendCredentialsEmail(
+        created.email,
+        username,
+        password,
+        "Parent",
+        parentName,
+        `${student.firstName} ${student.lastName}`,
+      );
+    } catch (emailErr) {
+      await User.deleteOne({ _id: created._id });
+      return {
+        error: `ماقدرناش نبعت بيانات دخول ولي الأمر الجديد، فماتغيرش حاجة. السبب: ${emailErr.message}`,
+      };
+    }
+  }
+  body.parent = String(created._id);
+  return {
+    notice: `اتعمل حساب ولي أمر جديد للطالب (اسم المستخدم ${username}) وبيانات الدخول اتبعتت على ${created.email || "—"}.`,
+  };
+}
+
 exports.updateStudent = async (req, res) => {
   try {
     const studentId = req.params.id;
@@ -300,6 +403,11 @@ exports.updateStudent = async (req, res) => {
       delete req.body.classroom;
     }
 
+    const parentEdit = await applyParentEdits(req, student);
+    if (parentEdit.error) {
+      return res.status(400).json({ message: parentEdit.error, error: parentEdit.error });
+    }
+
     if (req.body.parent && req.body.parent !== student.parent.toString()) {
       const parentUser = await User.findById(req.body.parent);
       if (
@@ -337,6 +445,7 @@ exports.updateStudent = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "sorry, the student's data has been updated successfully",
+      notice: parentEdit.notice,
       data: updatedStudent,
     });
   } catch (err) {

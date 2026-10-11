@@ -323,8 +323,11 @@ const StudentManagement = () => {
     setActionLoading(true);
     try {
       if (editMode) {
-        await API.put(`/students/${selectedStudentId}`, formData);
-        showToastMessage("تم تحديث بيانات الطالب بنجاح!", "success");
+        const res = await API.put(`/students/${selectedStudentId}`, formData);
+        showToastMessage(
+          res.data?.notice || "تم تحديث بيانات الطالب بنجاح!",
+          "success",
+        );
       } else {
         await API.post("/students", {
           ...formData,
@@ -338,13 +341,26 @@ const StudentManagement = () => {
       fetchData();
     } catch (err) {
       showToastMessage(
-        err.response?.data?.error || "حدث خطأ أثناء حفظ بيانات الطالب",
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          "حدث خطأ أثناء حفظ بيانات الطالب",
         "error",
       );
     } finally {
       setActionLoading(false);
     }
   };
+
+  // Other children on the same parent account as the student being edited —
+  // renaming the parent renames it for them too, so the form says so.
+  const editingParentId = editMode
+    ? students.find((s) => s._id === selectedStudentId)?.parent?._id
+    : null;
+  const editingSiblings = editingParentId
+    ? students.filter(
+        (s) => s._id !== selectedStudentId && s.parent?._id === editingParentId,
+      )
+    : [];
 
   const filteredStudents = students.filter(
     (s) =>
@@ -1038,6 +1054,17 @@ const StudentManagement = () => {
                     بيانات ولي الأمر
                   </h3>
                 </div>
+                {editingSiblings.length > 0 && (
+                  <p className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 leading-6">
+                    ولي الأمر ده مربوط كمان بـ:{" "}
+                    {editingSiblings
+                      .map((s) => `${s.firstName} ${s.lastName}`)
+                      .join("، ")}
+                    . تعديل الاسم هنا هيتغير عندهم كلهم. لو الطالب ده متربط
+                    بولي أمر غلط، اكتب رقم هاتف ولي أمره الحقيقي — هيتنقل
+                    لحسابه، أو يتعمله حساب جديد لو الرقم مش متسجل.
+                  </p>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label className="label-style">
