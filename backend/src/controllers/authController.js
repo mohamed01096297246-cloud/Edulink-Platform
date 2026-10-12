@@ -158,9 +158,32 @@ exports.updatePushToken = async (req, res) => {
       return res.status(400).json({ message: "pushToken is required" });
     }
 
+    // A token is one phone, and a phone belongs to whoever signed in on it
+    // last. Left on the account that used the phone before (a teacher whose
+    // phone a parent's account now uses), that account's pushes — the
+    // attendance alarm among them — would keep ringing on it.
+    await User.updateMany(
+      { pushToken, _id: { $ne: req.user._id } },
+      { $set: { pushToken: null } },
+    );
     await User.findByIdAndUpdate(req.user._id, { pushToken });
 
     res.status(200).json({ message: "Push token saved" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Signing out on a phone: that phone stops receiving this account's pushes.
+exports.clearPushToken = async (req, res) => {
+  try {
+    const { pushToken } = req.body || {};
+    // Only the token of the phone signing out — the account may since have
+    // been signed in on another phone, which keeps its pushes.
+    if (pushToken) {
+      await User.updateOne({ _id: req.user._id, pushToken }, { $set: { pushToken: null } });
+    }
+    res.status(200).json({ message: "Push token cleared" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
