@@ -142,6 +142,10 @@ const computeWeekScores = async (
       }).select("student homework score status")
     : [];
 
+  // Since homework stopped being marked one by one (the teacher gives the
+  // week's الواجب mark directly — a CourseworkOverride homeworkScore), most
+  // weeks have homework set but no HomeworkResult at all. A student with no
+  // result that week has no computed mark: not entered, rather than zero.
   const homeworkByStudent = new Map();
   homeworkResults.forEach((record) => {
     const key = record.student.toString();
@@ -179,9 +183,9 @@ const computeWeekScores = async (
         ? null
         : round1(attendanceRate * 3 + 2);
 
-    const homeworkEarned = homeworkByStudent.get(key) || 0;
+    const homeworkEarned = homeworkByStudent.get(key);
     const computedHomework =
-      weekHomeworkMax > 0
+      weekHomeworkMax > 0 && homeworkEarned !== undefined
         ? round1((homeworkEarned / weekHomeworkMax) * rules.max.homeworkScore)
         : null;
 
