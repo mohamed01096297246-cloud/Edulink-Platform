@@ -1,4 +1,6 @@
+const mongoose = require("mongoose");
 const Homework = require("../models/Homework");
+const HomeworkResult = require("../models/HomeworkResult");
 const Classroom = require("../models/Classroom");
 const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
@@ -227,9 +229,36 @@ exports.getAllHomeworks = async (req, res) => {
       .populate("classroom", "name")
       .sort({ createdAt: -1 });
 
+    // Which homework the teacher has already marked, and when — so the
+    // grading screen can say what's done and what's still waiting.
+    const classroomIds = [...new Set(homeworks.map((h) => String(h.classroom?._id || h.classroom)))]
+      .map((id) => new mongoose.Types.ObjectId(id));
+    const [marked, classSizes] = await Promise.all([
+      HomeworkResult.aggregate([
+        { $match: { homework: { $in: homeworks.map((h) => h._id) } } },
+        { $group: { _id: "$homework", count: { $sum: 1 }, at: { $max: "$updatedAt" } } },
+      ]),
+      Student.aggregate([
+        { $match: { classroom: { $in: classroomIds }, active: { $ne: false } } },
+        { $group: { _id: "$classroom", count: { $sum: 1 } } },
+      ]),
+    ]);
+    const markedBy = new Map(marked.map((m) => [String(m._id), m]));
+    const sizeOf = new Map(classSizes.map((c) => [String(c._id), c.count]));
+
     res.status(200).json({
       success: true,
-      data: homeworks,
+      data: homeworks.map((h) => {
+        const m = markedBy.get(String(h._id));
+        return {
+          ...h.toObject(),
+          grading: {
+            gradedCount: m?.count || 0,
+            gradedAt: m?.at || null,
+            classSize: sizeOf.get(String(h.classroom?._id || h.classroom)) || 0,
+          },
+        };
+      }),
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
