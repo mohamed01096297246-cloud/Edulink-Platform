@@ -51,3 +51,24 @@ test("a parent can't read another family's child", async () => {
   const res = await (await f.signIn(stranger)).get(`/api/parent/week-evaluation/${student._id}`);
   expect(res.status).toBe(403);
 });
+
+test("activity subjects (العاب، مكتبه، موسيقى، تربية فنية، القرآن) are left out", async () => {
+  const { s, g, c, math, teacher, student, parent } = await setUp();
+  const quran = await f.subject(s, [g], { name: "القرءان الكريم" });
+  const music = await f.subject(s, [g], { name: "موسيقي" });
+  teacher.subjects.push(quran._id, music._id);
+  await teacher.save();
+  for (const [sub, period] of [[quran, 3], [music, 4]]) {
+    await Schedule.create({ school: s._id, classroom: c._id, subject: sub._id, teacher: teacher._id, day: "sun", period, startTime: "08:00", endTime: "08:45" });
+  }
+  const t = await f.signIn(teacher);
+  for (const [sub, score] of [[math, 6], [quran, 10]]) {
+    const saved = await t.post("/api/weekly-evaluation/bulk", { classroomId: String(c._id), weekStart: "2026-10-04", subjectId: String(sub._id), gradesList: [{ studentId: String(student._id), score }] });
+    expect(saved.status).toBe(200);
+  }
+
+  const { data } = (await (await f.signIn(parent)).get(`/api/parent/week-evaluation/${student._id}?weekStart=2026-10-04`)).body;
+  expect(data.subjects.map((x) => x.name).sort()).toEqual(["رياضيات", "لغة عربية"]);
+  // The hidden subject's 10/10 doesn't lift the average either.
+  expect(data.overall).toBe(60);
+});

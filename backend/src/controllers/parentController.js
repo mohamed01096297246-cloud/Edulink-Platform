@@ -114,6 +114,25 @@ exports.getStudentReport = async (req, res) => {
   }
 };
 
+// Activity subjects carry no weekly evaluation worth showing a parent, so
+// تقييم الأسبوع leaves them out. Names are compared loosely because each
+// school spells them its own way (مكتبه / مكتبة، موسيقي / موسيقى،
+// القرءان الكريم); تربية رياضية is Future's name for العاب.
+const normalizeSubjectName = (name) =>
+  String(name || "")
+    .replace(/[ً-ْ]/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/ء/g, "")
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.replace(/^ال/, ""))
+    .join("");
+const NOT_IN_WEEK_EVALUATION = new Set(
+  ["العاب", "تربية رياضية", "مكتبة", "موسيقى", "تربية فنية", "القرآن الكريم"].map(normalizeSubjectName),
+);
+
 // تقييم الأسبوع: the week's التقييم الأسبوعي mark in every subject the child
 // takes, each as a percentage of what the class's scheme marks it out of
 // (10 classic, 20 weekly40). Without a weekStart it opens on the latest week
@@ -155,6 +174,7 @@ exports.getWeekEvaluation = async (req, res) => {
     const subjectDocs = await Subject.find({ _id: { $in: subjectIds } }).select("name");
 
     const subjects = subjectDocs
+      .filter((s) => !NOT_IN_WEEK_EVALUATION.has(normalizeSubjectName(s.name)))
       .map((s) => {
         const score = scoreOf.has(String(s._id)) ? scoreOf.get(String(s._id)) : null;
         return {
