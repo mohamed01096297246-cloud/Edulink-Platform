@@ -4,7 +4,12 @@ const Behavior = require("../models/Behavior");
 const HomeworkResult = require("../models/HomeworkResult");
 const Result = require("../models/Result");
 const User = require("../models/User");
+const Schedule = require("../models/Schedule");
+const Subject = require("../models/Subject");
+const WeeklyEvaluation = require("../models/WeeklyEvaluation");
 const { buildStudentReport } = require("../utils/reportBuilder");
+const { SCHEMES, schemeForClassroom } = require("../utils/gradebook");
+const { toWeekStart, weekEnd } = require("../utils/weekScores");
 
 exports.getParentDashboard = async (req, res) => {
   try {
@@ -104,6 +109,73 @@ exports.getStudentReport = async (req, res) => {
     const report = await buildStudentReport(studentId, period);
 
     res.status(200).json({ success: true, data: report });
+  } catch (err) {
+    res.status(500).json({ message: "خطأ داخلي في السيرفر: " + err.message });
+  }
+};
+
+// تقييم الأسبوع: the week's التقييم الأسبوعي mark in every subject the child
+// takes, each as a percentage of what the class's scheme marks it out of
+// (10 classic, 20 weekly40). Without a weekStart it opens on the latest week
+// the child has a mark in, so the parent never lands on an empty week that
+// simply hasn't been marked yet.
+exports.getWeekEvaluation = async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.studentId);
+    if (!student) {
+      return res.status(404).json({ message: "الطالب غير موجود" });
+    }
+
+    const parentUser = await User.findById(req.user.id);
+    const linkedIds = (parentUser?.linkedStudents || []).map(String);
+    if (String(student.parent) !== req.user.id && !linkedIds.includes(String(student._id))) {
+      return res.status(403).json({ message: "غير مصرح لك بعرض تقييم هذا الطالب." });
+    }
+
+    let weekStart = req.query.weekStart ? toWeekStart(req.query.weekStart) : null;
+    if (!weekStart) {
+      const latest = await WeeklyEvaluation.findOne({ student: student._id })
+        .sort({ weekStart: -1 })
+        .select("weekStart");
+      weekStart = toWeekStart(latest ? latest.weekStart : new Date());
+    }
+
+    const [evaluations, scheduledSubjects, scheme] = await Promise.all([
+      WeeklyEvaluation.find({
+        student: student._id,
+        weekStart: { $gte: weekStart, $lte: weekEnd(weekStart) },
+      }).select("subject score"),
+      student.classroom ? Schedule.distinct("subject", { classroom: student.classroom }) : [],
+      student.classroom ? schemeForClassroom(student.classroom) : "classic",
+    ]);
+    const max = (SCHEMES[scheme] || SCHEMES.classic).max.weeklyEvalScore;
+
+    const scoreOf = new Map(evaluations.map((e) => [String(e.subject), e.score]));
+    const subjectIds = [...new Set([...scheduledSubjects.filter(Boolean).map(String), ...scoreOf.keys()])];
+    const subjectDocs = await Subject.find({ _id: { $in: subjectIds } }).select("name");
+
+    const subjects = subjectDocs
+      .map((s) => {
+        const score = scoreOf.has(String(s._id)) ? scoreOf.get(String(s._id)) : null;
+        return {
+          subjectId: s._id,
+          name: s.name,
+          score,
+          max,
+          percent: score === null ? null : Math.round((score / max) * 100),
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, "ar"));
+
+    const marked = subjects.filter((s) => s.score !== null);
+    const overall = marked.length
+      ? Math.round((marked.reduce((sum, s) => sum + s.score, 0) / (marked.length * max)) * 100)
+      : null;
+
+    res.status(200).json({
+      success: true,
+      data: { weekStart: weekStart.toISOString().slice(0, 10), max, overall, subjects },
+    });
   } catch (err) {
     res.status(500).json({ message: "خطأ داخلي في السيرفر: " + err.message });
   }
