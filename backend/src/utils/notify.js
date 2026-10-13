@@ -45,10 +45,15 @@ exports.notifyParentsOfStudents = async ({
   studentMessage,
 }) => {
   try {
+    // One notice per parent, naming the child it's about (the first, when
+    // two of theirs are in the class) so tapping it opens that child.
     const parentsMap = new Map();
+    const childOf = new Map();
     (students || []).forEach((student) => {
       if (student.parent) {
-        parentsMap.set(student.parent._id.toString(), student.parent);
+        const key = student.parent._id.toString();
+        parentsMap.set(key, student.parent);
+        if (!childOf.has(key)) childOf.set(key, student._id);
       }
     });
     const parents = Array.from(parentsMap.values());
@@ -60,7 +65,7 @@ exports.notifyParentsOfStudents = async ({
           message,
           target: "parent",
           parent: parent._id,
-          student: null,
+          student: childOf.get(parent._id.toString()) || null,
           type,
           createdBy,
           school,
