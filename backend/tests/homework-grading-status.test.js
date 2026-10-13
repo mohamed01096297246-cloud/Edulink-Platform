@@ -28,3 +28,22 @@ test("each homework carries how many students were marked, when, and the class s
   expect(byTitle.done.classSize).toBe(2);
   expect(byTitle.waiting).toEqual({ gradedCount: 0, gradedAt: null, classSize: 2 });
 });
+
+// A teacher had homework set for a class that was later deleted; the list
+// failed for her with "input must be a 24 character hex string".
+test("homework whose classroom was deleted doesn't break the teacher's list", async () => {
+  const s = await f.school();
+  const g = await f.grade(s);
+  const c = await f.classroom(g);
+  const gone = await f.classroom(g);
+  const sub = await f.subject(s, [g]);
+  const teacher = await f.user("teacher", s, { subjects: [sub._id], teachingGrades: [g._id] });
+  const base = { pageNumber: "1", dueDate: new Date(), teacher: teacher._id, subject: sub._id, school: s._id };
+  await Homework.create({ ...base, title: "kept", classroom: c._id });
+  await Homework.create({ ...base, title: "orphan", classroom: gone._id });
+  await gone.deleteOne();
+
+  const res = await (await f.signIn(teacher)).get("/api/homework");
+  expect(res.status).toBe(200);
+  expect(res.body.data.map((h) => h.title).sort()).toEqual(["kept", "orphan"]);
+});

@@ -231,7 +231,10 @@ exports.getAllHomeworks = async (req, res) => {
 
     // Which homework the teacher has already marked, and when — so the
     // grading screen can say what's done and what's still waiting.
+    // A homework whose classroom has since been deleted populates to null —
+    // it has no class to count, and must not break the whole list.
     const classroomIds = [...new Set(homeworks.map((h) => String(h.classroom?._id || h.classroom)))]
+      .filter((id) => mongoose.isValidObjectId(id))
       .map((id) => new mongoose.Types.ObjectId(id));
     const [marked, classSizes] = await Promise.all([
       HomeworkResult.aggregate([
