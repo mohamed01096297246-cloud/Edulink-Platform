@@ -7,9 +7,10 @@ const User = require("../models/User");
 const Schedule = require("../models/Schedule");
 const Subject = require("../models/Subject");
 const WeeklyEvaluation = require("../models/WeeklyEvaluation");
+const CourseworkOverride = require("../models/CourseworkOverride");
 const { buildStudentReport } = require("../utils/reportBuilder");
 const { SCHEMES, schemeForClassroom } = require("../utils/gradebook");
-const { toWeekStart, weekEnd } = require("../utils/weekScores");
+const { computeWeekScores, toWeekStart, weekEnd } = require("../utils/weekScores");
 
 exports.getParentDashboard = async (req, res) => {
   try {
@@ -195,6 +196,66 @@ exports.getWeekEvaluation = async (req, res) => {
     res.status(200).json({
       success: true,
       data: { weekStart: weekStart.toISOString().slice(0, 10), max, overall, subjects },
+    });
+  } catch (err) {
+    res.status(500).json({ message: "خطأ داخلي في السيرفر: " + err.message });
+  }
+};
+
+// درجة الواجب: the week's الواجب mark in every subject the child takes —
+// out of 5 classic, 10 weekly40 — worked out exactly as the teacher's
+// register does (utils/weekScores.js), so the parent reads the teacher's own
+// number. Without a weekStart it opens on the latest week, up to this one,
+// that the child has a mark in.
+exports.getHomeworkWeek = async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.studentId);
+    if (!student) {
+      return res.status(404).json({ message: "الطالب غير موجود" });
+    }
+
+    const parentUser = await User.findById(req.user.id);
+    const linkedIds = (parentUser?.linkedStudents || []).map(String);
+    if (String(student.parent) !== req.user.id && !linkedIds.includes(String(student._id))) {
+      return res.status(403).json({ message: "غير مصرح لك بعرض درجات هذا الطالب." });
+    }
+
+    let weekStart = req.query.weekStart ? toWeekStart(req.query.weekStart) : null;
+    if (!weekStart) {
+      const thisWeek = toWeekStart(new Date());
+      const latest = await CourseworkOverride.findOne({
+        student: student._id,
+        homeworkScore: { $ne: null },
+        weekStart: { $lte: thisWeek },
+      })
+        .sort({ weekStart: -1 })
+        .select("weekStart");
+      weekStart = latest ? toWeekStart(latest.weekStart) : thisWeek;
+    }
+
+    const scheme = student.classroom ? await schemeForClassroom(student.classroom) : "classic";
+    const max = (SCHEMES[scheme] || SCHEMES.classic).max.homeworkScore;
+
+    const subjectIds = student.classroom
+      ? (await Schedule.distinct("subject", { classroom: student.classroom })).filter(Boolean)
+      : [];
+    const subjectDocs = (await Subject.find({ _id: { $in: subjectIds } }).select("name")).filter(
+      (s) => !NOT_IN_WEEK_EVALUATION.has(normalizeSubjectName(s.name)),
+    );
+
+    const subjects = (
+      await Promise.all(
+        subjectDocs.map(async (s) => {
+          const scores = await computeWeekScores(student.classroom, s._id, [student._id], weekStart, scheme);
+          const score = scores[String(student._id)]?.homeworkScore ?? null;
+          return { subjectId: s._id, name: s.name, score, max };
+        }),
+      )
+    ).sort((a, b) => a.name.localeCompare(b.name, "ar"));
+
+    res.status(200).json({
+      success: true,
+      data: { weekStart: weekStart.toISOString().slice(0, 10), max, subjects },
     });
   } catch (err) {
     res.status(500).json({ message: "خطأ داخلي في السيرفر: " + err.message });
