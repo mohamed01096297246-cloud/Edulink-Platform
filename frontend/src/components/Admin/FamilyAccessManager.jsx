@@ -20,6 +20,17 @@ const PAGE = 100;
 const latinDigits = (value) =>
   String(value || "").replace(/[٠-٩۰-۹]/g, (d) => String(d.charCodeAt(0) & 0xf));
 
+// Names are written many ways (أحمد / احمد، فاطمة / فاطمه، على / علي), so
+// both the search and the names it looks through are brought to one form.
+const normalizeArabic = (value) =>
+  latinDigits(value)
+    .replace(/[ً-ْـ]/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const escapeHtml = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 
@@ -73,14 +84,27 @@ const FamilyAccessManager = ({ school, onClose, showToast }) => {
     return [...seen.entries()];
   }, [rows]);
 
-  const filtered = useMemo(() => {
-    const q = latinDigits(search).trim();
-    return rows.filter((r) => {
-      if (grade && r.gradeId !== grade) return false;
-      if (!q) return true;
+  // Every word typed has to appear somewhere in the student's or parent's
+  // name, username or phone, in any order. A name written on paper often
+  // differs from the record by a word (حسن for احمد), so when nothing has
+  // every word, the students missing just one are offered as close matches.
+  const { filtered, close } = useMemo(() => {
+    const inGrade = rows.filter((r) => !grade || r.gradeId === grade);
+    const words = normalizeArabic(search).split(" ").filter(Boolean);
+    if (!words.length) return { filtered: inGrade, close: false };
+
+    const scored = inGrade.map((r) => {
       const p = r.parent || {};
-      return [r.name, p.name, p.username, p.phoneNumber].some((v) => String(v || "").includes(q));
+      const hay = normalizeArabic([r.name, p.name, p.username, p.phoneNumber].join(" "));
+      return { r, hits: words.filter((w) => hay.includes(w)).length };
     });
+    const exact = scored.filter((x) => x.hits === words.length).map((x) => x.r);
+    if (exact.length || words.length < 2) return { filtered: exact, close: false };
+
+    const near = scored
+      .filter((x) => x.hits === words.length - 1)
+      .map((x) => x.r);
+    return { filtered: near, close: near.length > 0 };
   }, [rows, search, grade]);
 
   useEffect(() => setShown(PAGE), [search, grade]);
@@ -210,6 +234,11 @@ const FamilyAccessManager = ({ school, onClose, showToast }) => {
           </div>
 
           <div className="p-6 pt-3 space-y-2.5">
+            {close && (
+              <p className="p-3.5 rounded-xl bg-amber-50 text-amber-800 text-xs font-black">
+                مفيش طالب اسمه مطابق بالظبط — دي أقرب النتايج (كل الكلمات موجودة ما عدا كلمة واحدة). اتأكد إنه الطالب الصح قبل الربط.
+              </p>
+            )}
             {loading ? (
               <div className="py-16 text-center">
                 <Loader2 className="animate-spin inline text-teal-600" size={32} />
