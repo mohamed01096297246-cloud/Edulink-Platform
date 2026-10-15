@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import API from "../../api/axios";
 import { STAGES, stageLabel } from "../../constants/stages";
+import FamilyAccessManager from "./FamilyAccessManager";
 import {
   Building2,
   PlusCircle,
@@ -17,6 +18,7 @@ import {
   Copy,
   BookOpen,
   Baby,
+  Link2,
 } from "lucide-react";
 
 // Platform-super-admin only — onboarding new schools onto EduLink,
@@ -87,6 +89,8 @@ const SchoolManager = () => {
       report: "تقرير الأداء",
     },
   };
+  // Linking students to their parents and parents' logins (FamilyAccessManager).
+  const [familiesSchool, setFamiliesSchool] = useState(null);
   const [manageUsers, setManageUsers] = useState(null); // { school, role }
   const [usersList, setUsersList] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -495,6 +499,13 @@ const SchoolManager = () => {
                                 className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all text-xs font-bold"
                               >
                                 <Baby size={15} /> أولياء الأمور
+                              </button>
+                              <button
+                                onClick={() => setFamiliesSchool(school)}
+                                title="ربط الطلاب بأولياء الأمور وبيانات الدخول"
+                                className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all text-xs font-bold"
+                              >
+                                <Link2 size={15} /> ربط الطلاب والدخول
                               </button>
                               <button
                                 onClick={() => setAdminModalSchool(school)}
@@ -981,6 +992,14 @@ const SchoolManager = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {familiesSchool && (
+        <FamilyAccessManager
+          school={familiesSchool}
+          onClose={() => setFamiliesSchool(null)}
+          showToast={showToast}
+        />
       )}
 
       {editUserTarget && (
