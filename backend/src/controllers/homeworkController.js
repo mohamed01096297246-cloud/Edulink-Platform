@@ -275,7 +275,7 @@ exports.getStudentHomeworks = async (req, res) => {
     if (!student) return res.status(404).json({ message: "الطالب غير موجود" });
     if (
       req.user.role === "parent" &&
-      student.parent.toString() !== req.user.id
+      String(student.parent) !== req.user.id
     ) {
       return res
         .status(403)

@@ -72,7 +72,7 @@ exports.listFamilies = async (req, res) => {
       .populate("classroom", "name")
       .lean();
 
-    const parentIds = [...new Set(students.map((s) => String(s.parent)).filter(Boolean))];
+    const parentIds = [...new Set(students.filter((s) => s.parent).map((s) => String(s.parent)))];
     const parents = await User.find({ _id: { $in: parentIds } })
       .select("firstName lastName username phoneNumber active role")
       .lean();
@@ -228,6 +228,47 @@ exports.linkStudent = async (req, res) => {
   } catch (err) {
     if (created) await User.deleteOne({ _id: created._id }).catch(() => {});
     return res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+// Takes a student off a parent account that turned out not to be theirs.
+// The student is left with no parent until the right one is linked; the
+// account keeps its other children and stops seeing this one at once.
+exports.unlinkStudent = async (req, res) => {
+  try {
+    const school = await loadSchool(req, res);
+    if (!school) return undefined;
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.studentId)) {
+      return res.status(404).json({ success: false, message: "الطالب غير موجود." });
+    }
+    const student = await Student.findOne({ _id: req.params.studentId, school: school._id });
+    if (!student) {
+      return res.status(404).json({ success: false, message: "الطالب غير موجود في المدرسة دي." });
+    }
+    if (!student.parent) {
+      return res.status(400).json({ success: false, message: "الطالب مش مربوط بأي ولي أمر أصلًا." });
+    }
+
+    const previousId = student.parent;
+    await Student.updateOne({ _id: student._id }, { $set: { parent: null } });
+    await User.updateOne({ _id: previousId }, { $pull: { linkedStudents: student._id } });
+    // A merged account can still list the child from before the merge.
+    await User.updateMany({ mergedInto: previousId }, { $pull: { linkedStudents: student._id } });
+
+    const previous = await User.findById(previousId).select("firstName lastName username").lean();
+    const childrenLeft = await Student.countDocuments({ parent: previousId });
+
+    return res.status(200).json({
+      success: true,
+      message: `الطالب اتفصل عن حساب ${fullName(previous)}.`,
+      data: {
+        student: { _id: student._id, name: fullName(student) },
+        previous: previous ? { name: fullName(previous), username: previous.username, childrenLeft } : null,
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 

@@ -98,7 +98,7 @@ exports.getStudentReport = async (req, res) => {
       id.toString()
     );
     const isOwnChild =
-      student.parent.toString() === req.user.id ||
+      String(student.parent) === req.user.id ||
       linkedIds.includes(student._id.toString());
 
     if (!isOwnChild) {

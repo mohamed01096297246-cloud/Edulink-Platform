@@ -673,7 +673,7 @@ exports.getStudentAttendance = async (req, res) => {
 
     if (
       req.user.role === "parent" &&
-      student.parent.toString() !== req.user.id
+      String(student.parent) !== req.user.id
     ) {
       return res.status(403).json({
         message:

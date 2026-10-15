@@ -10,6 +10,7 @@ import {
   Loader2,
   Printer,
   Search,
+  Unlink,
   UserPlus,
   X,
 } from "lucide-react";
@@ -58,6 +59,7 @@ const FamilyAccessManager = ({ school, onClose, showToast }) => {
 
   const [linkTarget, setLinkTarget] = useState(null);
   const [reissueTarget, setReissueTarget] = useState(null);
+  const [unlinkTarget, setUnlinkTarget] = useState(null);
   const [issued, setIssued] = useState([]);
 
   const base = `/schools/${school._id}/families`;
@@ -296,6 +298,14 @@ const FamilyAccessManager = ({ school, onClose, showToast }) => {
                     </button>
                     {r.parent && (
                       <button
+                        onClick={() => setUnlinkTarget(r)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-600 hover:text-rose-700 hover:bg-rose-100 rounded-xl transition-all text-xs font-bold"
+                      >
+                        <Unlink size={14} /> فصل عن ولي الأمر
+                      </button>
+                    )}
+                    {r.parent && (
+                      <button
                         onClick={() => setReissueTarget(r)}
                         className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-600 hover:text-amber-700 hover:bg-amber-100 rounded-xl transition-all text-xs font-bold"
                       >
@@ -337,6 +347,26 @@ const FamilyAccessManager = ({ school, onClose, showToast }) => {
               ? ` الحساب القديم (${data.previous.username}) بقى من غير أبناء.`
               : "";
             showToast(`الطالب اتربط بحساب ${data.parent.name}.${left}`, "success");
+            load();
+          }}
+        />
+      )}
+
+      {unlinkTarget && (
+        <UnlinkDialog
+          base={base}
+          row={unlinkTarget}
+          siblings={rows
+            .filter((r) => r._id !== unlinkTarget._id && r.parent?._id === unlinkTarget.parent._id)
+            .map((r) => r.name)}
+          onClose={() => setUnlinkTarget(null)}
+          showToast={showToast}
+          onDone={(data) => {
+            setUnlinkTarget(null);
+            const left = data.previous && data.previous.childrenLeft === 0
+              ? " الحساب ده بقى من غير أبناء."
+              : "";
+            showToast(`${data.student.name} اتفصل عن حساب ${data.previous?.name || "ولي الأمر"}.${left}`, "success");
             load();
           }}
         />
@@ -501,6 +531,59 @@ const LinkDialog = ({ base, student, onClose, onDone, showToast }) => {
           )}
         </button>
       </form>
+    </div>
+  );
+};
+
+// Takes a student off a parent account that isn't theirs. The student is
+// left with no parent until the right one is linked with "ربط بولي أمر".
+const UnlinkDialog = ({ base, row, siblings, onClose, onDone, showToast }) => {
+  const [saving, setSaving] = useState(false);
+
+  const confirm = async () => {
+    setSaving(true);
+    try {
+      const res = await API.post(`${base}/${row._id}/unlink`);
+      onDone(res.data.data);
+    } catch (err) {
+      showToast(err.response?.data?.message || "فشل الفصل", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-slate-900/40">
+      <div className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl p-7 space-y-4 text-center">
+        <Unlink className="mx-auto text-rose-500" size={36} />
+        <div>
+          <p className="font-black text-slate-800">
+            فصل {row.name} عن حساب {row.parent.name}؟
+          </p>
+          <p className="text-slate-500 text-sm font-medium mt-2">
+            {`ولي الأمر ده مش هيشوف الطالب في التطبيق تاني${
+              siblings.length
+                ? `، وهيفضل معاه: ${siblings.join("، ")}`
+                : "، والحساب هيفضل من غير أبناء"
+            }. الطالب هيفضل من غير ولي أمر لحد ما تربطه بالصح من «ربط بولي أمر».`}
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all"
+          >
+            تراجع
+          </button>
+          <button
+            onClick={confirm}
+            disabled={saving}
+            className="flex-1 py-3.5 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+          >
+            {saving ? <Loader2 className="animate-spin" size={18} /> : "افصل الطالب"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

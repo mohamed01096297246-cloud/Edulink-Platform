@@ -165,7 +165,7 @@ exports.getReportCard = async (req, res) => {
     // could otherwise read any student's exam report card by guessing an id.
     if (
       req.user.role === "parent" &&
-      student.parent._id.toString() !== req.user.id
+      String(student.parent?._id) !== req.user.id
     ) {
       return res.status(403).json({
         message: "غير مصرح لك بعرض كشف درجات هذا الطالب.",

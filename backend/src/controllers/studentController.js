@@ -258,8 +258,42 @@ async function applyParentEdits(req, student) {
   delete body.parentPhone;
   if (body.parent) return {}; // an explicit relink wins over the form fields
 
-  const current = await User.findById(student.parent);
-  if (!current) return {};
+  const current = student.parent ? await User.findById(student.parent) : null;
+  // A student taken off a parent account that wasn't theirs has none: a
+  // phone in the form gives them one, the same way registration does.
+  if (!current) {
+    if (!phone) return {};
+    if (!/^[0-9]{11}$/.test(phone)) {
+      return { error: "رقم هاتف ولي الأمر لازم يكون 11 رقم." };
+    }
+    let owner = await User.findOne({ phoneNumber: phone, role: "parent" });
+    if (owner?.mergedInto) owner = await User.findById(owner.mergedInto);
+    if (owner) {
+      if (String(owner.school) !== String(student.school)) {
+        return { error: "رقم الهاتف ده مسجل لولي أمر في مدرسة تانية." };
+      }
+      body.parent = String(owner._id);
+      return { notice: `اتربط الطالب بحساب ولي الأمر ${owner.firstName} ${owner.lastName} (${owner.username}).` };
+    }
+    if (!firstName) return { error: "اكتب اسم ولي الأمر عشان يتعمله حساب." };
+    const username = await resolveUsername(phone, User);
+    const password = generatePassword();
+    const made = await User.create({
+      firstName,
+      lastName: lastName || "-",
+      phoneNumber: phone,
+      email: email || undefined,
+      role: "parent",
+      school: student.school,
+      username,
+      password,
+      active: true,
+    });
+    body.parent = String(made._id);
+    return {
+      notice: `اتعمل حساب ولي أمر للطالب — اسم المستخدم ${username}، كلمة السر ${password}. ادّيهم لولي الأمر.`,
+    };
+  }
 
   const named = {
     ...(firstName && { firstName }),
@@ -414,7 +448,7 @@ exports.updateStudent = async (req, res) => {
       return res.status(400).json({ message: parentEdit.error, error: parentEdit.error });
     }
 
-    if (req.body.parent && req.body.parent !== student.parent.toString()) {
+    if (req.body.parent && req.body.parent !== String(student.parent)) {
       const parentUser = await User.findById(req.body.parent);
       if (
         !parentUser ||
@@ -423,9 +457,11 @@ exports.updateStudent = async (req, res) => {
       ) {
         return res.status(400).json({ message: "Invalid parent ID" });
       }
-      await User.findByIdAndUpdate(student.parent, {
-        $pull: { linkedStudents: student._id },
-      });
+      if (student.parent) {
+        await User.findByIdAndUpdate(student.parent, {
+          $pull: { linkedStudents: student._id },
+        });
+      }
       await User.findByIdAndUpdate(req.body.parent, {
         $addToSet: { linkedStudents: student._id },
       });
@@ -592,7 +628,7 @@ exports.getStudent = async (req, res) => {
 
     if (
       req.user.role === "parent" &&
-      student.parent._id.toString() !== req.user._id.toString()
+      String(student.parent?._id) !== req.user._id.toString()
     ) {
       return res.status(403).json({ message: "Access denied" });
     }

@@ -52,7 +52,7 @@ const recipientsOfClassrooms = async (classroomIds) => {
     classroom: { $in: classroomIds },
     active: true,
   }).select("parent");
-  const parentIds = [...new Set(students.map((s) => String(s.parent)).filter(Boolean))];
+  const parentIds = [...new Set(students.filter((s) => s.parent).map((s) => String(s.parent)))];
   const [parents, studentAccounts] = await Promise.all([
     User.find({ _id: { $in: parentIds }, role: "parent" }).select("pushToken"),
     User.find({ role: "student", active: true, studentProfile: { $in: students.map((s) => s._id) } }).select("pushToken"),

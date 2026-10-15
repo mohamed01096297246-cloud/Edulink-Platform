@@ -19,6 +19,7 @@ router.post("/:schoolId/admin", schoolController.createSchoolAdmin);
 router.get("/:schoolId/families", familyAccess.listFamilies);
 router.get("/:schoolId/families/parent", familyAccess.lookupParent);
 router.post("/:schoolId/families/:studentId/link", familyAccess.linkStudent);
+router.post("/:schoolId/families/:studentId/unlink", familyAccess.unlinkStudent);
 router.post("/:schoolId/families/parents/:parentId/reissue", familyAccess.reissueParentPassword);
 
 module.exports = router;

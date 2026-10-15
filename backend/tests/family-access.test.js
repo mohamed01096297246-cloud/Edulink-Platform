@@ -84,6 +84,36 @@ test("a new password replaces the old one; a merged account's family account is 
   expect(merged.body.data.credentials.username).toBe(one.parent.username);
 });
 
+test("a student who isn't the parent's child is taken off the account, then linked to the right one", async () => {
+  const { owner, one, two, base } = await setUp();
+  const o = await f.signIn(owner);
+  // Put two's student under one's parent by mistake, then take it off.
+  await o.post(`${base}/${two.student._id}/link`, { phone: one.parent.phoneNumber });
+
+  const res = await o.post(`${base}/${two.student._id}/unlink`);
+  expect(res.status).toBe(200);
+  expect(res.body.data.previous).toMatchObject({ username: one.parent.username, childrenLeft: 1 });
+  expect((await Student.findById(two.student._id)).parent).toBeNull();
+  expect((await User.findById(one.parent._id)).linkedStudents.map(String)).not.toContain(String(two.student._id));
+
+  // The parent sees only their own child, and is refused the other one.
+  const p = await f.signIn(one.parent);
+  expect((await p.get("/api/parent/dashboard")).body.children).toHaveLength(1);
+  expect((await p.get(`/api/homework-results/dashboard/${two.student._id}`)).status).toBe(403);
+
+  // Listed without a parent; unlinking again is refused.
+  const listed = (await o.get(base)).body.data.students.find((s) => String(s._id) === String(two.student._id));
+  expect(listed.parent).toBeNull();
+  expect((await o.post(`${base}/${two.student._id}/unlink`)).status).toBe(400);
+
+  // The school's own admin can give them a parent from the student form.
+  const schoolAdmin = await f.user("admin", one.student.school ? { _id: one.student.school } : null);
+  const edit = await (await f.signIn(schoolAdmin)).put(`/api/students/${two.student._id}`, { parentPhone: two.parent.phoneNumber });
+  expect(edit.status).toBe(200);
+  expect(String((await Student.findById(two.student._id)).parent)).toBe(String(two.parent._id));
+  expect((await User.findById(two.parent._id)).linkedStudents.map(String)).toContain(String(two.student._id));
+});
+
 test("only the platform owner, and only within the school", async () => {
   const { s, one, two, base } = await setUp();
   const schoolAdmin = await f.user("admin", s);

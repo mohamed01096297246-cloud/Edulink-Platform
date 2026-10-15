@@ -42,10 +42,13 @@ gender: {
       ref: "Classroom"
     },
 
+// Set at registration. Empty only for a student taken off a parent account
+// that turned out not to be theirs, until the right parent is linked
+// (familyAccessController) — so code reading it must allow for null.
 parent: {
   type: mongoose.Schema.Types.ObjectId,
   ref: "User",
-  required: true
+  default: null
 },
 
     school: {
