@@ -4,7 +4,7 @@ const HomeworkResult = require("../models/HomeworkResult");
 const WeeklyEvaluation = require("../models/WeeklyEvaluation");
 const ClassworkNotebook = require("../models/ClassworkNotebook");
 const CourseworkOverride = require("../models/CourseworkOverride");
-const { SCHEMES, DEFAULT_SCHEME } = require("./gradebook");
+const { SCHEMES, DEFAULT_SCHEME, conductEnteredFrom, isConductEntered } = require("./gradebook");
 const Classroom = require("../models/Classroom");
 const { isDailyMode } = require("./dailyAttendance");
 const { worthOf, earnedOn } = require("./homeworkMarks");
@@ -65,6 +65,9 @@ const computeWeekScores = async (
   // the same figure for every subject, instead of that subject's lessons.
   const classroomDoc = await Classroom.findById(classroomId).select("school").lean();
   const daily = await isDailyMode(classroomDoc?.school);
+  // A school that moved مواظبة وسلوك to the teacher's hand: from that week
+  // on, only what the teacher entered counts — attendance no longer does.
+  const conductEntered = isConductEntered(await conductEnteredFrom(classroomDoc?.school), weekStart);
 
   const [
     attendanceRecords,
@@ -179,7 +182,7 @@ const computeWeekScores = async (
     // formula — the teacher enters مواظبة وسلوك, so there is nothing to
     // compute and the only value is the one they set.
     const computedAttendance =
-      !rules.attendanceComputed || attendanceRate === null
+      !rules.attendanceComputed || conductEntered || attendanceRate === null
         ? null
         : round1(attendanceRate * 3 + 2);
 

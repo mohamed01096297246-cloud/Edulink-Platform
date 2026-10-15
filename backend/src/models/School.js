@@ -82,6 +82,16 @@ const schoolSchema = new mongoose.Schema(
       secondary: { type: String, enum: ["classic", "weekly40"] },
     },
 
+    // From this week on (its Sunday), the classic مواظبة وسلوك mark is
+    // entered by the teacher, week by week, and no longer worked out from
+    // the attendance register. Weeks before it keep the marks they already
+    // have. Unset means the mark still follows attendance (see
+    // utils/weekScores.js).
+    conductEnteredFrom: {
+      type: Date,
+      default: null,
+    },
+
     // How the class register is kept.
     //   lesson — every lesson takes its own register (the default; the
     //            classic مواظبة mark is worked out from it, per subject).

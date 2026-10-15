@@ -15,7 +15,11 @@ const {
   toWeekStart,
   maxScoresFor,
 } = require("../utils/weekScores");
-const { schemeForClassroom } = require("../utils/gradebook");
+const {
+  schemeForClassroom,
+  conductEnteredFrom,
+  isConductEntered,
+} = require("../utils/gradebook");
 const { isDailyMode } = require("../utils/dailyAttendance");
 const { worthOf, earnedOn } = require("../utils/homeworkMarks");
 
@@ -293,6 +297,11 @@ exports.getClassroomWeekCoursework = async (req, res) => {
         // what each is out of, for this classroom's scheme.
         scheme,
         maxScores: maxScoresFor(scheme),
+        // True when this week's مواظبة وسلوك is the teacher's to enter
+        // rather than worked out from attendance (School.conductEnteredFrom).
+        conductEntered:
+          scheme === "weekly40" ||
+          isConductEntered(await conductEnteredFrom(classroom.school), weekStart),
       },
     });
   } catch (err) {

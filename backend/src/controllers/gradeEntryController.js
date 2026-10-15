@@ -122,7 +122,7 @@ exports.getGradeEntry = async (req, res) => {
     const classById = new Map(classrooms.map((c) => [String(c._id), c]));
 
     const schoolIds = [...new Set(classrooms.map((c) => String(c.school)))];
-    const schools = await School.find({ _id: { $in: schoolIds } }).select("gradebook").lean();
+    const schools = await School.find({ _id: { $in: schoolIds } }).select("gradebook conductEnteredFrom").lean();
     const schoolById = new Map(schools.map((s) => [String(s._id), s]));
     const dailyBySchool = new Map(
       await Promise.all(schoolIds.map(async (id) => [id, await isDailyMode(id)])),
@@ -228,18 +228,45 @@ exports.getGradeEntry = async (req, res) => {
       (a) => a.date,
     );
 
+    // A school whose teachers enter مواظبة وسلوك by hand from some week on
+    // (School.conductEnteredFrom): the attendance register still counts for
+    // the weeks before it, and only the teacher's own marks after it.
+    const conductFromOf = (classroom) => schoolById.get(String(classroom.school))?.conductEnteredFrom || null;
+    const weeksBefore = (bucket, from) => {
+      if (!bucket) return bucket;
+      const cutoff = weekKey(from).getTime();
+      const out = newBucket();
+      bucket.weeks.forEach((set, week) => {
+        if (week >= cutoff) return;
+        out.weeks.set(week, set);
+        set.forEach((s) => out.students.add(s));
+      });
+      out.last = bucket.last;
+      return out;
+    };
+
     const sources = (key, classroom) => {
       const daily = dailyBySchool.get(String(classroom.school));
+      const from = conductFromOf(classroom);
+      const register = daily ? attendanceByClass.get(String(classroom._id)) : attendanceByPair.get(key);
+      const attendance = merge(from ? weeksBefore(register, from) : register, attendanceOverride.get(key));
       return {
-        attendance: merge(
-          daily ? attendanceByClass.get(String(classroom._id)) : attendanceByPair.get(key),
-          attendanceOverride.get(key),
-        ),
+        attendance,
         homework: merge(homeworkTally.get(key), homeworkOverride.get(key)),
         weekly: weeklyTally.get(key),
         classwork: classworkTally.get(key),
-        conduct: attendanceOverride.get(key),
+        conduct: from ? attendance : attendanceOverride.get(key),
       };
+    };
+
+    // The classic مواظبة becomes the teacher's مواظبة وسلوك once any week of
+    // the period is past the school's switch-over.
+    const columnsFor = (scheme, classroom) => {
+      const from = conductFromOf(classroom);
+      if (scheme !== "classic" || !from || range.end < weekKey(from)) return REGISTER_COLUMNS[scheme];
+      return REGISTER_COLUMNS.classic.map((col) =>
+        col.key === "attendance" ? { key: "conduct", label: "مواظبة وسلوك", maxField: "attendanceScore", entered: true } : col,
+      );
     };
 
     const teachers = new Map();
@@ -255,7 +282,7 @@ exports.getGradeEntry = async (req, res) => {
       const src = sources(key, classroom);
       const set = homeworkSet.get(key) || 0;
 
-      const columns = REGISTER_COLUMNS[scheme].map((col) => ({
+      const columns = columnsFor(scheme, classroom).map((col) => ({
         key: col.key,
         label: col.label,
         max: rules.max[col.maxField],

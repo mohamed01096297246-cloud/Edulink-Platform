@@ -63,6 +63,17 @@ const schemeForClassroom = async (classroomOrId) => {
   return schemeFor(school, grade?.stage);
 };
 
+// The first week whose مواظبة وسلوك the school's teachers enter by hand
+// (School.conductEnteredFrom), or null while it still follows attendance.
+const conductEnteredFrom = async (schoolId) => {
+  if (!schoolId) return null;
+  const school = await School.findById(schoolId).select("conductEnteredFrom").lean();
+  return school?.conductEnteredFrom || null;
+};
+
+const isConductEntered = (from, weekStart) =>
+  Boolean(from) && new Date(weekStart).getTime() >= new Date(from).getTime();
+
 // For a teacher's app: which screens to show. A teacher whose grades all
 // sit in a weekly40 stage gets that set of screens; anyone else keeps the
 // classic ones. (A teacher across two stages with different schemes still
@@ -87,4 +98,6 @@ module.exports = {
   schemeFor,
   schemeForClassroom,
   schemeForTeacher,
+  conductEnteredFrom,
+  isConductEntered,
 };
