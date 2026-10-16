@@ -6,6 +6,7 @@ const {
   updateTeacher,
   deleteTeacher,
 } = require("../controllers/teacherController");
+const { getMyGradeEntry } = require("../controllers/gradeEntryController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
 router.post("/", protect, authorize("admin"), teacherController.createTeacher);
@@ -17,6 +18,8 @@ router.get(
   authorize("teacher"),
   teacherController.getMySubjects,
 );
+// «آخر التطورات»: what the teacher has recorded this week and what is left.
+router.get("/progress", protect, authorize("teacher"), getMyGradeEntry);
 router.put("/:id", protect, authorize("admin"), updateTeacher);
 router.delete("/:id", protect, authorize("admin", "sub-admin"), deleteTeacher);
 

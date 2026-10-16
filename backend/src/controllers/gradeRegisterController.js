@@ -11,11 +11,38 @@ const {
   buildMonth40Workbook,
   buildTerm40Workbook,
 } = require("../utils/gradeRegisterExcel");
+const { writeSheetPdf } = require("../utils/sheetPdf");
 const { schemeForClassroom } = require("../utils/gradebook");
 const { monthWeekScores, computeTerm40 } = require("../utils/term40");
 // Shared with the weekly-evaluation screen, so what the teacher edits on
 // screen is literally the same number that lands in the printed register.
 const { computeWeekScores, toWeekStart } = require("../utils/weekScores");
+
+// The register goes out as the workbook, or — with ?format=pdf — as a PDF
+// drawn from that same workbook (utils/sheetPdf), which any phone opens
+// without a spreadsheet app. Without the parameter it stays Excel, so an app
+// version from before the PDF keeps getting what it asks for.
+const sendRegister = async (req, res, workbook, kind) => {
+  if (req.query.format === "pdf") {
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="grade-register-${kind}.pdf"`);
+    await new Promise((resolve, reject) => {
+      res.on("finish", resolve);
+      res.on("error", reject);
+      writeSheetPdf(workbook.worksheets[0], res);
+    });
+    return undefined;
+  }
+
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
+  res.setHeader("Content-Disposition", `attachment; filename="grade-register-${kind}.xlsx"`);
+  await workbook.xlsx.write(res);
+  res.end();
+  return undefined;
+};
 
 const sortByArabicName = (students) =>
   [...students].sort((a, b) =>
@@ -88,17 +115,7 @@ exports.exportWeeklyRegister = async (req, res) => {
       scores,
     });
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="grade-register-week.xlsx"',
-    );
-
-    await workbook.xlsx.write(res);
-    res.end();
+    await sendRegister(req, res, workbook, "week");
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -169,16 +186,7 @@ exports.exportMonthlyRegister = async (req, res) => {
         weekStarts,
         weeklyScores,
       });
-      res.setHeader(
-        "Content-Type",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      );
-      res.setHeader(
-        "Content-Disposition",
-        'attachment; filename="grade-register-month.xlsx"',
-      );
-      await workbook.xlsx.write(res);
-      return res.end();
+      return sendRegister(req, res, workbook, "month");
     }
 
     const monthStart = new Date(Date.UTC(Number(year), Number(month) - 1, 1));
@@ -243,17 +251,7 @@ exports.exportMonthlyRegister = async (req, res) => {
       weeklyScores,
     });
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="grade-register-month.xlsx"',
-    );
-
-    await workbook.xlsx.write(res);
-    res.end();
+    await sendRegister(req, res, workbook, "month");
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -314,16 +312,7 @@ exports.exportTermRegister = async (req, res) => {
       rows,
     });
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="grade-register-term.xlsx"',
-    );
-    await workbook.xlsx.write(res);
-    res.end();
+    await sendRegister(req, res, workbook, "term");
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

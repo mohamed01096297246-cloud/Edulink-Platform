@@ -105,6 +105,281 @@ const measure = (bucket, size, weeks, period) => {
 
 const rank = { none: 0, partial: 1, complete: 2 };
 
+// The report for a set of classes — the whole of an admin's school
+// (getGradeEntry), or with `teacherId` only that teacher's own classes
+// (getMyGradeEntry, the teacher app's «آخر التطورات»).
+const buildGradeEntry = async ({ classFilter, range, teacherId = null }) => {
+  const classrooms = await Classroom.find(classFilter)
+    .select("name grade school")
+    .populate("grade", "name stage")
+    .lean();
+  const classIds = classrooms.map((c) => c._id);
+  const classById = new Map(classrooms.map((c) => [String(c._id), c]));
+
+  const schoolIds = [...new Set(classrooms.map((c) => String(c.school)))];
+  const schools = await School.find({ _id: { $in: schoolIds } }).select("gradebook conductEnteredFrom").lean();
+  const schoolById = new Map(schools.map((s) => [String(s._id), s]));
+  const dailyBySchool = new Map(
+    await Promise.all(schoolIds.map(async (id) => [id, await isDailyMode(id)])),
+  );
+  const schemeOf = (classroom) => schemeFor(schoolById.get(String(classroom.school)), classroom.grade?.stage);
+
+  // Who teaches what: the school's assignments first, then the timetable.
+  // A period with no teacher (طابور, نشاط) owes no marks and is left out.
+  const [assigned, timetabled] = await Promise.all([
+    ClassAssignment.find({ classroom: { $in: classIds } })
+      .select("teacher classroom subject")
+      .populate("teacher", "firstName lastName")
+      .populate("subject", "name")
+      .lean(),
+    Schedule.find({ classroom: { $in: classIds }, teacher: { $ne: null } })
+      .select("teacher classroom subject")
+      .populate("teacher", "firstName lastName")
+      .populate("subject", "name")
+      .lean(),
+  ]);
+
+  const pairs = new Map();
+  const covered = new Set();
+  // Asked for one teacher, the others' classes are left out — but only
+  // after their assignments have claimed their pairs, so a timetable slot
+  // assigned to someone else is never counted as this teacher's.
+  const mine = (row) => !teacherId || String(row.teacher._id) === String(teacherId);
+  for (const row of assigned) {
+    if (!row.teacher || !row.subject) continue;
+    covered.add(pairKey(row.classroom, row.subject._id));
+    if (mine(row)) pairs.set(`${row.teacher._id}:${pairKey(row.classroom, row.subject._id)}`, row);
+  }
+  for (const row of timetabled) {
+    if (!row.teacher || !row.subject) continue;
+    const key = pairKey(row.classroom, row.subject._id);
+    if (covered.has(key) || !mine(row)) continue;
+    pairs.set(`${row.teacher._id}:${key}`, row);
+  }
+
+  const students = await Student.find({ classroom: { $in: classIds }, active: { $ne: false } })
+    .select("_id classroom")
+    .lean();
+  const sizes = new Map();
+  const classOfStudent = new Map();
+  for (const s of students) {
+    sizes.set(String(s.classroom), (sizes.get(String(s.classroom)) || 0) + 1);
+    classOfStudent.set(String(s._id), String(s.classroom));
+  }
+
+  const inClasses = { classroom: { $in: classIds } };
+  const window = { $gte: range.start, $lte: range.end };
+  const classicClassIds = classrooms.filter((c) => schemeOf(c) === "classic").map((c) => c._id);
+  const classicStudentIds = students
+    .filter((s) => classicClassIds.some((id) => String(id) === String(s.classroom)))
+    .map((s) => s._id);
+
+  const [evaluations, notebooks, overrides, homework, attendance] = await Promise.all([
+    WeeklyEvaluation.find({ ...inClasses, weekStart: window }).select("classroom subject student weekStart updatedAt").lean(),
+    ClassworkNotebook.find({ ...inClasses, weekStart: window }).select("classroom subject student weekStart updatedAt").lean(),
+    CourseworkOverride.find({ ...inClasses, weekStart: window })
+      .select("classroom subject student weekStart attendanceScore homeworkScore updatedAt")
+      .lean(),
+    Homework.find({ ...inClasses, createdAt: window }).select("classroom subject createdAt").lean(),
+    // Only the classic register has an attendance column worked out from
+    // the register; weekly40's مواظبة وسلوك is typed by the teacher.
+    classicStudentIds.length
+      ? Attendance.find({ student: { $in: classicStudentIds }, date: window, ...Attendance.GRADED_ONLY })
+          .select("student subject date")
+          .lean()
+      : [],
+  ]);
+
+  const homeworkResults = homework.length
+    ? await HomeworkResult.find({ homework: { $in: homework.map((h) => h._id) } }).select("homework student updatedAt").lean()
+    : [];
+
+  const byPair = (doc) => pairKey(doc.classroom, doc.subject);
+  const weeklyTally = tally(evaluations, byPair);
+  const classworkTally = tally(notebooks, byPair);
+  const attendanceOverride = tally(
+    overrides.filter((o) => o.attendanceScore !== null && o.attendanceScore !== undefined),
+    byPair,
+  );
+  const homeworkOverride = tally(
+    overrides.filter((o) => o.homeworkScore !== null && o.homeworkScore !== undefined),
+    byPair,
+  );
+
+  // A homework belongs to the week it was set in (utils/weekScores.js).
+  const homeworkById = new Map(homework.map((h) => [String(h._id), h]));
+  const homeworkTally = tally(
+    homeworkResults.map((r) => {
+      const h = homeworkById.get(String(r.homework));
+      return { classroom: h.classroom, subject: h.subject, student: r.student, weekStart: h.createdAt, updatedAt: r.updatedAt };
+    }),
+    byPair,
+  );
+  const homeworkSet = new Map();
+  for (const h of homework) homeworkSet.set(byPair(h), (homeworkSet.get(byPair(h)) || 0) + 1);
+
+  // On a daily register a day's attendance stands for every subject; on a
+  // per-lesson one it belongs to the lesson's subject.
+  const attendanceByClass = tally(attendance, (a) => classOfStudent.get(String(a.student)), (a) => a.date);
+  const attendanceByPair = tally(
+    attendance.filter((a) => a.subject),
+    (a) => pairKey(classOfStudent.get(String(a.student)), a.subject),
+    (a) => a.date,
+  );
+
+  // A school whose teachers enter مواظبة وسلوك by hand from some week on
+  // (School.conductEnteredFrom): the attendance register still counts for
+  // the weeks before it, and only the teacher's own marks after it.
+  const conductFromOf = (classroom) => schoolById.get(String(classroom.school))?.conductEnteredFrom || null;
+  const weeksBefore = (bucket, from) => {
+    if (!bucket) return bucket;
+    const cutoff = weekKey(from).getTime();
+    const out = newBucket();
+    bucket.weeks.forEach((set, week) => {
+      if (week >= cutoff) return;
+      out.weeks.set(week, set);
+      set.forEach((s) => out.students.add(s));
+    });
+    out.last = bucket.last;
+    return out;
+  };
+
+  const sources = (key, classroom) => {
+    const daily = dailyBySchool.get(String(classroom.school));
+    const from = conductFromOf(classroom);
+    const register = daily ? attendanceByClass.get(String(classroom._id)) : attendanceByPair.get(key);
+    const attendance = merge(from ? weeksBefore(register, from) : register, attendanceOverride.get(key));
+    return {
+      attendance,
+      homework: merge(homeworkTally.get(key), homeworkOverride.get(key)),
+      weekly: weeklyTally.get(key),
+      classwork: classworkTally.get(key),
+      conduct: from ? attendance : attendanceOverride.get(key),
+    };
+  };
+
+  // The classic مواظبة becomes the teacher's مواظبة وسلوك once any week of
+  // the period is past the school's switch-over.
+  const columnsFor = (scheme, classroom) => {
+    const from = conductFromOf(classroom);
+    if (scheme !== "classic" || !from || range.end < weekKey(from)) return REGISTER_COLUMNS[scheme];
+    return REGISTER_COLUMNS.classic.map((col) =>
+      col.key === "attendance" ? { key: "conduct", label: "مواظبة وسلوك", maxField: "attendanceScore", entered: true } : col,
+    );
+  };
+
+  const teachers = new Map();
+  for (const row of pairs.values()) {
+    const classroom = classById.get(String(row.classroom));
+    if (!classroom) continue;
+    const size = sizes.get(String(row.classroom)) || 0;
+    if (size === 0) continue; // a class with no pupils owes no marks
+
+    const scheme = schemeOf(classroom);
+    const rules = SCHEMES[scheme];
+    const key = pairKey(row.classroom, row.subject._id);
+    const src = sources(key, classroom);
+    const set = homeworkSet.get(key) || 0;
+
+    const columns = columnsFor(scheme, classroom).map((col) => ({
+      key: col.key,
+      label: col.label,
+      max: rules.max[col.maxField],
+      entered: col.entered,
+      // No homework set in the period means nothing to print in that column.
+      applicable: col.key === "homework" ? set > 0 || Boolean(src.homework) : true,
+      ...measure(src[col.key], size, range.weeks, range.period),
+    }));
+
+    // Complete when every column the teacher fills in is in for the whole
+    // class, and so is the homework if any was set. The classic مواظبة
+    // follows the attendance register on its own and isn't the teacher's
+    // marking to do.
+    const owed = columns.filter((c) => c.entered || (c.key === "homework" && c.applicable));
+    const teacherAny = columns.some((c) => c.any && c.key !== "attendance");
+    let status = "none";
+    if (owed.every((c) => c.full)) status = "complete";
+    else if (teacherAny) status = "partial";
+    if (range.weeks.length === 0) status = teacherAny ? "complete" : "none";
+
+    const lasts = ["homework", "weekly", "classwork", "conduct"].map((k) => src[k]?.last).filter(Boolean);
+
+    const teacherId = String(row.teacher._id);
+    if (!teachers.has(teacherId)) {
+      teachers.set(teacherId, {
+        id: teacherId,
+        name: `${row.teacher.firstName} ${row.teacher.lastName}`.trim(),
+        classes: [],
+      });
+    }
+    teachers.get(teacherId).classes.push({
+      classroomId: String(row.classroom),
+      classroom: classroom.name,
+      gradeId: classroom.grade?._id ? String(classroom.grade._id) : null,
+      grade: classroom.grade?.name || "",
+      subjectId: String(row.subject._id),
+      subject: row.subject.name,
+      scheme,
+      students: size,
+      status,
+      homeworkSet: set,
+      columns,
+      lastEntryAt: lasts.length ? new Date(Math.max(...lasts.map((d) => new Date(d).getTime()))) : null,
+    });
+  }
+
+  // The last time each teacher recorded anything at all, not only inside
+  // this window — "لم يرصد" this week reads very differently for someone
+  // who marked last week and someone who never has.
+  const teacherIds = [...teachers.keys()].map((id) => new mongoose.Types.ObjectId(id));
+  const lastBy = async (Model, field) =>
+    Model.aggregate([
+      { $match: { [field]: { $in: teacherIds } } },
+      { $group: { _id: `$${field}`, last: { $max: "$updatedAt" } } },
+    ]);
+  const lastRows = (
+    await Promise.all([
+      lastBy(WeeklyEvaluation, "teacher"),
+      lastBy(ClassworkNotebook, "teacher"),
+      lastBy(CourseworkOverride, "teacher"),
+      lastBy(HomeworkResult, "gradedBy"),
+      lastBy(MonthlyGrade, "teacher"),
+      lastBy(TermTest, "teacher"),
+    ])
+  ).flat();
+  const lastEver = new Map();
+  for (const row of lastRows) {
+    const key = String(row._id);
+    if (!lastEver.get(key) || row.last > lastEver.get(key)) lastEver.set(key, row.last);
+  }
+
+  const list = [...teachers.values()].map((t) => {
+    const statuses = t.classes.map((c) => c.status);
+    const status = statuses.every((s) => s === "complete")
+      ? "complete"
+      : statuses.every((s) => s === "none")
+        ? "none"
+        : "partial";
+    t.classes.sort((a, b) => rank[a.status] - rank[b.status] || a.classroom.localeCompare(b.classroom, "ar"));
+    return { ...t, status, lastEntryAt: lastEver.get(t.id) || null };
+  });
+  list.sort((a, b) => rank[a.status] - rank[b.status] || a.name.localeCompare(b.name, "ar"));
+
+  return {
+    period: range.period,
+    start: range.start,
+    end: range.end,
+    weeks: range.weeks,
+    summary: {
+      teachers: list.length,
+      complete: list.filter((t) => t.status === "complete").length,
+      partial: list.filter((t) => t.status === "partial").length,
+      none: list.filter((t) => t.status === "none").length,
+    },
+    teachers: list,
+  };
+};
+
 exports.getGradeEntry = async (req, res) => {
   try {
     const range = reportPeriod(req.query.period, req.query.date);
@@ -114,270 +389,32 @@ exports.getGradeEntry = async (req, res) => {
       return res.status(400).json({ message: "Please specify a school (?school=id) for this report." });
     }
 
-    const classrooms = await Classroom.find(classFilter)
-      .select("name grade school")
-      .populate("grade", "name stage")
-      .lean();
-    const classIds = classrooms.map((c) => c._id);
-    const classById = new Map(classrooms.map((c) => [String(c._id), c]));
+    return res.status(200).json(await buildGradeEntry({ classFilter, range }));
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
 
-    const schoolIds = [...new Set(classrooms.map((c) => String(c.school)))];
-    const schools = await School.find({ _id: { $in: schoolIds } }).select("gradebook conductEnteredFrom").lean();
-    const schoolById = new Map(schools.map((s) => [String(s._id), s]));
-    const dailyBySchool = new Map(
-      await Promise.all(schoolIds.map(async (id) => [id, await isDailyMode(id)])),
-    );
-    const schemeOf = (classroom) => schemeFor(schoolById.get(String(classroom.school)), classroom.grade?.stage);
-
-    // Who teaches what: the school's assignments first, then the timetable.
-    // A period with no teacher (طابور, نشاط) owes no marks and is left out.
-    const [assigned, timetabled] = await Promise.all([
-      ClassAssignment.find({ classroom: { $in: classIds } })
-        .select("teacher classroom subject")
-        .populate("teacher", "firstName lastName")
-        .populate("subject", "name")
-        .lean(),
-      Schedule.find({ classroom: { $in: classIds }, teacher: { $ne: null } })
-        .select("teacher classroom subject")
-        .populate("teacher", "firstName lastName")
-        .populate("subject", "name")
-        .lean(),
-    ]);
-
-    const pairs = new Map();
-    const covered = new Set();
-    for (const row of assigned) {
-      if (!row.teacher || !row.subject) continue;
-      covered.add(pairKey(row.classroom, row.subject._id));
-      pairs.set(`${row.teacher._id}:${pairKey(row.classroom, row.subject._id)}`, row);
-    }
-    for (const row of timetabled) {
-      if (!row.teacher || !row.subject) continue;
-      const key = pairKey(row.classroom, row.subject._id);
-      if (covered.has(key)) continue;
-      pairs.set(`${row.teacher._id}:${key}`, row);
-    }
-
-    const students = await Student.find({ classroom: { $in: classIds }, active: { $ne: false } })
-      .select("_id classroom")
-      .lean();
-    const sizes = new Map();
-    const classOfStudent = new Map();
-    for (const s of students) {
-      sizes.set(String(s.classroom), (sizes.get(String(s.classroom)) || 0) + 1);
-      classOfStudent.set(String(s._id), String(s.classroom));
-    }
-
-    const inClasses = { classroom: { $in: classIds } };
-    const window = { $gte: range.start, $lte: range.end };
-    const classicClassIds = classrooms.filter((c) => schemeOf(c) === "classic").map((c) => c._id);
-    const classicStudentIds = students
-      .filter((s) => classicClassIds.some((id) => String(id) === String(s.classroom)))
-      .map((s) => s._id);
-
-    const [evaluations, notebooks, overrides, homework, attendance] = await Promise.all([
-      WeeklyEvaluation.find({ ...inClasses, weekStart: window }).select("classroom subject student weekStart updatedAt").lean(),
-      ClassworkNotebook.find({ ...inClasses, weekStart: window }).select("classroom subject student weekStart updatedAt").lean(),
-      CourseworkOverride.find({ ...inClasses, weekStart: window })
-        .select("classroom subject student weekStart attendanceScore homeworkScore updatedAt")
-        .lean(),
-      Homework.find({ ...inClasses, createdAt: window }).select("classroom subject createdAt").lean(),
-      // Only the classic register has an attendance column worked out from
-      // the register; weekly40's مواظبة وسلوك is typed by the teacher.
-      classicStudentIds.length
-        ? Attendance.find({ student: { $in: classicStudentIds }, date: window, ...Attendance.GRADED_ONLY })
-            .select("student subject date")
-            .lean()
-        : [],
-    ]);
-
-    const homeworkResults = homework.length
-      ? await HomeworkResult.find({ homework: { $in: homework.map((h) => h._id) } }).select("homework student updatedAt").lean()
-      : [];
-
-    const byPair = (doc) => pairKey(doc.classroom, doc.subject);
-    const weeklyTally = tally(evaluations, byPair);
-    const classworkTally = tally(notebooks, byPair);
-    const attendanceOverride = tally(
-      overrides.filter((o) => o.attendanceScore !== null && o.attendanceScore !== undefined),
-      byPair,
-    );
-    const homeworkOverride = tally(
-      overrides.filter((o) => o.homeworkScore !== null && o.homeworkScore !== undefined),
-      byPair,
-    );
-
-    // A homework belongs to the week it was set in (utils/weekScores.js).
-    const homeworkById = new Map(homework.map((h) => [String(h._id), h]));
-    const homeworkTally = tally(
-      homeworkResults.map((r) => {
-        const h = homeworkById.get(String(r.homework));
-        return { classroom: h.classroom, subject: h.subject, student: r.student, weekStart: h.createdAt, updatedAt: r.updatedAt };
-      }),
-      byPair,
-    );
-    const homeworkSet = new Map();
-    for (const h of homework) homeworkSet.set(byPair(h), (homeworkSet.get(byPair(h)) || 0) + 1);
-
-    // On a daily register a day's attendance stands for every subject; on a
-    // per-lesson one it belongs to the lesson's subject.
-    const attendanceByClass = tally(attendance, (a) => classOfStudent.get(String(a.student)), (a) => a.date);
-    const attendanceByPair = tally(
-      attendance.filter((a) => a.subject),
-      (a) => pairKey(classOfStudent.get(String(a.student)), a.subject),
-      (a) => a.date,
-    );
-
-    // A school whose teachers enter مواظبة وسلوك by hand from some week on
-    // (School.conductEnteredFrom): the attendance register still counts for
-    // the weeks before it, and only the teacher's own marks after it.
-    const conductFromOf = (classroom) => schoolById.get(String(classroom.school))?.conductEnteredFrom || null;
-    const weeksBefore = (bucket, from) => {
-      if (!bucket) return bucket;
-      const cutoff = weekKey(from).getTime();
-      const out = newBucket();
-      bucket.weeks.forEach((set, week) => {
-        if (week >= cutoff) return;
-        out.weeks.set(week, set);
-        set.forEach((s) => out.students.add(s));
-      });
-      out.last = bucket.last;
-      return out;
-    };
-
-    const sources = (key, classroom) => {
-      const daily = dailyBySchool.get(String(classroom.school));
-      const from = conductFromOf(classroom);
-      const register = daily ? attendanceByClass.get(String(classroom._id)) : attendanceByPair.get(key);
-      const attendance = merge(from ? weeksBefore(register, from) : register, attendanceOverride.get(key));
-      return {
-        attendance,
-        homework: merge(homeworkTally.get(key), homeworkOverride.get(key)),
-        weekly: weeklyTally.get(key),
-        classwork: classworkTally.get(key),
-        conduct: from ? attendance : attendanceOverride.get(key),
-      };
-    };
-
-    // The classic مواظبة becomes the teacher's مواظبة وسلوك once any week of
-    // the period is past the school's switch-over.
-    const columnsFor = (scheme, classroom) => {
-      const from = conductFromOf(classroom);
-      if (scheme !== "classic" || !from || range.end < weekKey(from)) return REGISTER_COLUMNS[scheme];
-      return REGISTER_COLUMNS.classic.map((col) =>
-        col.key === "attendance" ? { key: "conduct", label: "مواظبة وسلوك", maxField: "attendanceScore", entered: true } : col,
-      );
-    };
-
-    const teachers = new Map();
-    for (const row of pairs.values()) {
-      const classroom = classById.get(String(row.classroom));
-      if (!classroom) continue;
-      const size = sizes.get(String(row.classroom)) || 0;
-      if (size === 0) continue; // a class with no pupils owes no marks
-
-      const scheme = schemeOf(classroom);
-      const rules = SCHEMES[scheme];
-      const key = pairKey(row.classroom, row.subject._id);
-      const src = sources(key, classroom);
-      const set = homeworkSet.get(key) || 0;
-
-      const columns = columnsFor(scheme, classroom).map((col) => ({
-        key: col.key,
-        label: col.label,
-        max: rules.max[col.maxField],
-        entered: col.entered,
-        // No homework set in the period means nothing to print in that column.
-        applicable: col.key === "homework" ? set > 0 || Boolean(src.homework) : true,
-        ...measure(src[col.key], size, range.weeks, range.period),
-      }));
-
-      // Complete when every column the teacher fills in is in for the whole
-      // class, and so is the homework if any was set. The classic مواظبة
-      // follows the attendance register on its own and isn't the teacher's
-      // marking to do.
-      const owed = columns.filter((c) => c.entered || (c.key === "homework" && c.applicable));
-      const teacherAny = columns.some((c) => c.any && c.key !== "attendance");
-      let status = "none";
-      if (owed.every((c) => c.full)) status = "complete";
-      else if (teacherAny) status = "partial";
-      if (range.weeks.length === 0) status = teacherAny ? "complete" : "none";
-
-      const lasts = ["homework", "weekly", "classwork", "conduct"].map((k) => src[k]?.last).filter(Boolean);
-
-      const teacherId = String(row.teacher._id);
-      if (!teachers.has(teacherId)) {
-        teachers.set(teacherId, {
-          id: teacherId,
-          name: `${row.teacher.firstName} ${row.teacher.lastName}`.trim(),
-          classes: [],
-        });
-      }
-      teachers.get(teacherId).classes.push({
-        classroomId: String(row.classroom),
-        classroom: classroom.name,
-        grade: classroom.grade?.name || "",
-        subject: row.subject.name,
-        scheme,
-        students: size,
-        status,
-        homeworkSet: set,
-        columns,
-        lastEntryAt: lasts.length ? new Date(Math.max(...lasts.map((d) => new Date(d).getTime()))) : null,
-      });
-    }
-
-    // The last time each teacher recorded anything at all, not only inside
-    // this window — "لم يرصد" this week reads very differently for someone
-    // who marked last week and someone who never has.
-    const teacherIds = [...teachers.keys()].map((id) => new mongoose.Types.ObjectId(id));
-    const lastBy = async (Model, field) =>
-      Model.aggregate([
-        { $match: { [field]: { $in: teacherIds } } },
-        { $group: { _id: `$${field}`, last: { $max: "$updatedAt" } } },
-      ]);
-    const lastRows = (
-      await Promise.all([
-        lastBy(WeeklyEvaluation, "teacher"),
-        lastBy(ClassworkNotebook, "teacher"),
-        lastBy(CourseworkOverride, "teacher"),
-        lastBy(HomeworkResult, "gradedBy"),
-        lastBy(MonthlyGrade, "teacher"),
-        lastBy(TermTest, "teacher"),
-      ])
-    ).flat();
-    const lastEver = new Map();
-    for (const row of lastRows) {
-      const key = String(row._id);
-      if (!lastEver.get(key) || row.last > lastEver.get(key)) lastEver.set(key, row.last);
-    }
-
-    const list = [...teachers.values()].map((t) => {
-      const statuses = t.classes.map((c) => c.status);
-      const status = statuses.every((s) => s === "complete")
-        ? "complete"
-        : statuses.every((s) => s === "none")
-          ? "none"
-          : "partial";
-      t.classes.sort((a, b) => rank[a.status] - rank[b.status] || a.classroom.localeCompare(b.classroom, "ar"));
-      return { ...t, status, lastEntryAt: lastEver.get(t.id) || null };
+// «آخر التطورات» in the teacher app: the same report for one week, for the
+// teacher's own classes — what is recorded and what is still to do.
+exports.getMyGradeEntry = async (req, res) => {
+  try {
+    const range = reportPeriod("week", req.query.date);
+    const report = await buildGradeEntry({
+      classFilter: { school: req.user.school },
+      range,
+      teacherId: req.user.id,
     });
-    list.sort((a, b) => rank[a.status] - rank[b.status] || a.name.localeCompare(b.name, "ar"));
+    const mine = report.teachers[0];
 
-    res.status(200).json({
-      period: range.period,
-      start: range.start,
-      end: range.end,
-      weeks: range.weeks,
-      summary: {
-        teachers: list.length,
-        complete: list.filter((t) => t.status === "complete").length,
-        partial: list.filter((t) => t.status === "partial").length,
-        none: list.filter((t) => t.status === "none").length,
-      },
-      teachers: list,
+    return res.status(200).json({
+      start: report.start,
+      end: report.end,
+      weeks: report.weeks,
+      status: mine?.status || "none",
+      classes: mine?.classes || [],
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };

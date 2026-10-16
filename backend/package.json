@@ -13,6 +13,7 @@
   "dependencies": {
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
+    "bidi-js": "^1.0.3",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -24,7 +25,8 @@
     "mongodb": "^7.1.1",
     "mongoose": "^9.0.0",
     "multer": "^2.3.0",
-    "nodemailer": "^8.0.0"
+    "nodemailer": "^8.0.0",
+    "pdfkit": "^0.15.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",
