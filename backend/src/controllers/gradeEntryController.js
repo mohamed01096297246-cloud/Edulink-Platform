@@ -32,16 +32,19 @@ const { reportPeriod, weekKey } = require("../utils/reportPeriod");
 // A column counts a student as recorded when the register would print a
 // number for them that week.
 
+// The week's homework mark is the teacher's to give every week (they give it
+// directly — homework itself is set without marks), whether or not any
+// homework was posted in the app that week.
 const REGISTER_COLUMNS = {
   classic: [
     // Worked out from the attendance register, or set by the teacher.
     { key: "attendance", label: "مواظبة", maxField: "attendanceScore", entered: false },
-    { key: "homework", label: "واجب", maxField: "homeworkScore", entered: false },
+    { key: "homework", label: "واجب", maxField: "homeworkScore", entered: true },
     { key: "weekly", label: "تقييم أسبوعي", maxField: "weeklyEvalScore", entered: true },
     { key: "classwork", label: "كراسة الحصة", maxField: "classworkScore", entered: true },
   ],
   weekly40: [
-    { key: "homework", label: "الواجب المنزلي", maxField: "homeworkScore", entered: false },
+    { key: "homework", label: "الواجب المنزلي", maxField: "homeworkScore", entered: true },
     { key: "weekly", label: "تقييم أسبوعي", maxField: "weeklyEvalScore", entered: true },
     { key: "conduct", label: "مواظبة وسلوك", maxField: "attendanceScore", entered: true },
   ],
@@ -227,42 +230,28 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null }) => {
     (a) => a.date,
   );
 
-  // A school whose teachers enter مواظبة وسلوك by hand from some week on
-  // (School.conductEnteredFrom): the attendance register still counts for
-  // the weeks before it, and only the teacher's own marks after it.
+  // A school whose teachers enter مواظبة وسلوك by hand (School.
+  // conductEnteredFrom, Al-Rahma): there it is the teacher's mark in every
+  // week, counted from what they entered alone — attendance never stands in
+  // for it, here.
   const conductFromOf = (classroom) => schoolById.get(String(classroom.school))?.conductEnteredFrom || null;
-  const weeksBefore = (bucket, from) => {
-    if (!bucket) return bucket;
-    const cutoff = weekKey(from).getTime();
-    const out = newBucket();
-    bucket.weeks.forEach((set, week) => {
-      if (week >= cutoff) return;
-      out.weeks.set(week, set);
-      set.forEach((s) => out.students.add(s));
-    });
-    out.last = bucket.last;
-    return out;
-  };
 
   const sources = (key, classroom) => {
     const daily = dailyBySchool.get(String(classroom.school));
-    const from = conductFromOf(classroom);
     const register = daily ? attendanceByClass.get(String(classroom._id)) : attendanceByPair.get(key);
-    const attendance = merge(from ? weeksBefore(register, from) : register, attendanceOverride.get(key));
     return {
-      attendance,
+      attendance: merge(register, attendanceOverride.get(key)),
       homework: merge(homeworkTally.get(key), homeworkOverride.get(key)),
       weekly: weeklyTally.get(key),
       classwork: classworkTally.get(key),
-      conduct: from ? attendance : attendanceOverride.get(key),
+      conduct: attendanceOverride.get(key),
     };
   };
 
-  // The classic مواظبة becomes the teacher's مواظبة وسلوك once any week of
-  // the period is past the school's switch-over.
+  // The classic مواظبة is the teacher's مواظبة وسلوك at such a school.
   const columnsFor = (scheme, classroom) => {
     const from = conductFromOf(classroom);
-    if (scheme !== "classic" || !from || range.end < weekKey(from)) return REGISTER_COLUMNS[scheme];
+    if (scheme !== "classic" || !from) return REGISTER_COLUMNS[scheme];
     return REGISTER_COLUMNS.classic.map((col) =>
       col.key === "attendance" ? { key: "conduct", label: "مواظبة وسلوك", maxField: "attendanceScore", entered: true } : col,
     );
@@ -286,16 +275,16 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null }) => {
       label: col.label,
       max: rules.max[col.maxField],
       entered: col.entered,
-      // No homework set in the period means nothing to print in that column.
-      applicable: col.key === "homework" ? set > 0 || Boolean(src.homework) : true,
+      // Kept for the screens that read it; every column applies every week.
+      applicable: true,
       ...measure(src[col.key], size, range.weeks, range.period),
     }));
 
     // Complete when every column the teacher fills in is in for the whole
-    // class, and so is the homework if any was set. The classic مواظبة
+    // class. The classic مواظبة (outside a school that enters it by hand)
     // follows the attendance register on its own and isn't the teacher's
     // marking to do.
-    const owed = columns.filter((c) => c.entered || (c.key === "homework" && c.applicable));
+    const owed = columns.filter((c) => c.entered);
     const teacherAny = columns.some((c) => c.any && c.key !== "attendance");
     let status = "none";
     if (owed.every((c) => c.full)) status = "complete";

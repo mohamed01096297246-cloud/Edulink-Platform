@@ -90,8 +90,11 @@ test("the grade-entry report counts مواظبة وسلوك as the teacher's to 
     return res.body.teachers[0].classes[0].columns;
   };
 
+  // Every week, the switch-over's or not: the teacher's mark alone counts,
+  // never the attendance register.
   const before = await columnOf("2026-09-29");
-  expect(before.map((x) => x.key)).toContain("attendance");
+  expect(before.map((x) => x.key)).not.toContain("attendance");
+  expect(before.find((x) => x.key === "conduct")).toMatchObject({ entered: true, students: 0 });
 
   let after = await columnOf("2026-10-06");
   let conduct = after.find((x) => x.key === "conduct");

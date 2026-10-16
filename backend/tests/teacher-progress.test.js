@@ -36,6 +36,8 @@ test("a teacher sees their own classes for the week, item by item", async () => 
   const col = Object.fromEntries(cls.columns.map((x) => [x.key, x]));
   expect(col.weekly).toMatchObject({ students: 2, full: true });
   expect(col.classwork).toMatchObject({ students: 1, full: false });
+  // The week's homework mark is owed even with no homework posted that week.
+  expect(col.homework).toMatchObject({ entered: true, applicable: true, students: 0 });
   expect(res.body.status).toBe("partial");
 
   // Only teachers reach it.
