@@ -1,5 +1,6 @@
 const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
+const School = require("../models/School");
 const User = require("../models/User");
 const Subject = require("../models/Subject");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
@@ -123,11 +124,19 @@ exports.exportWeeklyRegister = async (req, res) => {
 
 const isoDay = (date) => date.toISOString().slice(0, 10);
 
+// The school's own calendar day, not the server's UTC one: a week, and with
+// it a month, opens on the school's Saturday.
+const schoolDay = async (schoolId) => {
+  const school = schoolId ? await School.findById(schoolId).select("timezone").lean() : null;
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: school?.timezone || "Africa/Cairo" }).format(new Date());
+  return new Date(`${day}T00:00:00.000Z`);
+};
+
 // The school months a teacher can print so far: four school weeks each
 // (utils/schoolMonths.js), oldest first, with the school days each covers.
 exports.listRegisterMonths = async (req, res) => {
   try {
-    const months = monthsBegun(new Date());
+    const months = monthsBegun(await schoolDay(req.user.school));
     const latest = months[months.length - 1].month;
     res.status(200).json({
       success: true,
