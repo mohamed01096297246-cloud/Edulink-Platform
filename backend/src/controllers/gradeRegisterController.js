@@ -1,6 +1,5 @@
 const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
-const WeeklyEvaluation = require("../models/WeeklyEvaluation");
 const User = require("../models/User");
 const Subject = require("../models/Subject");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
@@ -13,10 +12,11 @@ const {
 } = require("../utils/gradeRegisterExcel");
 const { writeSheetPdf } = require("../utils/sheetPdf");
 const { schemeForClassroom } = require("../utils/gradebook");
-const { monthWeekScores, computeTerm40 } = require("../utils/term40");
+const { computeTerm40 } = require("../utils/term40");
+const { schoolMonth, schoolMonthStartingIn, monthsBegun } = require("../utils/schoolMonths");
 // Shared with the weekly-evaluation screen, so what the teacher edits on
 // screen is literally the same number that lands in the printed register.
-const { computeWeekScores, toWeekStart } = require("../utils/weekScores");
+const { computeWeekScores, computeMonthScores, toWeekStart } = require("../utils/weekScores");
 
 // The register goes out as the workbook, or — with ?format=pdf — as a PDF
 // drawn from that same workbook (utils/sheetPdf), which any phone opens
@@ -121,15 +121,48 @@ exports.exportWeeklyRegister = async (req, res) => {
   }
 };
 
+const isoDay = (date) => date.toISOString().slice(0, 10);
+
+// The school months a teacher can print so far: four school weeks each
+// (utils/schoolMonths.js), oldest first, with the school days each covers.
+exports.listRegisterMonths = async (req, res) => {
+  try {
+    const months = monthsBegun(new Date());
+    const latest = months[months.length - 1].month;
+    res.status(200).json({
+      success: true,
+      data: months.map((m) => ({
+        month: m.month,
+        term: m.term,
+        label: m.label,
+        from: isoDay(m.from),
+        to: isoDay(m.to),
+        current: m.month === latest,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// The month sheet: a school month's four weeks and their average. The
+// month comes as ?schoolMonth=n; an app from before school months sends a
+// calendar ?month&year, read as the school month that starts in it.
 exports.exportMonthlyRegister = async (req, res) => {
   try {
     const { classroomId } = req.params;
-    const { month, year } = req.query;
+    const legacy = req.query.schoolMonth === undefined;
+    const month = legacy
+      ? schoolMonthStartingIn(Number(req.query.month), Number(req.query.year))
+      : schoolMonth(Number(req.query.schoolMonth));
 
-    if (!month || !year) {
+    if (!month) {
       return res.status(400).json({
         success: false,
-        message: "اختر الشهر والسنة.",
+        message:
+          legacy && req.query.month
+            ? "الشهر في السجل بقى كل 4 أسابيع دراسة. اقفل التطبيق وافتحه تاني عشان يتحدّث، واختار الشهر من جديد."
+            : "اختر الشهر.",
       });
     }
 
@@ -150,69 +183,6 @@ exports.exportMonthlyRegister = async (req, res) => {
     // for the sheet the resolver just settled on rather than off the teacher.
     const subjectDoc = await Subject.findById(subjectId).select("name");
 
-    if ((await schemeForClassroom(classroom)) === "weekly40") {
-      const students = sortByArabicName(
-        await Student.find({ classroom: classroomId, active: true }).select(
-          "firstName lastName",
-        ),
-      );
-      if (students.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: "الفصل ده مفيهوش طلاب نشطين.",
-        });
-      }
-
-      const { weekStarts, weeklyScores } = await monthWeekScores(
-        classroomId,
-        subjectId,
-        students.map((s) => s._id),
-        Number(month),
-        Number(year),
-      );
-      if (weekStarts.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: "مفيش درجات أسبوعية مسجّلة لهذا الفصل في هذا الشهر.",
-        });
-      }
-
-      const workbook = buildMonth40Workbook({
-        subjectName: subjectDoc?.name || "",
-        classroomName: classroom.name,
-        month: Number(month),
-        year: Number(year),
-        students,
-        weekStarts,
-        weeklyScores,
-      });
-      return sendRegister(req, res, workbook, "month");
-    }
-
-    const monthStart = new Date(Date.UTC(Number(year), Number(month) - 1, 1));
-    const monthEnd = new Date(
-      Date.UTC(Number(year), Number(month), 0, 23, 59, 59, 999),
-    );
-
-    // "Which weeks exist" for a classroom/subject is defined by whichever
-    // weeks the teacher actually recorded a تقييم أسبوعي for — التقييم
-    // الأسبوعي is the only place weekly boundaries are chosen in this
-    // system, so it drives the register's column set too.
-    const weekStarts = (
-      await WeeklyEvaluation.find({
-        classroom: classroomId,
-        subject: subjectId,
-        weekStart: { $gte: monthStart, $lte: monthEnd },
-      }).distinct("weekStart")
-    ).sort((a, b) => new Date(a) - new Date(b));
-
-    if (weekStarts.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "مفيش تقييم أسبوعي مسجّل لهذا الفصل في هذا الشهر.",
-      });
-    }
-
     const students = sortByArabicName(
       await Student.find({ classroom: classroomId, active: true }).select(
         "firstName lastName",
@@ -226,28 +196,30 @@ exports.exportMonthlyRegister = async (req, res) => {
       });
     }
 
-    const studentIds = students.map((s) => s._id);
+    // The classroom's own scheme decides both the arithmetic and the form
+    // the sheet is laid out on (utils/gradebook.js).
+    const scheme = await schemeForClassroom(classroom);
+    const weeklyScores = await computeMonthScores(
+      classroomId,
+      subjectId,
+      students.map((s) => s._id),
+      month,
+      scheme,
+    );
 
-    const weeklyScores = [];
-    for (const weekStart of weekStarts) {
-      // eslint-disable-next-line no-await-in-loop -- sequential on purpose,
-      // handful of weeks per month at most.
-      const scores = await computeWeekScores(
-        classroomId,
-        subjectId,
-        studentIds,
-        weekStart,
-      );
-      weeklyScores.push({ weekStart, scores });
+    if (!weeklyScores.some(({ scores }) => scores)) {
+      return res.status(404).json({
+        success: false,
+        message: `مفيش درجات مسجّلة للفصل ده في ${month.label}.`,
+      });
     }
 
-    const workbook = buildMonthlyRegisterWorkbook({
+    const build = scheme === "weekly40" ? buildMonth40Workbook : buildMonthlyRegisterWorkbook;
+    const workbook = build({
       subjectName: subjectDoc?.name || "",
       classroomName: classroom.name,
-      month: Number(month),
-      year: Number(year),
+      month,
       students,
-      weekStarts,
       weeklyScores,
     });
 

@@ -3,11 +3,16 @@ const router = express.Router();
 
 const {
   exportWeeklyRegister,
+  listRegisterMonths,
   exportMonthlyRegister,
   exportTermRegister,
 } = require("../controllers/gradeRegisterController");
 
 const { protect, authorize } = require("../middleware/authMiddleware");
+
+// The school months (four school weeks each) the app offers for the month
+// sheet.
+router.get("/months", protect, authorize("teacher"), listRegisterMonths);
 
 router.get(
   "/week/:classroomId",

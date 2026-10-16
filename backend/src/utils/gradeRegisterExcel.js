@@ -4,22 +4,8 @@ const ExcelJS = require("exceljs");
 // paper — weeks (or a month's worth of weeks) as column groups, students as
 // rows — but built from the system's own live data instead of copied out by
 // hand. Covers the four categories the system tracks per week: مواظبة
-// وسلوك، تقييم أسبوعي، واجب منزلي، كراسة الحصة.
-const MONTH_NAMES = [
-  "",
-  "يناير",
-  "فبراير",
-  "مارس",
-  "أبريل",
-  "مايو",
-  "يونيو",
-  "يوليو",
-  "أغسطس",
-  "سبتمبر",
-  "أكتوبر",
-  "نوفمبر",
-  "ديسمبر",
-];
+// وسلوك، تقييم أسبوعي، واجب منزلي، كراسة الحصة. A month is the school's:
+// four school weeks in a row (utils/schoolMonths.js).
 
 const HEADER_FILL = {
   type: "pattern",
@@ -189,13 +175,18 @@ exports.buildWeeklyRegisterWorkbook = ({
   return workbook;
 };
 
+// A school month (utils/schoolMonths.js) by name and the school days it
+// covers: "الشهر الأول (من 2026/09/20 إلى 2026/10/15)".
+const monthTitle = (month) =>
+  `${month.label} (من ${formatDateAr(month.from)} إلى ${formatDateAr(month.to)})`;
+
+// `weeklyScores` is the month's four weeks; a week with nothing recorded yet
+// has `scores: null`, prints as dashes and stays out of the averages.
 exports.buildMonthlyRegisterWorkbook = ({
   subjectName,
   classroomName,
   month,
-  year,
   students,
-  weekStarts,
   weeklyScores,
 }) => {
   const workbook = new ExcelJS.Workbook();
@@ -205,7 +196,7 @@ exports.buildMonthlyRegisterWorkbook = ({
   // RTL layout, rightmost first: م | الاسم | week1(5) | week2(5) | ... |
   // متوسط الأسابيع(5) | المجموع
   const totalCols =
-    2 + weekStarts.length * subCols.length + subCols.length + 1;
+    2 + weeklyScores.length * subCols.length + subCols.length + 1;
 
   sheet.columns = Array.from({ length: totalCols }, (_, i) => ({
     width: i === 0 ? 5 : i === 1 ? 26 : 11,
@@ -215,7 +206,7 @@ exports.buildMonthlyRegisterWorkbook = ({
   // weekly sheet's single header row.
   const headerTop = writeHeaderBlock(sheet, totalCols, {
     title: `سجل رصد درجات ${withLabel("فصل", classroomName)}`,
-    subtitle: `المادة: ${subjectName} — شهر ${MONTH_NAMES[month]} ${year}`,
+    subtitle: `المادة: ${subjectName} — ${monthTitle(month)}`,
   });
   const headerBottom = headerTop + 1;
   const firstDataRow = headerTop + 2;
@@ -231,7 +222,7 @@ exports.buildMonthlyRegisterWorkbook = ({
   styleHeaderCell(nameCell);
 
   let col = 3;
-  weekStarts.forEach((weekStart, wIdx) => {
+  weeklyScores.forEach(({ weekStart }, wIdx) => {
     sheet.mergeCells(headerTop, col, headerTop, col + subCols.length - 1);
     const groupCell = sheet.getCell(headerTop, col);
     groupCell.value = `الأسبوع ${wIdx + 1} (${formatDateAr(weekStart)})`;
@@ -286,7 +277,7 @@ exports.buildMonthlyRegisterWorkbook = ({
     const perWeekTotals = [];
 
     weeklyScores.forEach(({ scores }) => {
-      const entry = scores[key] || {};
+      const entry = (scores && scores[key]) || {};
 
       [
         entry.attendanceScore,
@@ -300,6 +291,7 @@ exports.buildMonthlyRegisterWorkbook = ({
         styleDataCell(cell);
       });
 
+      if (!scores) return;
       attendanceValues.push(entry.attendanceScore);
       weeklyEvalValues.push(entry.weeklyEvalScore);
       homeworkValues.push(entry.homeworkScore);
@@ -441,9 +433,7 @@ exports.buildMonth40Workbook = ({
   subjectName,
   classroomName,
   month,
-  year,
   students,
-  weekStarts,
   weeklyScores,
 }) => {
   const workbook = new ExcelJS.Workbook();
@@ -452,7 +442,7 @@ exports.buildMonth40Workbook = ({
   const groups = [
     { label: "م" },
     { label: "الاسم" },
-    ...weekStarts.map((weekStart, i) => ({
+    ...weeklyScores.map(({ weekStart }, i) => ({
       label: `${ORDINALS[i] || i + 1} — ${formatDateAr(weekStart)}`,
       subs: WEEK40_PARTS.map((p) => ({ label: withMax(p.label, p.max) })),
     })),
@@ -465,7 +455,7 @@ exports.buildMonth40Workbook = ({
 
   const headerTop = writeHeaderBlock(sheet, totalCols, {
     title: `سجل رصد الدرجات ${withLabel("فصل", classroomName)}`,
-    subtitle: `المادة: ${subjectName} — شهر ${MONTH_NAMES[month]} ${year}`,
+    subtitle: `المادة: ${subjectName} — ${monthTitle(month)}`,
   });
   const firstDataRow = writeTwoRowHeader(sheet, headerTop, groups);
 
@@ -473,9 +463,9 @@ exports.buildMonth40Workbook = ({
     const cells = [];
     const totals = [];
     weeklyScores.forEach(({ scores }) => {
-      const entry = scores[key] || {};
+      const entry = (scores && scores[key]) || {};
       WEEK40_PARTS.forEach((p) => cells.push(entry[p.key]));
-      totals.push(entry.total);
+      if (scores) totals.push(entry.total);
     });
     cells.push(average(totals));
     return cells;
@@ -503,7 +493,7 @@ exports.buildTerm40Workbook = ({
     {
       label: "متوسط الأسابيع",
       subs: [
-        ...months.map((m) => ({ label: withMax(MONTH_NAMES[m.month], 40) })),
+        ...months.map((m) => ({ label: withMax(m.label, 40) })),
         { label: withMax("المتوسط", 40) },
       ],
     },

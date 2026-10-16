@@ -13,21 +13,19 @@ const Result = require("../models/Result");
 const Behavior = require("../models/Behavior");
 const { SCHEMES, schemeForClassroom } = require("./gradebook");
 const { computeWeekScores } = require("./weekScores");
+const { monthsOfTerm, termSpan, termOfDate } = require("./schoolMonths");
 const { isDailyMode } = require("./dailyAttendance");
 
 // "أدائي" — one student's standing in each subject over a term, built from
 // exactly the numbers their teachers record and the register prints: every
-// week's marks, each month's average of its weeks, and (on weekly40) the
-// two term tests and أعمال السنة out of 70. Alongside: homework handed in,
+// week's marks, each month's average of its weeks (a month being four
+// school weeks, utils/schoolMonths.js), and (on weekly40) the two term
+// tests and أعمال السنة out of 70. Alongside: homework handed in,
 // attendance in that subject's lessons, and praise notes.
 
-// The months of each term. weekly40 carries its own (gradebook.js); the
-// classic register runs the first term through January, as the monthly
-// tests do (monthlyGradeController).
-const TERM_MONTHS = {
-  weekly40: SCHEMES.weekly40.termMonths,
-  classic: { 1: [9, 10, 11, 12, 1], 2: [2, 3, 4, 5] },
-};
+// The classic monthly tests are filed by calendar month
+// (monthlyGradeController), the first term's running through January.
+const TEST_MONTHS = { 1: [9, 10, 11, 12, 1], 2: [2, 3, 4, 5] };
 
 const round1 = (n) => (n === null || Number.isNaN(n) ? null : Math.round(n * 10) / 10);
 const average = (values) => {
@@ -41,23 +39,10 @@ const yearForMonth = (month, academicYear) => {
   return month >= 9 ? first : second || first + 1;
 };
 
-// The term a date falls in; the summer and January count with the term
-// just before them.
-const termOf = (scheme, month) => {
-  const months = TERM_MONTHS[scheme] || TERM_MONTHS.classic;
-  if (months[2].includes(month) || (month >= 6 && month <= 8)) return 2;
-  return 1;
-};
-
 const subjectPerformance = async ({ student, classroom, subject, scheme, term, daily }) => {
   const rules = SCHEMES[scheme];
-  const months = (TERM_MONTHS[scheme] || TERM_MONTHS.classic)[term].map((month) => ({
-    month,
-    year: yearForMonth(month, classroom.academicYear),
-  }));
-  const start = new Date(Date.UTC(months[0].year, months[0].month - 1, 1));
-  const last = months[months.length - 1];
-  const end = new Date(Date.UTC(last.year, last.month, 0, 23, 59, 59, 999));
+  const months = monthsOfTerm(term);
+  const { start, end } = termSpan(term);
   const inTerm = { $gte: start, $lte: end };
   const where = { classroom: classroom._id, subject: subject._id };
 
@@ -88,15 +73,22 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
     }),
   );
 
-  const monthAverages = months.map(({ month, year }) => ({
-    month,
-    year,
-    average: average(
-      weeks
-        .filter((w) => w.weekStart.getUTCMonth() + 1 === month && w.weekStart.getUTCFullYear() === year)
-        .map((w) => w.total),
-    ),
-  }));
+  const monthAverages = months.map((m) => {
+    const inMonth = new Set(m.weekStarts.map((d) => d.getTime()));
+    return {
+      schoolMonth: m.month,
+      label: m.label,
+      from: m.from,
+      to: m.to,
+      // The calendar month the school month starts in: what an app from
+      // before school months names it by.
+      month: m.from.getUTCMonth() + 1,
+      year: m.from.getUTCFullYear(),
+      average: average(
+        weeks.filter((w) => inMonth.has(new Date(w.weekStart).getTime())).map((w) => w.total),
+      ),
+    };
+  });
   const weeksAverage = average(monthAverages.map((m) => m.average));
 
   const [homework, attendance, praise, tests, monthly, exams] = await Promise.all([
@@ -118,7 +110,7 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
       : MonthlyGrade.find({
           student: student._id,
           subject: subject._id,
-          $or: months.map(({ month, year }) => ({ month, year })),
+          $or: TEST_MONTHS[term].map((month) => ({ month, year: yearForMonth(month, classroom.academicYear) })),
         }).select("month year grade"),
     Result.find({ student: student._id, subject: subject._id })
       .populate("exam", "title")
@@ -195,7 +187,7 @@ const studentPerformance = async ({ student, term, today }) => {
   const scheme = await schemeForClassroom(classroom);
   const rules = SCHEMES[scheme];
   const daily = await isDailyMode(student.school);
-  const chosenTerm = [1, 2].includes(Number(term)) ? Number(term) : termOf(scheme, today.getUTCMonth() + 1);
+  const chosenTerm = [1, 2].includes(Number(term)) ? Number(term) : termOfDate(today);
 
   const subjects = await Subject.find({
     school: student.school,
@@ -220,4 +212,4 @@ const studentPerformance = async ({ student, term, today }) => {
   };
 };
 
-module.exports = { studentPerformance, termOf };
+module.exports = { studentPerformance };

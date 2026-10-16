@@ -14,9 +14,10 @@ const School = require("../models/School");
 // weekly40 — the preparatory register of مدارس المستقبل. A week is 40:
 //   الواجب المنزلي 10 (from homework marks, adjustable), تقييم أسبوعي 20,
 //   مواظبة وسلوك 10 — entered by the teacher, with no attendance formula
-//   behind it. No classwork notebook, no behaviour notes. A month averages
-//   its weeks; a term (four months) averages its months, adds two tests of
-//   15 each, and comes to أعمال السنة out of 70.
+//   behind it. No classwork notebook, no behaviour notes. A month (four
+//   school weeks, utils/schoolMonths.js) averages its weeks; a term (four
+//   months) averages its months, adds two tests of 15 each, and comes to
+//   أعمال السنة out of 70.
 //
 // Stored per school and per stage (School.gradebook), so a school can run
 // one stage on its own paper and leave the rest untouched.
@@ -33,7 +34,6 @@ const SCHEMES = {
     weekTotal: 40,
     attendanceComputed: false,
     classwork: false,
-    termMonths: { 1: [9, 10, 11, 12], 2: [2, 3, 4, 5] },
     termTests: 2,
     termTestMax: 15,
     termTotal: 70,

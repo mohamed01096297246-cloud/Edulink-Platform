@@ -238,4 +238,37 @@ const computeWeekScores = async (
   return scores;
 };
 
-module.exports = { computeWeekScores, normalizeDate, toWeekStart, weekEnd, MAX_SCORES, maxScoresFor };
+// A school month's four weeks (utils/schoolMonths.js), each scored, or with
+// `scores: null` where nothing is recorded yet for the class (a week still
+// to come, or one the teacher hasn't reached), so a month's average leaves
+// that week out instead of counting it as zero.
+const computeMonthScores = async (classroomId, subjectId, studentIds, month, scheme = DEFAULT_SCHEME) => {
+  const rules = SCHEMES[scheme] || SCHEMES[DEFAULT_SCHEME];
+  const where = { classroom: classroomId, subject: subjectId, weekStart: { $in: month.weekStarts } };
+  const [evaluated, adjusted, notebook] = await Promise.all([
+    WeeklyEvaluation.find(where).distinct("weekStart"),
+    CourseworkOverride.find(where).distinct("weekStart"),
+    rules.classwork ? ClassworkNotebook.find(where).distinct("weekStart") : [],
+  ]);
+  const recorded = new Set([...evaluated, ...adjusted, ...notebook].map((d) => new Date(d).getTime()));
+
+  const weeklyScores = [];
+  for (const weekStart of month.weekStarts) {
+    // eslint-disable-next-line no-await-in-loop -- four weeks.
+    const scores = recorded.has(weekStart.getTime())
+      ? await computeWeekScores(classroomId, subjectId, studentIds, weekStart, scheme)
+      : null;
+    weeklyScores.push({ weekStart, scores });
+  }
+  return weeklyScores;
+};
+
+module.exports = {
+  computeWeekScores,
+  computeMonthScores,
+  normalizeDate,
+  toWeekStart,
+  weekEnd,
+  MAX_SCORES,
+  maxScoresFor,
+};

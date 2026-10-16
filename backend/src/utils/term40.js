@@ -1,14 +1,13 @@
-const WeeklyEvaluation = require("../models/WeeklyEvaluation");
-const CourseworkOverride = require("../models/CourseworkOverride");
 const TermTest = require("../models/TermTest");
 const Attendance = require("../models/Attendance");
-const { SCHEMES } = require("./gradebook");
-const { computeWeekScores } = require("./weekScores");
+const { computeMonthScores } = require("./weekScores");
+const { monthsOfTerm, termSpan } = require("./schoolMonths");
 const { isDailyMode } = require("./dailyAttendance");
 
 // The weekly40 scheme's month and term arithmetic (utils/gradebook.js),
 // exactly as the paper register does it:
-//   a month   = the average of its weeks' totals (each out of 40)
+//   a month   = the average of its weeks' totals (each out of 40), a month
+//               being four school weeks (utils/schoolMonths.js)
 //   the term  = the average of its months (out of 40)
 //             + الاختبار الأول (15) + الاختبار الثاني (15)
 //             = أعمال السنة, out of 70
@@ -29,70 +28,21 @@ const sum = (values) => {
   return nums.length ? round1(nums.reduce((a, b) => a + b, 0)) : null;
 };
 
-// "2026/2027": September–December fall in the first year, the rest in the
-// second.
-const yearForMonth = (month, academicYear) => {
-  const [first, second] = String(academicYear).split("/").map(Number);
-  return month >= 9 ? first : second;
-};
-
-const monthRange = (month, year) => ({
-  start: new Date(Date.UTC(year, month - 1, 1)),
-  end: new Date(Date.UTC(year, month, 0, 23, 59, 59, 999)),
-});
-
-// The weeks a month's register lists: every week the teacher recorded
-// something for — a تقييم أسبوعي or a مواظبة وسلوك / واجب entry.
-const weekStartsInMonth = async (classroomId, subjectId, month, year) => {
-  const { start, end } = monthRange(month, year);
-  const range = { $gte: start, $lte: end };
-  const filter = { classroom: classroomId, subject: subjectId, weekStart: range };
-
-  const [evaluated, adjusted] = await Promise.all([
-    WeeklyEvaluation.find(filter).distinct("weekStart"),
-    CourseworkOverride.find(filter).distinct("weekStart"),
-  ]);
-
-  const byTime = new Map();
-  [...evaluated, ...adjusted].forEach((d) => byTime.set(new Date(d).getTime(), new Date(d)));
-  return [...byTime.values()].sort((a, b) => a - b);
-};
-
-// Every week of a month, scored — what the month sheet prints.
-exports.monthWeekScores = async (classroomId, subjectId, studentIds, month, year) => {
-  const weekStarts = await weekStartsInMonth(classroomId, subjectId, month, year);
-  const weeklyScores = [];
-  for (const weekStart of weekStarts) {
-    // eslint-disable-next-line no-await-in-loop -- four or five weeks.
-    const scores = await computeWeekScores(classroomId, subjectId, studentIds, weekStart, "weekly40");
-    weeklyScores.push({ weekStart, scores });
-  }
-  return { weekStarts, weeklyScores };
-};
-
 exports.computeTerm40 = async ({ classroom, subjectId, students, term }) => {
-  const rules = SCHEMES.weekly40;
   const studentIds = students.map((s) => s._id);
-  const months = rules.termMonths[term].map((month) => ({
-    month,
-    year: yearForMonth(month, classroom.academicYear),
-  }));
+  const months = monthsOfTerm(term);
 
-  // Each month's average per student.
+  // Each month's average per student, over the weeks recorded in it.
   const monthAverages = {};
-  for (const { month, year } of months) {
-    // eslint-disable-next-line no-await-in-loop -- four months, each a few weeks.
-    const { weeklyScores } = await exports.monthWeekScores(
-      classroom._id,
-      subjectId,
-      studentIds,
-      month,
-      year,
-    );
+  for (const month of months) {
+    // eslint-disable-next-line no-await-in-loop -- four months of four weeks.
+    const weeklyScores = (
+      await computeMonthScores(classroom._id, subjectId, studentIds, month, "weekly40")
+    ).filter(({ scores }) => scores);
     studentIds.forEach((id) => {
       const key = id.toString();
       if (!monthAverages[key]) monthAverages[key] = {};
-      monthAverages[key][month] = weeklyScores.length
+      monthAverages[key][month.month] = weeklyScores.length
         ? average(weeklyScores.map(({ scores }) => scores[key]?.total))
         : null;
     });
@@ -114,9 +64,7 @@ exports.computeTerm40 = async ({ classroom, subjectId, students, term }) => {
   // Days absent: distinct days with an unexcused absence from this
   // subject's lessons during the term. A double lesson on one day is one
   // day, not two.
-  const termStart = monthRange(months[0].month, months[0].year).start;
-  const last = months[months.length - 1];
-  const termEnd = monthRange(last.month, last.year).end;
+  const { start: termStart, end: termEnd } = termSpan(term);
   // On the daily register (one register a day, in the first period) an
   // absence belongs to the day, not to a subject — every subject's sheet
   // counts the days the student was away from school.
