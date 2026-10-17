@@ -317,6 +317,41 @@ exports.getClassroomWeekCoursework = async (req, res) => {
 // value while this screen showed another.
 const EDITABLE_COLUMNS = ["attendanceScore", "homeworkScore", "classworkScore"];
 
+// A week before the school moved مواظبة وسلوك to the teacher's hand
+// (School.conductEnteredFrom) shows each student the mark worked out from
+// attendance. The app before 2026-10-17 sent only the students whose mark
+// the teacher changed, so the rest of a class the teacher saved as shown
+// never reached the server, and the week stayed short. A مواظبة save for
+// such a week therefore also records the full mark for every other student
+// with nothing recorded yet who was shown the full mark. The current app
+// sends every unrecorded student itself, so for it this finds nobody left.
+// A student shown less (absences) is left for the teacher: مواظبة وسلوك is
+// theirs to judge, not the attendance register's.
+const conductShownToTheRest = async ({ classroom, subjectId, weekStart, list, scheme }) => {
+  const savesConduct = list.some(
+    (entry) => entry.attendanceScore !== null && entry.attendanceScore !== undefined,
+  );
+  if (!savesConduct || scheme !== "classic") return [];
+
+  const from = await conductEnteredFrom(classroom.school);
+  if (!from || isConductEntered(from, weekStart)) return [];
+
+  const sent = new Set(list.map((entry) => String(entry.studentId)));
+  const others = (await Student.find({ classroom: classroom._id, active: true }).select("_id"))
+    .map((s) => s._id)
+    .filter((id) => !sent.has(String(id)));
+  if (others.length === 0) return [];
+
+  const full = maxScoresFor(scheme).attendanceScore;
+  const scores = await computeWeekScores(classroom._id, subjectId, others, weekStart, scheme);
+  return others
+    .filter((id) => {
+      const score = scores[String(id)];
+      return !score.overridden.attendanceScore && score.computed.attendanceScore === full;
+    })
+    .map((id) => ({ studentId: id, attendanceScore: full }));
+};
+
 exports.saveWeekCourseworkOverrides = async (req, res) => {
   try {
     const { classroomId, weekStart: rawWeekStart, list } = req.body;
@@ -349,7 +384,8 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
     }
 
     // The columns this classroom's scheme has, and what each is out of.
-    const maxScores = maxScoresFor(await schemeForClassroom(classroom));
+    const scheme = await schemeForClassroom(classroom);
+    const maxScores = maxScoresFor(scheme);
 
     // A value of `null` is a deliberate "put this column back to the
     // automatic calculation"; a missing key means "leave it alone". Anything
@@ -399,8 +435,9 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
 
     const overrideOps = [];
     const classworkOps = [];
+    const shown = await conductShownToTheRest({ classroom, subjectId, weekStart, list, scheme });
 
-    list.forEach((entry) => {
+    [...list, ...shown].forEach((entry) => {
       const key = { student: entry.studentId, subject: subjectId, weekStart };
 
       const set = {};
