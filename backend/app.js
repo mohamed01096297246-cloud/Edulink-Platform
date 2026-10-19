@@ -59,6 +59,7 @@ const staffCandidateRoutes = require("./src/routes/staffCandidateRoutes");
 const termTestRoutes = require("./src/routes/termTestRoutes");
 const bellScheduleRoutes = require("./src/routes/bellScheduleRoutes");
 const classAssignmentRoutes = require("./src/routes/classAssignmentRoutes");
+const surveyRoutes = require("./src/routes/surveyRoutes");
 
 
 app.use("/api/auth", authRoutes);
@@ -96,6 +97,9 @@ app.use("/api/staff-candidates", staffCandidateRoutes);
 app.use("/api/term-tests", termTestRoutes);
 app.use("/api/bell-schedules", bellScheduleRoutes);
 app.use("/api/class-assignments", classAssignmentRoutes);
+// The app-subscription survey: a page anyone with the link answers, and the
+// platform owner's results.
+app.use("/api/surveys", surveyRoutes);
 
 
 

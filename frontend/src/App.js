@@ -12,6 +12,7 @@ import TeacherDashboard from "./pages/TeacherDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ParentDashboard from "./pages/ParentDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
+import Survey from "./pages/Survey";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
@@ -112,6 +113,10 @@ function App() {
             )
           }
         />
+
+        {/* A school's survey, answered from a link: no login, whoever is
+            or isn't signed in on this browser. */}
+        <Route path="/survey/:slug" element={<Survey />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

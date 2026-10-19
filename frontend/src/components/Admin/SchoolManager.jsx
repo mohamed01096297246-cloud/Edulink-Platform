@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import API from "../../api/axios";
 import { STAGES, stageLabel } from "../../constants/stages";
 import FamilyAccessManager from "./FamilyAccessManager";
+import SurveyPanel from "./SurveyPanel";
 import {
   Building2,
   PlusCircle,
@@ -19,6 +20,7 @@ import {
   BookOpen,
   Baby,
   Link2,
+  ClipboardList,
 } from "lucide-react";
 
 // Platform-super-admin only — onboarding new schools onto EduLink,
@@ -91,6 +93,8 @@ const SchoolManager = () => {
   };
   // Linking students to their parents and parents' logins (FamilyAccessManager).
   const [familiesSchool, setFamiliesSchool] = useState(null);
+  // The app-subscription survey and its answers (SurveyPanel).
+  const [surveySchool, setSurveySchool] = useState(null);
   const [manageUsers, setManageUsers] = useState(null); // { school, role }
   const [usersList, setUsersList] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -506,6 +510,13 @@ const SchoolManager = () => {
                                 className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all text-xs font-bold"
                               >
                                 <Link2 size={15} /> ربط الطلاب والدخول
+                              </button>
+                              <button
+                                onClick={() => setSurveySchool(school)}
+                                title="استبيان الاشتراك في التطبيق ونتايجه"
+                                className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all text-xs font-bold"
+                              >
+                                <ClipboardList size={15} /> الاستبيان
                               </button>
                               <button
                                 onClick={() => setAdminModalSchool(school)}
@@ -998,6 +1009,14 @@ const SchoolManager = () => {
         <FamilyAccessManager
           school={familiesSchool}
           onClose={() => setFamiliesSchool(null)}
+          showToast={showToast}
+        />
+      )}
+
+      {surveySchool && (
+        <SurveyPanel
+          school={surveySchool}
+          onClose={() => setSurveySchool(null)}
           showToast={showToast}
         />
       )}
