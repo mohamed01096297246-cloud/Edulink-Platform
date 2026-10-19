@@ -203,23 +203,28 @@ exports.getAllTeachers = async (req, res) => {
 // The subjects this teacher holds, optionally narrowed to one classroom.
 // The app calls this to decide whether to show a subject picker at all: one
 // subject back means there is nothing to choose, so no picker appears.
+// `?marks=1` is a marking screen asking: a subject that is taught but not
+// marked (Subject.noMarks) is not offered.
 exports.getMySubjects = async (req, res) => {
   try {
     const teacher = await User.findById(req.user.id).populate(
       "subjects",
-      "name code",
+      "name code noMarks",
     );
 
-    const all = teacher.subjects || [];
+    const marks = req.query.marks === "1";
+    const held = teacher.subjects || [];
+    const all = marks ? held.filter((s) => !s.noMarks) : held;
     let current = all;
 
     // Narrowed the same way the write endpoints narrow, so the picker never
     // offers a subject that a save would then reject.
-    if ((req.query.classroomId || req.query.gradeId) && all.length > 1) {
+    if ((req.query.classroomId || req.query.gradeId) && (all.length > 1 || all.length < held.length)) {
       const outcome = await resolveTeacherSubject({
         teacher,
         classroomId: req.query.classroomId,
         gradeId: req.query.gradeId,
+        marks,
       });
 
       if (outcome.subjectId) {
@@ -227,6 +232,8 @@ exports.getMySubjects = async (req, res) => {
       } else if (outcome.ambiguous) {
         const ids = outcome.options.map((o) => String(o._id));
         current = all.filter((s) => ids.includes(String(s._id)));
+      } else if (marks) {
+        current = [];
       }
     }
 

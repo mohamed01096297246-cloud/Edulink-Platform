@@ -22,6 +22,7 @@ exports.getClassroomClassworkNotebook = async (req, res) => {
       teacher,
       classroomId,
       requestedSubjectId: req.query.subjectId,
+      marks: true,
     });
     if (!subjectId) return undefined;
 
@@ -73,9 +74,10 @@ exports.saveBulkClassworkNotebook = async (req, res) => {
         .json({ success: false, message: "أدخل درجة طالب واحد على الأقل." });
     }
 
+    // Whole marks, or with a quarter, a half or three quarters (4.5, 3.25).
     const hasInvalidScore = gradesList.some(
       (record) =>
-        !Number.isInteger(Number(record.score)) ||
+        !Number.isInteger(Number(record.score) * 4) ||
         record.score < 0 ||
         record.score > 5,
     );
@@ -83,7 +85,7 @@ exports.saveBulkClassworkNotebook = async (req, res) => {
     if (hasInvalidScore) {
       return res.status(400).json({
         success: false,
-        message: "الدرجات لازم تكون رقم صحيح من غير كسور، بين 0 و5.",
+        message: "الدرجات لازم تكون بين 0 و5، رقم صحيح أو بربع أو نص درجة (زي 4.5 أو 3.25).",
       });
     }
 
@@ -99,6 +101,7 @@ exports.saveBulkClassworkNotebook = async (req, res) => {
       teacher,
       classroomId,
       requestedSubjectId: req.body.subjectId,
+      marks: true,
     });
     if (!subjectId) return undefined;
 

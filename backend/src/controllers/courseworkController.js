@@ -48,6 +48,7 @@ exports.getClassroomCoursework = async (req, res) => {
       teacher,
       classroomId,
       requestedSubjectId: req.query.subjectId,
+      marks: true,
     });
     if (!subjectId) return undefined;
 
@@ -267,6 +268,7 @@ exports.getClassroomWeekCoursework = async (req, res) => {
       teacher,
       classroomId,
       requestedSubjectId: req.query.subjectId,
+      marks: true,
     });
     if (!subjectId) return undefined;
 
@@ -389,7 +391,8 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
 
     // A value of `null` is a deliberate "put this column back to the
     // automatic calculation"; a missing key means "leave it alone". Anything
-    // else has to be a whole number inside the column's own maximum — this
+    // else has to be a whole mark, or one and a quarter, a half or three
+    // quarters (4.5, 3.25), inside the column's own maximum — this
     // is the server-side half of the cap the score buttons enforce in the
     // app, so a stale or tampered client can't push a 7 into a 5-mark
     // column. A column the scheme doesn't have (كراسة الحصة on weekly40)
@@ -416,10 +419,10 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
 
         if (value === null) continue;
 
-        if (!Number.isInteger(Number(value)) || value < 0 || value > max) {
+        if (!Number.isInteger(Number(value) * 4) || value < 0 || value > max) {
           return res.status(400).json({
             success: false,
-            message: `الدرجة لازم تكون رقم صحيح من غير كسور، بين 0 و${max}.`,
+            message: `الدرجة لازم تكون بين 0 و${max}، رقم صحيح أو بربع أو نص درجة (زي 4.5 أو 3.25).`,
           });
         }
       }
@@ -430,6 +433,7 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
       teacher,
       classroomId,
       requestedSubjectId: req.body.subjectId,
+      marks: true,
     });
     if (!subjectId) return undefined;
 

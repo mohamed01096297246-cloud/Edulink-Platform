@@ -27,6 +27,9 @@ const narrowByGrade = async (qualified, gradeId, fallback) => {
 // anything inferred. Only when the timetable is silent (a school that hasn't
 // entered one yet) do we fall back to what the teacher is qualified for.
 //
+// `marks`: the question is asked for recording marks, so a subject that is
+// taught but not marked (Subject.noMarks) is not an answer.
+//
 // Returns one of:
 //   { subjectId }                          — settled
 //   { ambiguous: true, options: [...] }     — caller should ask the teacher
@@ -36,11 +39,30 @@ const resolveTeacherSubject = async ({
   classroomId,
   gradeId,
   requestedSubjectId,
+  marks = false,
 }) => {
-  const qualified = (teacher.subjects || []).map((s) => String(s._id || s));
+  let qualified = (teacher.subjects || []).map((s) => String(s._id || s));
 
   if (qualified.length === 0) {
     return { error: "لم يتم إسناد أي مادة لهذا المعلم. راجع إدارة المدرسة." };
+  }
+
+  if (marks) {
+    const unmarked = new Set(
+      (await Subject.find({ _id: { $in: qualified }, noMarks: true }).distinct("_id")).map(String),
+    );
+    if (unmarked.size > 0) {
+      if (requestedSubjectId && unmarked.has(String(requestedSubjectId))) {
+        return { error: "المادة دي مش بيترصد لها درجات — بتظهر في الجدول بس." };
+      }
+      qualified = qualified.filter((id) => !unmarked.has(id));
+      // A class where all the teacher takes is unmarked has nothing of
+      // theirs to record — their marked subject there is a colleague's.
+      const taken = classroomId ? await teacherSubjectsIn(teacher._id, classroomId) : [];
+      if (qualified.length === 0 || (taken.length > 0 && taken.every((id) => unmarked.has(id)))) {
+        return { error: "مادتك في الفصل ده مش بيترصد لها درجات — بتظهر في الجدول بس." };
+      }
+    }
   }
 
   // An explicit choice from the app wins, but only over the subjects the

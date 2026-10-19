@@ -4,7 +4,7 @@ const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
 const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
-const { teacherClassroomIds } = require("../utils/teacherClassrooms");
+const { teacherClassroomIds, teacherMarkClassroomIds } = require("../utils/teacherClassrooms");
 
 // The school year's real teaching months, in chronological order — Term 1
 // runs September through January, Term 2 runs February through May. A
@@ -42,8 +42,14 @@ exports.getClassroomsForGrade = async (req, res) => {
   try {
     const { gradeId } = req.params;
 
+    // `?marks=1`: a marking screen, which leaves out a class where all the
+    // teacher takes is taught but not marked (Subject.noMarks).
+    const ids =
+      req.query.marks === "1"
+        ? await teacherMarkClassroomIds(req.user.id)
+        : await teacherClassroomIds(req.user.id);
     const data = await Classroom.find({
-      _id: { $in: await teacherClassroomIds(req.user.id) },
+      _id: { $in: ids },
       grade: new mongoose.Types.ObjectId(gradeId),
     }).sort({ name: 1 });
 
@@ -81,6 +87,7 @@ exports.getClassroomMonthlyGrades = async (req, res) => {
       teacher,
       classroomId,
       requestedSubjectId: req.query.subjectId,
+      marks: true,
     });
     if (!subjectId) return undefined;
 
@@ -157,6 +164,7 @@ exports.saveBulkMonthlyGrades = async (req, res) => {
       teacher,
       classroomId,
       requestedSubjectId: req.body.subjectId,
+      marks: true,
     });
     if (!subjectId) return undefined;
 

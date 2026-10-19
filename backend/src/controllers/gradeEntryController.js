@@ -128,17 +128,18 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null }) => {
   const schemeOf = (classroom) => schemeFor(schoolById.get(String(classroom.school)), classroom.grade?.stage);
 
   // Who teaches what: the school's assignments first, then the timetable.
-  // A period with no teacher (طابور, نشاط) owes no marks and is left out.
+  // A period with no teacher (طابور, نشاط) owes no marks and is left out,
+  // and so is a subject that is taught but not marked (Subject.noMarks).
   const [assigned, timetabled] = await Promise.all([
     ClassAssignment.find({ classroom: { $in: classIds } })
       .select("teacher classroom subject")
       .populate("teacher", "firstName lastName")
-      .populate("subject", "name")
+      .populate("subject", "name noMarks")
       .lean(),
     Schedule.find({ classroom: { $in: classIds }, teacher: { $ne: null } })
       .select("teacher classroom subject")
       .populate("teacher", "firstName lastName")
-      .populate("subject", "name")
+      .populate("subject", "name noMarks")
       .lean(),
   ]);
 
@@ -149,12 +150,12 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null }) => {
   // assigned to someone else is never counted as this teacher's.
   const mine = (row) => !teacherId || String(row.teacher._id) === String(teacherId);
   for (const row of assigned) {
-    if (!row.teacher || !row.subject) continue;
+    if (!row.teacher || !row.subject || row.subject.noMarks) continue;
     covered.add(pairKey(row.classroom, row.subject._id));
     if (mine(row)) pairs.set(`${row.teacher._id}:${pairKey(row.classroom, row.subject._id)}`, row);
   }
   for (const row of timetabled) {
-    if (!row.teacher || !row.subject) continue;
+    if (!row.teacher || !row.subject || row.subject.noMarks) continue;
     const key = pairKey(row.classroom, row.subject._id);
     if (covered.has(key) || !mine(row)) continue;
     pairs.set(`${row.teacher._id}:${key}`, row);

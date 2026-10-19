@@ -221,7 +221,9 @@ const computeWeekScores = async (
       homeworkScore,
       weeklyEvalScore,
       classworkScore,
-      total: round1(total),
+      // Two places, not one: marks come in quarters (4.25), and a week of
+      // them must add up to what the teacher entered, not to 14.3 for 14.25.
+      total: Math.round(total * 100) / 100,
       // Lets the app show the teacher which numbers it computed and which
       // ones they changed by hand (and offer to put them back).
       overridden: {

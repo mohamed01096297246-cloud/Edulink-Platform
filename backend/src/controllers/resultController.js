@@ -3,7 +3,7 @@ const Result = require("../models/Result");
 const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
 const Exam = require("../models/Exam");
-const { teacherClassPairs, teacherClassroomIds } = require("../utils/teacherClassrooms");
+const { teacherClassPairs, teacherClassroomIds, teacherMarkClassroomIds } = require("../utils/teacherClassrooms");
 const { sameSchool } = require("../utils/tenant");
 const User = require("../models/User");
 const { teacherMayUse } = require("../utils/teacherSubject");
@@ -11,15 +11,23 @@ const { teacherMayUse } = require("../utils/teacherSubject");
 exports.getTeacherGrades = async (req, res) => {
   try {
     // Timetabled classes and assigned ones alike (utils/teacherClassrooms).
-    const classrooms = await Classroom.find({
-      _id: { $in: await teacherClassroomIds(req.user.id) },
-    }).populate("grade");
+    const [classroomIds, markIds] = await Promise.all([
+      teacherClassroomIds(req.user.id),
+      teacherMarkClassroomIds(req.user.id),
+    ]);
+    const classrooms = await Classroom.find({ _id: { $in: classroomIds } }).populate("grade");
+    const marked = new Set(markIds);
 
+    // `marks`: whether the teacher has marks to record in the grade. The
+    // marking screens leave out a grade where all they take is a subject
+    // that is taught but not marked (Subject.noMarks).
     const gradesMap = new Map();
     classrooms.forEach((classroom) => {
       if (classroom.grade) {
-        const grade = classroom.grade;
-        gradesMap.set(grade._id.toString(), grade);
+        const key = classroom.grade._id.toString();
+        const grade = gradesMap.get(key) || { ...classroom.grade.toObject(), marks: false };
+        grade.marks = grade.marks || marked.has(String(classroom._id));
+        gradesMap.set(key, grade);
       }
     });
 

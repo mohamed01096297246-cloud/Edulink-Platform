@@ -172,10 +172,10 @@ exports.getWeekEvaluation = async (req, res) => {
 
     const scoreOf = new Map(evaluations.map((e) => [String(e.subject), e.score]));
     const subjectIds = [...new Set([...scheduledSubjects.filter(Boolean).map(String), ...scoreOf.keys()])];
-    const subjectDocs = await Subject.find({ _id: { $in: subjectIds } }).select("name");
+    const subjectDocs = await Subject.find({ _id: { $in: subjectIds } }).select("name noMarks");
 
     const subjects = subjectDocs
-      .filter((s) => !NOT_IN_WEEK_EVALUATION.has(normalizeSubjectName(s.name)))
+      .filter((s) => !s.noMarks && !NOT_IN_WEEK_EVALUATION.has(normalizeSubjectName(s.name)))
       .map((s) => {
         const score = scoreOf.has(String(s._id)) ? scoreOf.get(String(s._id)) : null;
         return {
@@ -239,8 +239,8 @@ exports.getHomeworkWeek = async (req, res) => {
     const subjectIds = student.classroom
       ? (await Schedule.distinct("subject", { classroom: student.classroom })).filter(Boolean)
       : [];
-    const subjectDocs = (await Subject.find({ _id: { $in: subjectIds } }).select("name")).filter(
-      (s) => !NOT_IN_WEEK_EVALUATION.has(normalizeSubjectName(s.name)),
+    const subjectDocs = (await Subject.find({ _id: { $in: subjectIds } }).select("name noMarks")).filter(
+      (s) => !s.noMarks && !NOT_IN_WEEK_EVALUATION.has(normalizeSubjectName(s.name)),
     );
 
     const subjects = (

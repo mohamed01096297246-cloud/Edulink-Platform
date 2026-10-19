@@ -36,11 +36,14 @@ const SubjectManagement = () => {
   // A subject covers a set of grades now — "علوم" for grades 4 to 6 is one
   // subject, not three. `allGrades` is stored as the intent "every grade",
   // so a grade added next year is included without anyone editing this.
+  // `noMarks`: taught but not marked (Al-Rahma's «انجليزي مستوي») — it
+  // stays on the timetable and leaves the teachers' recording.
   const [formData, setFormData] = useState({
     name: "",
     code: "",
     grades: [],
     allGrades: false,
+    noMarks: false,
   });
   const [editingId, setEditingId] = useState(null);
 
@@ -83,7 +86,7 @@ const SubjectManagement = () => {
   const closeModal = () => {
     setShowModal(false);
     setEditingId(null);
-    setFormData({ name: "", code: "", grades: [], allGrades: false });
+    setFormData({ name: "", code: "", grades: [], allGrades: false, noMarks: false });
   };
 
   const toggleGrade = (gradeId) => {
@@ -110,6 +113,7 @@ const SubjectManagement = () => {
       code: formData.code.trim().toUpperCase(),
       grades: formData.allGrades ? [] : formData.grades,
       allGrades: formData.allGrades,
+      noMarks: formData.noMarks,
     };
 
     try {
@@ -154,6 +158,7 @@ const SubjectManagement = () => {
       code: subject.code,
       grades: (subject.grades || []).map((g) => g?._id || g),
       allGrades: Boolean(subject.allGrades),
+      noMarks: Boolean(subject.noMarks),
     });
     setShowModal(true);
   };
@@ -289,6 +294,11 @@ const SubjectManagement = () => {
                           <span className="text-xs font-black text-indigo-500 tracking-widest">
                             {sub.code}
                           </span>
+                          {sub.noMarks && (
+                            <span className="self-start text-[11px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
+                              بدون رصد درجات
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="p-6">
@@ -492,6 +502,39 @@ const SubjectManagement = () => {
                   </p>
                 )}
               </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setFormData({ ...formData, noMarks: !formData.noMarks })
+                }
+                className={`md:col-span-2 w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-right ${
+                  formData.noMarks
+                    ? "bg-amber-50 border-amber-500"
+                    : "bg-slate-50 border-transparent hover:border-slate-200"
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                    formData.noMarks
+                      ? "bg-amber-500"
+                      : "bg-white border-2 border-slate-300"
+                  }`}
+                >
+                  {formData.noMarks && (
+                    <CheckCircle2 size={14} className="text-white" />
+                  )}
+                </div>
+                <div>
+                  <div className="font-black text-slate-700 text-sm">
+                    بدون رصد درجات
+                  </div>
+                  <div className="text-xs font-bold text-slate-400 mt-0.5">
+                    المادة بتفضل في الجدول والحصص والحضور، بس مش بتظهر
+                    للمعلمين في الرصد ولا في آخر التطورات
+                  </div>
+                </div>
+              </button>
 
               <button
                 disabled={actionLoading}

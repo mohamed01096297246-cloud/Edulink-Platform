@@ -41,8 +41,8 @@ const classworkNotebookSchema = new mongoose.Schema(
       min: 0,
       max: 5,
       validate: {
-        validator: Number.isInteger,
-        message: "درجة كراسة الحصة لازم تكون رقم صحيح من غير كسور.",
+        validator: (n) => Number.isInteger(n * 4),
+        message: "درجة كراسة الحصة لازم تكون رقم صحيح أو بربع أو نص درجة (زي 4.5 أو 3.25).",
       },
     },
   },

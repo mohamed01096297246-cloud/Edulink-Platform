@@ -48,6 +48,7 @@ exports.getClassroomTermTests = async (req, res) => {
       teacher,
       classroomId,
       requestedSubjectId: req.query.subjectId,
+      marks: true,
     });
     if (!subjectId) return undefined;
 
@@ -121,6 +122,7 @@ exports.saveBulkTermTests = async (req, res) => {
       teacher,
       classroomId,
       requestedSubjectId: req.body.subjectId,
+      marks: true,
     });
     if (!subjectId) return undefined;
 

@@ -1,5 +1,6 @@
 const Schedule = require("../models/Schedule");
 const ClassAssignment = require("../models/ClassAssignment");
+const Subject = require("../models/Subject");
 
 // The classes a teacher teaches, and which subject in each: what the
 // timetable says, plus what the school assigned them before the timetable
@@ -39,4 +40,18 @@ const teacherSubjectsIn = async (teacherId, classroomId) =>
     ),
   ];
 
-module.exports = { teacherClassPairs, teacherClassroomIds, teacherSubjectsIn };
+// The classes where the teacher has marks to record: all of them, less those
+// where everything they take is taught but not marked (Subject.noMarks).
+const teacherMarkClassroomIds = async (teacherId) => {
+  const pairs = await teacherClassPairs(teacherId);
+  const unmarked = new Set(
+    (
+      await Subject.find({ _id: { $in: pairs.map((p) => p.subject).filter(Boolean) }, noMarks: true }).distinct("_id")
+    ).map(String),
+  );
+  return [
+    ...new Set(pairs.filter((p) => !p.subject || !unmarked.has(String(p.subject))).map((p) => String(p.classroom))),
+  ];
+};
+
+module.exports = { teacherClassPairs, teacherClassroomIds, teacherSubjectsIn, teacherMarkClassroomIds };

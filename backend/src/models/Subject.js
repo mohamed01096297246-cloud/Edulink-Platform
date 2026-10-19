@@ -31,6 +31,16 @@ const subjectSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+
+  // Taught but not marked — Al-Rahma's «انجليزي مستوي» beside «انجليزي
+  // حكومي». It stays on the timetable, in attendance, homework and board
+  // notes; it is left out of everything about marks: what a teacher records
+  // (utils/teacherSubject.js `marks`), «آخر التطورات», and the grades
+  // parents and students see.
+  noMarks: {
+    type: Boolean,
+    default: false,
+  },
   school: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "School",

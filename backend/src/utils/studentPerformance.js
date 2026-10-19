@@ -181,7 +181,8 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
   return out;
 };
 
-// Every subject taught to the student's grade, for one term.
+// Every subject taught to the student's grade, for one term — less one that
+// is taught but not marked (Subject.noMarks).
 const studentPerformance = async ({ student, term, today }) => {
   const classroom = student.classroom;
   const scheme = await schemeForClassroom(classroom);
@@ -191,6 +192,7 @@ const studentPerformance = async ({ student, term, today }) => {
 
   const subjects = await Subject.find({
     school: student.school,
+    noMarks: { $ne: true },
     ...Subject.coveringGrade(student.grade?._id || student.grade),
   }).sort({ name: 1 });
 

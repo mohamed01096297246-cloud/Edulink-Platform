@@ -80,6 +80,7 @@ exports.createSubject = async (req, res) => {
       code,
       grades,
       allGrades,
+      noMarks: Boolean(req.body.noMarks),
       school,
     });
 
@@ -142,6 +143,7 @@ exports.updateSubject = async (req, res) => {
 
     if (req.body.name !== undefined) update.name = req.body.name.trim();
     if (req.body.code !== undefined) update.code = req.body.code;
+    if (req.body.noMarks !== undefined) update.noMarks = Boolean(req.body.noMarks);
 
     // Coverage is only touched when the request actually says something
     // about it — a rename must not silently blank out a subject's grades.

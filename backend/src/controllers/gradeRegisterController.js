@@ -75,6 +75,7 @@ exports.exportWeeklyRegister = async (req, res) => {
       teacher,
       classroomId,
       requestedSubjectId: req.query.subjectId,
+      marks: true,
     });
     if (!subjectId) return undefined;
 
@@ -185,6 +186,7 @@ exports.exportMonthlyRegister = async (req, res) => {
       teacher,
       classroomId,
       requestedSubjectId: req.query.subjectId,
+      marks: true,
     });
     if (!subjectId) return undefined;
 
@@ -265,6 +267,7 @@ exports.exportTermRegister = async (req, res) => {
       teacher,
       classroomId,
       requestedSubjectId: req.query.subjectId,
+      marks: true,
     });
     if (!subjectId) return undefined;
 
