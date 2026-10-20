@@ -165,8 +165,12 @@ exports.getParentHomeworkDashboard = async (req, res) => {
       student: studentId,
     }).populate("homework", "title totalMarks");
 
+    // A result outlives its homework when the teacher deletes the homework
+    // after marking it. There is nothing left to show it under, so it is
+    // skipped — reading it took the parent's whole homework page down.
     const resultsMap = {};
     studentResults.forEach((res) => {
+      if (!res.homework) return;
       resultsMap[res.homework._id.toString()] = res;
     });
 
