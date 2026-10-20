@@ -6,6 +6,7 @@ const {
   getStudentReport,
   getWeekEvaluation,
   getHomeworkWeek,
+  getMonthlyTests,
 } = require("../controllers/parentController");
 const { protect, authorize, requireUserFeature } = require("../middleware/authMiddleware");
 
@@ -30,6 +31,13 @@ router.get(
   authorize("parent"),
   requireUserFeature("homework"),
   getHomeworkWeek
+);
+router.get(
+  "/monthly-tests/:studentId",
+  protect,
+  authorize("parent"),
+  requireUserFeature("grades"),
+  getMonthlyTests
 );
 
 module.exports = router;
