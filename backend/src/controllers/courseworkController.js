@@ -22,6 +22,7 @@ const {
 } = require("../utils/gradebook");
 const { isDailyMode } = require("../utils/dailyAttendance");
 const { worthOf, earnedOn } = require("../utils/homeworkMarks");
+const { averageToHalf } = require("../utils/halfMarks");
 
 const round1 = (n) =>
   n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
@@ -162,9 +163,6 @@ exports.getClassroomCoursework = async (req, res) => {
       classworkByStudent.get(key).push(record.score);
     });
 
-    const average = (arr) =>
-      arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
-
     const data = students.map((student) => {
       const key = student._id.toString();
 
@@ -181,20 +179,11 @@ exports.getClassroomCoursework = async (req, res) => {
           ? round1((homeworkEarned / termHomeworkMax) * 5)
           : null;
 
-      const monthlyTestScore = round1(average(monthlyByStudent.get(key) || []));
-      // Each week's entry is already a whole number — averaging several of
-      // them can still land on a fraction, but the weekly-evaluation column
-      // never shows one, so round to the nearest whole number here too.
-      const weeklyAverage = average(weeklyByStudent.get(key) || []);
-      const weeklyEvalScore =
-        weeklyAverage === null ? null : Math.round(weeklyAverage);
-
-      // Same whole-number rounding as weeklyEvalScore — each week's entry
-      // is already an integer, but an average of several can land on a
-      // fraction, and the classwork-notebook column never shows one.
-      const classworkAverage = average(classworkByStudent.get(key) || []);
-      const classworkNotebookScore =
-        classworkAverage === null ? null : Math.round(classworkAverage);
+      // Averages over the term, each as a whole mark or a half
+      // (utils/halfMarks).
+      const monthlyTestScore = averageToHalf(monthlyByStudent.get(key) || []);
+      const weeklyEvalScore = averageToHalf(weeklyByStudent.get(key) || []);
+      const classworkNotebookScore = averageToHalf(classworkByStudent.get(key) || []);
 
       const subtotal = [
         attendanceBehaviorScore,

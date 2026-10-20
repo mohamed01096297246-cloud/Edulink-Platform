@@ -3,6 +3,7 @@ const Attendance = require("../models/Attendance");
 const { computeMonthScores } = require("./weekScores");
 const { monthsOfTerm, termSpan } = require("./schoolMonths");
 const { isDailyMode } = require("./dailyAttendance");
+const { averageToHalf } = require("./halfMarks");
 
 // The weekly40 scheme's month and term arithmetic (utils/gradebook.js),
 // exactly as the paper register does it:
@@ -18,10 +19,8 @@ const { isDailyMode } = require("./dailyAttendance");
 const round1 = (n) =>
   n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
 
-const average = (values) => {
-  const nums = values.filter((v) => v !== null && v !== undefined && !Number.isNaN(v));
-  return nums.length ? round1(nums.reduce((a, b) => a + b, 0) / nums.length) : null;
-};
+// A month's average and the term's, as a whole mark or a half.
+const average = averageToHalf;
 
 const sum = (values) => {
   const nums = values.filter((v) => v !== null && v !== undefined);

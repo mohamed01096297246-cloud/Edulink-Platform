@@ -1,4 +1,5 @@
 const ExcelJS = require("exceljs");
+const { averageToHalf } = require("./halfMarks");
 
 // Mirrors the paper "سجل رصد درجات فصل" register the school already uses on
 // paper — weeks (or a month's worth of weeks) as column groups, students as
@@ -105,11 +106,8 @@ const styleDataCell = (cell, { bold = false } = {}) => {
   if (bold) cell.font = { bold: true };
 };
 
-const average = (values) => {
-  const nums = values.filter((v) => v !== null && v !== undefined);
-  if (nums.length === 0) return null;
-  return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10;
-};
+// Averages print as a whole mark or a half (utils/halfMarks).
+const average = averageToHalf;
 
 exports.buildWeeklyRegisterWorkbook = ({
   subjectName,
@@ -274,7 +272,6 @@ exports.buildMonthlyRegisterWorkbook = ({
     const weeklyEvalValues = [];
     const homeworkValues = [];
     const classworkValues = [];
-    const perWeekTotals = [];
 
     weeklyScores.forEach(({ scores }) => {
       const entry = (scores && scores[key]) || {};
@@ -296,18 +293,15 @@ exports.buildMonthlyRegisterWorkbook = ({
       weeklyEvalValues.push(entry.weeklyEvalScore);
       homeworkValues.push(entry.homeworkScore);
       classworkValues.push(entry.classworkScore);
-      perWeekTotals.push(entry.total);
     });
 
-    const avgTotal = average(perWeekTotals);
+    // Each column's average as a whole mark or a half, and the total the sum
+    // of those — so the row adds up as it prints (9.5 + 4.5 … = the total).
+    const averages = [attendanceValues, weeklyEvalValues, homeworkValues, classworkValues].map(average);
+    const present = averages.filter((value) => value !== null);
+    const avgTotal = present.length ? present.reduce((a, b) => a + b, 0) : null;
 
-    [
-      average(attendanceValues),
-      average(weeklyEvalValues),
-      average(homeworkValues),
-      average(classworkValues),
-      avgTotal,
-    ].forEach((value) => {
+    [...averages, avgTotal].forEach((value) => {
       const cell = row.getCell(c++);
       cell.value = value ?? "-";
       styleDataCell(cell, { bold: true });

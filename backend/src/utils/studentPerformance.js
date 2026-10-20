@@ -15,6 +15,7 @@ const { SCHEMES, schemeForClassroom } = require("./gradebook");
 const { computeWeekScores } = require("./weekScores");
 const { monthsOfTerm, termSpan, termOfDate } = require("./schoolMonths");
 const { isDailyMode } = require("./dailyAttendance");
+const { averageToHalf } = require("./halfMarks");
 
 // "أدائي" — one student's standing in each subject over a term, built from
 // exactly the numbers their teachers record and the register prints: every
@@ -28,10 +29,9 @@ const { isDailyMode } = require("./dailyAttendance");
 const TEST_MONTHS = { 1: [9, 10, 11, 12, 1], 2: [2, 3, 4, 5] };
 
 const round1 = (n) => (n === null || Number.isNaN(n) ? null : Math.round(n * 10) / 10);
-const average = (values) => {
-  const nums = values.filter((v) => v !== null && v !== undefined && !Number.isNaN(v));
-  return nums.length ? round1(nums.reduce((a, b) => a + b, 0) / nums.length) : null;
-};
+// Month and term averages as a whole mark or a half, as the register prints
+// them (utils/halfMarks).
+const average = averageToHalf;
 
 const yearForMonth = (month, academicYear) => {
   const [first, second] = String(academicYear || "").split("/").map(Number);

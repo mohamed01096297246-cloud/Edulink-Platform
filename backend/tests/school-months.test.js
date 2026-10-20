@@ -9,6 +9,7 @@ const {
   monthsBegun,
   schoolMonthStartingIn,
 } = require("../src/utils/schoolMonths");
+const { toHalf } = require("../src/utils/halfMarks");
 
 // The school's month is four school weeks in a row, counted from the first
 // marked week, not a calendar month. The month sheet, the term sheet and
@@ -109,6 +110,32 @@ test("the month sheet prints the month's four weeks and averages the recorded on
 
   // A month with nothing recorded says so.
   expect((await t.get(`/api/grade-register/month/${c._id}?schoolMonth=3`)).status).toBe(404);
+});
+
+test("an average prints as a whole mark or a half, and the month's total adds them up", async () => {
+  // Mohamed's examples (9.3 → 9.5, 9.6 → 9.5, 9.7 → 10), read to one decimal.
+  expect([9.2, 9.3, 9.6, 9.7, 9, 4.25, 4.6, 4.8].map(toHalf)).toEqual([9, 9.5, 9.5, 10, 9, 4.5, 4.5, 5]);
+  expect(toHalf(null)).toBeNull();
+
+  const { c, student, t, evaluate } = await setUp();
+  const homework = async (weekStart, homeworkScore) => {
+    const res = await t.post("/api/coursework/week/bulk", {
+      classroomId: String(c._id),
+      weekStart,
+      list: [{ studentId: String(student._id), homeworkScore }],
+    });
+    expect(res.status).toBe(200);
+  };
+  // تقييم 9, 9, 10 (9.33) and واجب 4.25, 5, 4.5 (4.58).
+  for (const [week, score, mark] of [["2026-09-20", 9, 4.25], ["2026-09-27", 9, 5], ["2026-10-04", 10, 4.5]]) {
+    await evaluate(week, score);
+    await homework(week, mark);
+  }
+
+  const row = (await sheetOf(t, `/api/grade-register/month/${c._id}?schoolMonth=1`)).getRow(8);
+  const at = (col) => row.getCell(col).value;
+  // متوسط الأسابيع — مواظبة، تقييم، واجب، كراسة، إجمالي — then المجموع.
+  expect([at(23), at(24), at(25), at(26), at(27), at(28)]).toEqual(["-", 9.5, 4.5, "-", 14, 14]);
 });
 
 test("the app is offered the months begun so far, with their days", async () => {
