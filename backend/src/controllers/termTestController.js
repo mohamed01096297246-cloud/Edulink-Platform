@@ -102,18 +102,19 @@ exports.saveBulkTermTests = async (req, res) => {
     const rules = await requireWeekly40(res, classroom);
     if (!rules) return undefined;
 
+    // Whole marks or halves (14.5).
     const max = rules.termTestMax;
     const invalid = gradesList.some(
       (r) =>
         !r.studentId ||
-        Number.isNaN(Number(r.grade)) ||
+        !Number.isInteger(Number(r.grade) * 2) ||
         Number(r.grade) < 0 ||
         Number(r.grade) > max,
     );
     if (invalid) {
       return res.status(400).json({
         success: false,
-        message: `درجة الاختبار لازم تكون بين 0 و${max}.`,
+        message: `درجة الاختبار لازم تكون بين 0 و${max}، رقم صحيح أو نص درجة (زي 14.5).`,
       });
     }
 
