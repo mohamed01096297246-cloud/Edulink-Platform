@@ -50,6 +50,39 @@ test("the admin sees who recorded the month's test, class by class", async () =>
   expect(weekly.body.teachers[0].classes[0].columns.map((col) => col.key)).toEqual(["attendance", "homework", "weekly", "classwork"]);
 });
 
+test("a pupil's marks stop counting for a class they have left", async () => {
+  const s = await f.school();
+  const g = await f.grade(s, { stage: "primary" });
+  const c = await f.classroom(g, { name: "4/1" });
+  const other = await f.classroom(g, { name: "4/2" });
+  const sub = await f.subject(s, [g], { name: "عربي" });
+  const teacher = await f.user("teacher", s, { subjects: [sub._id], teachingGrades: [g._id] });
+  await lesson(s, c, sub, teacher, 1);
+  await f.student(c);
+  const { student: leaver } = await f.student(c);
+
+  const t = await f.signIn(teacher);
+  const one = [{ studentId: String(leaver._id), grade: 12, score: 8 }];
+  expect((await t.post("/api/monthly-grades/bulk", { classroomId: String(c._id), month: 10, gradesList: one })).status).toBe(200);
+  expect((await t.post("/api/weekly-evaluation/bulk", { classroomId: String(c._id), weekStart: "2026-10-11", gradesList: one })).status).toBe(200);
+
+  const admin = await f.signIn(await f.user("admin", s));
+  const counts = async () => {
+    const tests = (await admin.get("/api/analytics/grade-entry?kind=tests&date=2026-10-15")).body;
+    const week = (await admin.get("/api/analytics/grade-entry?period=week&date=2026-10-13")).body;
+    return {
+      monthly: tests.teachers[0].classes[0].columns[0].students,
+      weekly: week.teachers[0].classes[0].columns.find((col) => col.key === "weekly").students,
+    };
+  };
+  expect(await counts()).toEqual({ monthly: 1, weekly: 1 });
+
+  // Moved to 4/2: what they got in 4/1 no longer makes 4/1 look marked.
+  leaver.classroom = other._id;
+  await leaver.save();
+  expect(await counts()).toEqual({ monthly: 0, weekly: 0 });
+});
+
 test("on weekly40 the tests view shows the term's two tests", async () => {
   const s = await f.school({ gradebook: { preparatory: "weekly40" } });
   const g = await f.grade(s, { stage: "preparatory" });

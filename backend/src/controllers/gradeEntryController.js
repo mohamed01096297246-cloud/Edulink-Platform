@@ -113,7 +113,7 @@ const rank = { none: 0, partial: 1, complete: 2 };
 // classic register the month's test (MonthlyGrade, filed by calendar
 // month), on weekly40 — which has no monthly test — the term's two tests.
 // Each counts the students of the class who have the mark.
-const testEntry = async ({ classrooms, schemeOf, range }) => {
+const testEntry = async ({ classrooms, schemeOf, range, onRoster }) => {
   const month = range.start.getUTCMonth() + 1;
   const year = range.start.getUTCFullYear();
   const term = termOfDate(range.start);
@@ -129,7 +129,7 @@ const testEntry = async ({ classrooms, schemeOf, range }) => {
 
   const byPair = (docs) => {
     const out = new Map();
-    for (const doc of docs) {
+    for (const doc of docs.filter(onRoster)) {
       const key = pairKey(doc.classroom, doc.subject);
       if (!out.has(key)) out.set(key, { students: new Set(), last: null });
       const entry = out.get(key);
@@ -225,6 +225,10 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null, kind = "w
     sizes.set(String(s.classroom), (sizes.get(String(s.classroom)) || 0) + 1);
     classOfStudent.set(String(s._id), String(s.classroom));
   }
+  // Only the class's own pupils count towards it: a mark left under a class
+  // by a pupil who has since moved class or left the school would otherwise
+  // make it look marked ("4 of 34" with none of the 34 marked).
+  const onRoster = (doc) => classOfStudent.get(String(doc.student)) === String(doc.classroom);
 
   const inClasses = { classroom: { $in: classIds } };
   const window = { $gte: range.start, $lte: range.end };
@@ -255,7 +259,7 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null, kind = "w
           .select("student subject date")
           .lean()
       : [],
-    weekly ? null : testEntry({ classrooms, schemeOf, range }),
+    weekly ? null : testEntry({ classrooms, schemeOf, range, onRoster }),
   ]);
 
   const homeworkResults = homework.length
@@ -263,24 +267,26 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null, kind = "w
     : [];
 
   const byPair = (doc) => pairKey(doc.classroom, doc.subject);
-  const weeklyTally = tally(evaluations, byPair);
-  const classworkTally = tally(notebooks, byPair);
+  const weeklyTally = tally(evaluations.filter(onRoster), byPair);
+  const classworkTally = tally(notebooks.filter(onRoster), byPair);
   const attendanceOverride = tally(
-    overrides.filter((o) => o.attendanceScore !== null && o.attendanceScore !== undefined),
+    overrides.filter((o) => onRoster(o) && o.attendanceScore !== null && o.attendanceScore !== undefined),
     byPair,
   );
   const homeworkOverride = tally(
-    overrides.filter((o) => o.homeworkScore !== null && o.homeworkScore !== undefined),
+    overrides.filter((o) => onRoster(o) && o.homeworkScore !== null && o.homeworkScore !== undefined),
     byPair,
   );
 
   // A homework belongs to the week it was set in (utils/weekScores.js).
   const homeworkById = new Map(homework.map((h) => [String(h._id), h]));
   const homeworkTally = tally(
-    homeworkResults.map((r) => {
-      const h = homeworkById.get(String(r.homework));
-      return { classroom: h.classroom, subject: h.subject, student: r.student, weekStart: h.createdAt, updatedAt: r.updatedAt };
-    }),
+    homeworkResults
+      .map((r) => {
+        const h = homeworkById.get(String(r.homework));
+        return { classroom: h.classroom, subject: h.subject, student: r.student, weekStart: h.createdAt, updatedAt: r.updatedAt };
+      })
+      .filter(onRoster),
     byPair,
   );
   const homeworkSet = new Map();
