@@ -2,8 +2,10 @@ const mongoose = require("mongoose");
 
 // A school's survey about the app subscription, answered from a public link
 // with no login. The link carries `slug`, a random handle, so it can't be
-// guessed from the school's name. Prices are per year, in Egyptian pounds,
-// by the kind of phone the student uses.
+// guessed from the school's name. `price` is the year's subscription for a
+// student, in Egyptian pounds, the same for every phone (Mohamed,
+// 2026-10-20 — it used to be 250 for Android and 300 for iPhone). The page
+// doesn't show it; it prices the owner's total.
 const surveySchema = new mongoose.Schema(
   {
     school: {
@@ -21,9 +23,9 @@ const surveySchema = new mongoose.Schema(
       type: String,
       default: "استبيان الاشتراك في التطبيق",
     },
-    prices: {
-      android: { type: Number, default: 250 },
-      iphone: { type: Number, default: 300 },
+    price: {
+      type: Number,
+      default: 300,
     },
     // Closed, the page says so and takes no more answers.
     open: {

@@ -7,12 +7,16 @@ const Student = require("../models/Student");
 const Survey = require("../models/Survey");
 const SurveyResponse = require("../models/SurveyResponse");
 
-// The app-subscription survey: a page anyone with the link can answer (the
-// school's stages and classes, the kind of phone, and whether they would
-// pay the year's price for it), and the platform owner's view of the
-// answers, class by class.
+// The app-subscription survey: a page anyone with the link can answer —
+// the school's stage and class, and that's all; an answer is a subscription
+// (Mohamed, 2026-10-20: no price on the page, no phone, no "will you
+// subscribe") — and the platform owner's view of the answers, class by
+// class, priced at the survey's one yearly price.
 
 const byName = (a, b) => String(a.name).localeCompare(String(b.name), "ar");
+
+// A survey started before the single price has none stored.
+const priceOf = (survey) => survey.price ?? Survey.schema.path("price").defaultValue;
 
 // The school's grades that have classes, each with its classes.
 const gradesWithClasses = async (schoolId) => {
@@ -33,13 +37,16 @@ const gradesWithClasses = async (schoolId) => {
     .sort(byName);
 };
 
+// What the public page gets: no price.
 const surveyShape = (survey) => ({
   slug: survey.slug,
   title: survey.title,
-  prices: { android: survey.prices.android, iphone: survey.prices.iphone },
   open: survey.open,
   createdAt: survey.createdAt,
 });
+
+// What the owner gets: the price too.
+const ownerShape = (survey) => ({ ...surveyShape(survey), price: priceOf(survey) });
 
 // ---------------------------------------------------------------------------
 // Public: no login.
@@ -79,13 +86,7 @@ exports.submitResponse = async (req, res) => {
       return res.status(403).json({ success: false, message: "تم إغلاق هذا الاستبيان، شكرًا لاهتمامك." });
     }
 
-    const { classroomId, phone, subscribe } = req.body || {};
-    if (!["android", "iphone"].includes(phone)) {
-      return res.status(400).json({ success: false, message: "اختر نوع الهاتف." });
-    }
-    if (typeof subscribe !== "boolean") {
-      return res.status(400).json({ success: false, message: "اختر نعم أو لا." });
-    }
+    const { classroomId, subscribe, phone } = req.body || {};
     if (!mongoose.Types.ObjectId.isValid(classroomId)) {
       return res.status(400).json({ success: false, message: "اختر الفصل." });
     }
@@ -109,9 +110,11 @@ exports.submitResponse = async (req, res) => {
       school: survey.school,
       grade: classroom.grade,
       classroom: classroom._id,
-      phone,
-      subscribe,
-      price: survey.prices[phone],
+      price: priceOf(survey),
+      // A page opened before the questions were dropped still sends them,
+      // and its «لا» stays a «لا».
+      ...(subscribe === false ? { subscribe } : {}),
+      ...(["android", "iphone"].includes(phone) ? { phone } : {}),
     });
 
     return res.status(201).json({ success: true, message: "شكرًا لك، تم تسجيل ردك." });
@@ -124,24 +127,28 @@ exports.submitResponse = async (req, res) => {
 // The platform owner (schools page).
 // ---------------------------------------------------------------------------
 
+// Every answer is a subscriber, less the «لا» answers from before the
+// question was dropped; each subscriber at the survey's one price.
 const results = async (survey) => {
   const [grades, responses, sizes] = await Promise.all([
     gradesWithClasses(survey.school),
-    SurveyResponse.find({ survey: survey._id }).select("classroom phone subscribe price").lean(),
+    SurveyResponse.find({ survey: survey._id }).select("classroom subscribe").lean(),
     Student.aggregate([
       { $match: { school: survey.school, active: true } },
       { $group: { _id: "$classroom", n: { $sum: 1 } } },
     ]),
   ]);
   const studentsIn = new Map(sizes.map((s) => [String(s._id), s.n]));
+  const price = priceOf(survey);
 
-  const tally = (list) => ({
-    responses: list.length,
-    yes: list.filter((r) => r.subscribe).length,
-    no: list.filter((r) => !r.subscribe).length,
-    android: list.filter((r) => r.phone === "android").length,
-    iphone: list.filter((r) => r.phone === "iphone").length,
-  });
+  const tally = (list) => {
+    const subscribers = list.filter((r) => r.subscribe !== false).length;
+    return {
+      subscribers,
+      declined: list.filter((r) => r.subscribe === false).length,
+      amount: subscribers * price,
+    };
+  };
 
   const classes = grades.flatMap((g) =>
     g.classrooms.map((c) => ({
@@ -154,16 +161,11 @@ const results = async (survey) => {
     })),
   );
 
-  const yes = responses.filter((r) => r.subscribe);
   return {
     totals: {
       ...tally(responses),
+      price,
       students: [...studentsIn.values()].reduce((a, b) => a + b, 0),
-      yesAndroid: yes.filter((r) => r.phone === "android").length,
-      yesIphone: yes.filter((r) => r.phone === "iphone").length,
-      // A year's subscriptions if everyone who said yes paid the price they
-      // were shown.
-      revenue: yes.reduce((sum, r) => sum + r.price, 0),
     },
     classes,
   };
@@ -191,7 +193,7 @@ exports.getSchoolSurvey = async (req, res) => {
     if (!survey) return res.status(200).json({ success: true, data: { survey: null } });
     return res.status(200).json({
       success: true,
-      data: { survey: surveyShape(survey), ...(await results(survey)) },
+      data: { survey: ownerShape(survey), ...(await results(survey)) },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -210,7 +212,7 @@ exports.createSchoolSurvey = async (req, res) => {
         slug: crypto.randomBytes(5).toString("hex"),
       });
     }
-    return res.status(201).json({ success: true, data: { survey: surveyShape(survey) } });
+    return res.status(201).json({ success: true, data: { survey: ownerShape(survey) } });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -232,7 +234,7 @@ exports.updateSchoolSurvey = async (req, res) => {
     if (!survey) {
       return res.status(404).json({ success: false, message: "المدرسة دي مفيهاش استبيان." });
     }
-    return res.status(200).json({ success: true, data: { survey: surveyShape(survey) } });
+    return res.status(200).json({ success: true, data: { survey: ownerShape(survey) } });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

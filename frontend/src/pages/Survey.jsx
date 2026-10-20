@@ -1,18 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { AlertCircle, CheckCircle2, Loader2, Send, Smartphone } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Send } from "lucide-react";
 import { API_URL } from "../api/axios";
 
 // The app-subscription survey a school sends its students as a link
-// (backend surveyController): the grade, the class, the kind of phone, and
-// whether they would pay the year's price shown for that phone. No login and
-// no name. A phone that has answered remembers it, and can still answer for
-// a brother or sister.
-
-const PHONES = [
-  { key: "android", label: "أندرويد", hint: "سامسونج، شاومي، أوبو، ريلمي…" },
-  { key: "iphone", label: "آيفون", hint: "iPhone" },
-];
+// (backend surveyController): the grade and the class, and that's all — an
+// answer is a subscription, and the page shows no price. No login and no
+// name. A phone that has answered remembers it, and can still answer for a
+// brother or sister.
 
 const answeredKey = (slug) => `survey:${slug}:answered`;
 
@@ -72,8 +67,6 @@ const Survey = () => {
 
   const [gradeId, setGradeId] = useState("");
   const [classroomId, setClassroomId] = useState("");
-  const [phone, setPhone] = useState("");
-  const [subscribe, setSubscribe] = useState(null);
 
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
@@ -115,14 +108,11 @@ const Survey = () => {
   }, [slug]);
 
   const grade = survey?.grades.find((g) => g._id === gradeId);
-  const price = phone && survey ? survey.prices[phone] : null;
-  const ready = Boolean(classroomId && phone && subscribe !== null);
+  const ready = Boolean(classroomId);
 
   const startOver = () => {
     setGradeId("");
     setClassroomId("");
-    setPhone("");
-    setSubscribe(null);
     setSendError("");
     setAnswered(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -136,7 +126,7 @@ const Survey = () => {
       const res = await fetch(`${API_URL}/surveys/public/${encodeURIComponent(slug)}/responses`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classroomId, phone, subscribe }),
+        body: JSON.stringify({ classroomId }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -191,10 +181,7 @@ const Survey = () => {
         {survey && answered && (
           <div className="bg-white rounded-3xl border border-emerald-200 p-7 text-center space-y-4 shadow-sm">
             <CheckCircle2 className="mx-auto text-emerald-500" size={44} />
-            <div className="space-y-1">
-              <p className="text-xl font-black text-slate-900">شكرًا لك، تم تسجيل ردك</p>
-              <p className="text-sm font-bold text-slate-500">رأيك يساعد المدرسة في اتخاذ القرار.</p>
-            </div>
+            <p className="text-xl font-black text-slate-900">شكرًا لك، تم تسجيل ردك</p>
             {survey.open && (
               <button
                 type="button"
@@ -241,49 +228,6 @@ const Survey = () => {
               )}
             </Step>
 
-            <Step number="3" title="نوع الهاتف">
-              <div className="grid grid-cols-2 gap-2">
-                {PHONES.map((p) => (
-                  <Choice
-                    key={p.key}
-                    active={phone === p.key}
-                    onClick={() => setPhone(p.key)}
-                    className="py-4 flex flex-col items-center gap-1"
-                  >
-                    <Smartphone size={22} />
-                    <span className="font-black">{p.label}</span>
-                    <span className={`text-[11px] font-bold ${phone === p.key ? "text-indigo-100" : "text-slate-400"}`}>
-                      {p.hint}
-                    </span>
-                  </Choice>
-                ))}
-              </div>
-            </Step>
-
-            <Step number="4" title="الاشتراك في التطبيق" muted={!phone}>
-              {price !== null ? (
-                <div className="space-y-4">
-                  <p className="font-bold text-slate-700 leading-relaxed">
-                    هل ستشترك في التطبيق باشتراك سنوي رمزي قدره{" "}
-                    <span className="font-black text-indigo-700 whitespace-nowrap tabular-nums">
-                      {price} جنيه
-                    </span>
-                    ؟
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Choice active={subscribe === true} onClick={() => setSubscribe(true)} className="py-3.5">
-                      نعم
-                    </Choice>
-                    <Choice active={subscribe === false} onClick={() => setSubscribe(false)} className="py-3.5">
-                      لا
-                    </Choice>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm font-bold text-slate-400">اختر نوع الهاتف أولًا ليظهر سعر الاشتراك.</p>
-              )}
-            </Step>
-
             {sendError && (
               <p className="bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl p-3.5 text-sm font-bold text-center">
                 {sendError}
@@ -300,7 +244,7 @@ const Survey = () => {
               إرسال الرد
             </button>
             {!ready && (
-              <p className="text-center text-xs font-bold text-slate-400">أجب عن الأسئلة الأربعة لإرسال الرد.</p>
+              <p className="text-center text-xs font-bold text-slate-400">اختر المرحلة والفصل لإرسال الرد.</p>
             )}
           </>
         )}

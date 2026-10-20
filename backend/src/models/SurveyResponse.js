@@ -1,8 +1,9 @@
 const mongoose = require("mongoose");
 
 // One answer to a school's subscription survey (models/Survey.js). It names
-// no student: the class, the kind of phone, and whether they would pay the
-// price shown for it, kept as it was when they answered.
+// no student, only the class. Since 2026-10-20 an answer is a subscription
+// and asks nothing else; the answers from before also hold the kind of phone
+// and whether they would subscribe — a «لا» there is not a subscription.
 const surveyResponseSchema = new mongoose.Schema(
   {
     survey: {
@@ -29,11 +30,9 @@ const surveyResponseSchema = new mongoose.Schema(
     phone: {
       type: String,
       enum: ["android", "iphone"],
-      required: true,
     },
     subscribe: {
       type: Boolean,
-      required: true,
     },
     price: {
       type: Number,

@@ -4,7 +4,9 @@ import { ClipboardList, Copy, ExternalLink, Loader2, Lock, RefreshCw, Unlock, X 
 
 // The platform owner's view of a school's app-subscription survey (backend
 // surveyController): starting it, the link to send students, opening and
-// closing it, and the answers — overall and class by class.
+// closing it, and the answers — overall and class by class. Every answer is
+// a subscriber at the survey's one price; the «لا» answers from before that
+// question was dropped are shown apart and left out of the amount.
 
 const pct = (part, whole) => (whole ? Math.round((part / whole) * 100) : 0);
 
@@ -87,7 +89,7 @@ const SurveyPanel = ({ school, onClose, showToast }) => {
           <div>
             <h2 className="text-lg font-black">استبيان الاشتراك — {school.name}</h2>
             <p className="text-indigo-50 text-xs font-bold mt-1">
-              رابط يفتح على أي موبايل من غير تسجيل دخول: المرحلة، الفصل، نوع التليفون، وهل هيشترك.
+              رابط يفتح على أي موبايل من غير تسجيل دخول: المرحلة والفصل بس، وكل رد اشتراك.
             </p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full" aria-label="إغلاق">
@@ -112,7 +114,7 @@ const SurveyPanel = ({ school, onClose, showToast }) => {
                 {busy && <Loader2 className="animate-spin" size={16} />}
                 ابدأ استبيان الاشتراك
               </button>
-              <p className="text-xs font-bold text-slate-400">السعر: أندرويد 250 جنيه، آيفون 300 جنيه في السنة.</p>
+              <p className="text-xs font-bold text-slate-400">الاشتراك: 300 جنيه في السنة للطالب، ومش بيظهر في الاستبيان.</p>
             </div>
           ) : (
             <>
@@ -126,7 +128,7 @@ const SurveyPanel = ({ school, onClose, showToast }) => {
                     {survey.open ? "مفتوح للردود" : "مقفول"}
                   </span>
                   <span className="text-xs font-bold text-slate-500">
-                    أندرويد {survey.prices.android} جنيه · آيفون {survey.prices.iphone} جنيه في السنة
+                    الاشتراك {survey.price} جنيه في السنة للطالب (مش بيظهر في الاستبيان)
                   </span>
                 </div>
                 <div className="flex flex-col md:flex-row gap-2">
@@ -177,29 +179,26 @@ const SurveyPanel = ({ school, onClose, showToast }) => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <Tile
-                  label="الردود"
-                  value={totals.responses}
-                  note={`من ${totals.students} طالب`}
-                />
-                <Tile
-                  label="هيشتركوا"
-                  value={totals.yes}
-                  note={`${pct(totals.yes, totals.responses)}% من الردود · لا: ${totals.no}`}
+                  label="المشتركين"
+                  value={totals.subscribers}
+                  note={`${pct(totals.subscribers, totals.students)}% من ${totals.students} طالب`}
                   tone="emerald"
                 />
                 <Tile
-                  label="أندرويد / آيفون"
-                  value={`${totals.android} / ${totals.iphone}`}
-                  note={`هيشتركوا: ${totals.yesAndroid} أندرويد، ${totals.yesIphone} آيفون`}
-                />
-                <Tile
-                  label="الإيراد المتوقع في السنة"
-                  value={`${totals.revenue.toLocaleString("en-US")} ج`}
-                  note="لو كل اللي قالوا نعم اشتركوا"
+                  label="المبلغ الإجمالي في السنة"
+                  value={`${totals.amount.toLocaleString("en-US")} ج`}
+                  note={`${totals.subscribers} مشترك × ${totals.price} جنيه`}
                   tone="indigo"
                 />
+                {totals.declined > 0 && (
+                  <Tile
+                    label="قالوا لا"
+                    value={totals.declined}
+                    note="ردود قبل ما سؤال الاشتراك يتشال — مش داخلين في المبلغ"
+                  />
+                )}
               </div>
 
               <div className="overflow-x-auto rounded-2xl border border-slate-100">
@@ -209,11 +208,9 @@ const SurveyPanel = ({ school, onClose, showToast }) => {
                       <th className="p-3">المرحلة</th>
                       <th className="p-3">الفصل</th>
                       <th className="p-3 text-center">الطلاب</th>
-                      <th className="p-3 text-center">الردود</th>
-                      <th className="p-3 text-center">نعم</th>
-                      <th className="p-3 text-center">لا</th>
-                      <th className="p-3 text-center">أندرويد</th>
-                      <th className="p-3 text-center">آيفون</th>
+                      <th className="p-3 text-center">المشتركين</th>
+                      <th className="p-3 text-center">المبلغ</th>
+                      {totals.declined > 0 && <th className="p-3 text-center">قالوا لا</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-bold text-slate-700 tabular-nums">
@@ -222,16 +219,16 @@ const SurveyPanel = ({ school, onClose, showToast }) => {
                         <td className="p-3 text-slate-500">{c.grade}</td>
                         <td className="p-3 font-black">{c.classroom}</td>
                         <td className="p-3 text-center">{c.students}</td>
-                        <td className="p-3 text-center">
-                          {c.responses}
+                        <td className="p-3 text-center text-emerald-700">
+                          {c.subscribers}
                           {c.students > 0 && (
-                            <span className="text-[10px] text-slate-400 mr-1">({pct(c.responses, c.students)}%)</span>
+                            <span className="text-[10px] text-slate-400 mr-1">({pct(c.subscribers, c.students)}%)</span>
                           )}
                         </td>
-                        <td className="p-3 text-center text-emerald-700">{c.yes}</td>
-                        <td className="p-3 text-center text-rose-600">{c.no}</td>
-                        <td className="p-3 text-center">{c.android}</td>
-                        <td className="p-3 text-center">{c.iphone}</td>
+                        <td className="p-3 text-center">{c.amount.toLocaleString("en-US")} ج</td>
+                        {totals.declined > 0 && (
+                          <td className={`p-3 text-center ${c.declined ? "text-rose-600" : "text-slate-300"}`}>{c.declined}</td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
