@@ -10,7 +10,16 @@ import { Loader2, AlertCircle, Users, CheckCircle2, CircleDashed, XCircle, Chevr
 // a month, and which didn't. Each class shows exactly its own school's
 // register columns, each in its own cell — Al-Rahma's مواظبة · واجب ·
 // تقييم أسبوعي · كراسة الحصة, the weekly40 الواجب المنزلي · تقييم أسبوعي ·
-// مواظبة وسلوك. The server does the counting; this only lays it out.
+// مواظبة وسلوك. «اختبار الشهر» shows the month's test instead (on weekly40,
+// the term's two tests), by month. The server does the counting; this only
+// lays it out.
+
+const KINDS = [
+  { key: "weeks", label: "الرصد الأسبوعي" },
+  { key: "tests", label: "اختبار الشهر" },
+];
+
+const TERM_NAMES = { 1: "الأول", 2: "الثاني" };
 
 const STATUS = {
   complete: { label: "رصد كامل", pill: "bg-emerald-50 text-emerald-700 border-emerald-100", dot: "bg-emerald-500" },
@@ -21,7 +30,7 @@ const STATUS = {
 // The register's columns for one teacher's classes, in the register's own
 // order. A teacher on one school has one set; the union only matters for
 // someone teaching across stages that mark differently.
-const COLUMN_ORDER = ["attendance", "homework", "weekly", "classwork", "conduct"];
+const COLUMN_ORDER = ["attendance", "homework", "weekly", "classwork", "conduct", "monthly", "test1", "test2"];
 const registerColumns = (classes) => {
   const seen = new Map();
   for (const c of classes) for (const col of c.columns) if (!seen.has(col.key)) seen.set(col.key, col);
@@ -31,12 +40,12 @@ const registerColumns = (classes) => {
 const n = (value) => Number(value || 0).toLocaleString("ar-EG");
 
 // One required column for one class.
-//   week  → "٣٤/٣٤ طالب"
-//   month → "٣ من ٤ أسابيع"
-const Coverage = ({ cell, students, period, weeks }) => {
+//   week, or a test → "٣٤/٣٤ طالب"
+//   month           → "٣ من ٤ أسابيع"
+const Coverage = ({ cell, students, period, weeks, perStudent = false }) => {
   let tone = "text-rose-600 bg-rose-50";
   let text;
-  if (period === "week") {
+  if (perStudent || period === "week") {
     if (cell.students >= students) tone = "text-emerald-700 bg-emerald-50";
     else if (cell.students > 0) tone = "text-amber-700 bg-amber-50";
     text = `${n(cell.students)}/${n(students)} طالب`;
@@ -48,7 +57,7 @@ const Coverage = ({ cell, students, period, weeks }) => {
   return (
     <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-black tabular-nums ${tone}`}>
       {text}
-      {period === "month" && cell.weeksPartial > 0 && (
+      {!perStudent && period === "month" && cell.weeksPartial > 0 && (
         <span className="font-bold opacity-70"> (+{n(cell.weeksPartial)} ناقص)</span>
       )}
     </span>
@@ -57,6 +66,7 @@ const Coverage = ({ cell, students, period, weeks }) => {
 
 const GradeEntryReport = () => {
   const { browsesByStage } = useAdminScope();
+  const [kind, setKind] = useState("weeks");
   const [view, setView] = useState({ period: "week", date: todayIso() });
   const [stage, setStage] = useState("");
   const [report, setReport] = useState(null);
@@ -70,7 +80,11 @@ const GradeEntryReport = () => {
     setLoading(true);
     setError("");
     try {
-      const params = { period: view.period, date: view.date, ...(stage ? { stage } : {}) };
+      const params = {
+        ...(kind === "tests" ? { kind } : { period: view.period }),
+        date: view.date,
+        ...(stage ? { stage } : {}),
+      };
       const res = await API.get("/analytics/grade-entry", { params });
       setReport(res.data);
     } catch (err) {
@@ -78,7 +92,7 @@ const GradeEntryReport = () => {
     } finally {
       setLoading(false);
     }
-  }, [view, stage]);
+  }, [view, stage, kind]);
 
   useEffect(() => {
     fetchReport();
@@ -100,11 +114,39 @@ const GradeEntryReport = () => {
 
   const weeks = report?.weeks?.length || 0;
   const summary = report?.summary || { teachers: 0, complete: 0, partial: 0, none: 0 };
+  const tests = kind === "tests";
+  // The month's test is a month's; back on the weeks it stays on the month.
+  const chooseKind = (next) => {
+    setKind(next);
+    if (next === "tests") setView((current) => ({ ...current, period: "month" }));
+  };
+  // Classes on weekly40 have the term's two tests in place of a monthly one.
+  const termTests = tests && (report?.teachers || []).some((t) => t.classes.some((c) => c.columns.some((col) => col.key === "test1")));
 
   return (
     <div className="space-y-6">
+      <div className="flex w-fit bg-white rounded-2xl border border-slate-100 shadow-sm p-1.5">
+        {KINDS.map((k) => (
+          <button
+            key={k.key}
+            onClick={() => chooseKind(k.key)}
+            className={`px-5 py-2.5 rounded-xl text-sm font-black transition-all ${
+              kind === k.key ? "bg-indigo-600 text-white shadow" : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            {k.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <PeriodBar period={view.period} date={view.date} start={report?.start} onChange={setView} />
+        <PeriodBar
+          period={tests ? "month" : view.period}
+          date={view.date}
+          start={report?.start}
+          onChange={setView}
+          monthOnly={tests}
+        />
         {browsesByStage && (
           <select
             value={stage}
@@ -124,9 +166,9 @@ const GradeEntryReport = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           ["all", "كل المعلمين", summary.teachers, <Users size={22} />, "bg-indigo-50 text-indigo-600"],
-          ["complete", "رصد كامل", summary.complete, <CheckCircle2 size={22} />, "bg-emerald-50 text-emerald-600"],
+          ["complete", tests ? "رصدوا الاختبار كامل" : "رصد كامل", summary.complete, <CheckCircle2 size={22} />, "bg-emerald-50 text-emerald-600"],
           ["partial", "رصد ناقص", summary.partial, <CircleDashed size={22} />, "bg-amber-50 text-amber-600"],
-          ["none", "لم يرصد أي درجة", summary.none, <XCircle size={22} />, "bg-rose-50 text-rose-600"],
+          ["none", tests ? "لم يرصدوا الاختبار" : "لم يرصد أي درجة", summary.none, <XCircle size={22} />, "bg-rose-50 text-rose-600"],
         ].map(([key, title, value, icon, tone]) => (
           <button
             key={key}
@@ -143,6 +185,12 @@ const GradeEntryReport = () => {
           </button>
         ))}
       </div>
+
+      {termTests && (
+        <p className="text-xs font-bold text-slate-500 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3">
+          الفصول اللي على نظام الـ40 درجة ملهاش اختبار شهر — بيظهر لها الاختبار الأول والتاني للترم {TERM_NAMES[report.term]}.
+        </p>
+      )}
 
       <div className="relative">
         <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -229,7 +277,13 @@ const GradeEntryReport = () => {
                                   ) : !cell.applicable ? (
                                     <span className="text-slate-300 text-xs font-bold whitespace-nowrap">مفيش واجب</span>
                                   ) : (
-                                    <Coverage cell={cell} students={c.students} period={report.period} weeks={weeks} />
+                                    <Coverage
+                                      cell={cell}
+                                      students={c.students}
+                                      period={report.period}
+                                      weeks={weeks}
+                                      perStudent={report.kind === "tests"}
+                                    />
                                   )}
                                 </td>
                               );

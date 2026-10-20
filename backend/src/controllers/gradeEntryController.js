@@ -20,6 +20,7 @@ const { scopeFilter } = require("../utils/tenant");
 const { SCHEMES, schemeFor } = require("../utils/gradebook");
 const { isDailyMode } = require("../utils/dailyAttendance");
 const { reportPeriod, weekKey } = require("../utils/reportPeriod");
+const { termOfDate } = require("../utils/schoolMonths");
 
 // "رصد الدرجات" — for a week or a month, which teachers have recorded marks
 // for their classes and which have not. Read only, over the same documents
@@ -108,10 +109,64 @@ const measure = (bucket, size, weeks, period) => {
 
 const rank = { none: 0, partial: 1, complete: 2 };
 
+// The «اختبار الشهر» view (kind "tests"), for a calendar month: on the
+// classic register the month's test (MonthlyGrade, filed by calendar
+// month), on weekly40 — which has no monthly test — the term's two tests.
+// Each counts the students of the class who have the mark.
+const testEntry = async ({ classrooms, schemeOf, range }) => {
+  const month = range.start.getUTCMonth() + 1;
+  const year = range.start.getUTCFullYear();
+  const term = termOfDate(range.start);
+  const idsOf = (scheme) => classrooms.filter((c) => schemeOf(c) === scheme).map((c) => c._id);
+  const [monthly, termTests] = await Promise.all([
+    MonthlyGrade.find({ classroom: { $in: idsOf("classic") }, month, year })
+      .select("classroom subject student updatedAt")
+      .lean(),
+    TermTest.find({ classroom: { $in: idsOf("weekly40") }, term })
+      .select("classroom subject student testNo updatedAt")
+      .lean(),
+  ]);
+
+  const byPair = (docs) => {
+    const out = new Map();
+    for (const doc of docs) {
+      const key = pairKey(doc.classroom, doc.subject);
+      if (!out.has(key)) out.set(key, { students: new Set(), last: null });
+      const entry = out.get(key);
+      entry.students.add(String(doc.student));
+      if (!entry.last || doc.updatedAt > entry.last) entry.last = doc.updatedAt;
+    }
+    return out;
+  };
+  const monthlyBy = byPair(monthly);
+  const testBy = { 1: byPair(termTests.filter((t) => t.testNo === 1)), 2: byPair(termTests.filter((t) => t.testNo === 2)) };
+
+  const column = (key, label, entry, size) => {
+    const students = entry ? entry.students.size : 0;
+    return { key, label, max: 15, entered: true, applicable: true, students, full: students >= size, any: students > 0 };
+  };
+
+  return {
+    month,
+    year,
+    term,
+    columnsFor: (key, scheme, size) => {
+      const entries = scheme === "weekly40" ? [testBy[1].get(key), testBy[2].get(key)] : [monthlyBy.get(key)];
+      const columns =
+        scheme === "weekly40"
+          ? [column("test1", "الاختبار الأول", entries[0], size), column("test2", "الاختبار الثاني", entries[1], size)]
+          : [column("monthly", "اختبار الشهر", entries[0], size)];
+      const lasts = entries.map((e) => e?.last).filter(Boolean);
+      return { columns, last: lasts.length ? new Date(Math.max(...lasts.map((d) => new Date(d).getTime()))) : null };
+    },
+  };
+};
+
 // The report for a set of classes — the whole of an admin's school
 // (getGradeEntry), or with `teacherId` only that teacher's own classes
-// (getMyGradeEntry, the teacher app's «آخر التطورات»).
-const buildGradeEntry = async ({ classFilter, range, teacherId = null }) => {
+// (getMyGradeEntry, the teacher app's «آخر التطورات»). `kind` "tests" is the
+// admin's «اختبار الشهر» view instead of the weeks' marks (testEntry).
+const buildGradeEntry = async ({ classFilter, range, teacherId = null, kind = "weeks" }) => {
   const classrooms = await Classroom.find(classFilter)
     .select("name grade school")
     .populate("grade", "name stage")
@@ -178,20 +233,29 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null }) => {
     .filter((s) => classicClassIds.some((id) => String(id) === String(s.classroom)))
     .map((s) => s._id);
 
-  const [evaluations, notebooks, overrides, homework, attendance] = await Promise.all([
-    WeeklyEvaluation.find({ ...inClasses, weekStart: window }).select("classroom subject student weekStart updatedAt").lean(),
-    ClassworkNotebook.find({ ...inClasses, weekStart: window }).select("classroom subject student weekStart updatedAt").lean(),
-    CourseworkOverride.find({ ...inClasses, weekStart: window })
-      .select("classroom subject student weekStart attendanceScore homeworkScore updatedAt")
-      .lean(),
-    Homework.find({ ...inClasses, createdAt: window }).select("classroom subject createdAt").lean(),
+  // The weeks' marks — not read at all for the tests view.
+  const weekly = kind === "weeks";
+  const [evaluations, notebooks, overrides, homework, attendance, tests] = await Promise.all([
+    weekly
+      ? WeeklyEvaluation.find({ ...inClasses, weekStart: window }).select("classroom subject student weekStart updatedAt").lean()
+      : [],
+    weekly
+      ? ClassworkNotebook.find({ ...inClasses, weekStart: window }).select("classroom subject student weekStart updatedAt").lean()
+      : [],
+    weekly
+      ? CourseworkOverride.find({ ...inClasses, weekStart: window })
+          .select("classroom subject student weekStart attendanceScore homeworkScore updatedAt")
+          .lean()
+      : [],
+    weekly ? Homework.find({ ...inClasses, createdAt: window }).select("classroom subject createdAt").lean() : [],
     // Only the classic register has an attendance column worked out from
     // the register; weekly40's مواظبة وسلوك is typed by the teacher.
-    classicStudentIds.length
+    weekly && classicStudentIds.length
       ? Attendance.find({ student: { $in: classicStudentIds }, date: window, ...Attendance.GRADED_ONLY })
           .select("student subject date")
           .lean()
       : [],
+    weekly ? null : testEntry({ classrooms, schemeOf, range }),
   ]);
 
   const homeworkResults = homework.length
@@ -271,15 +335,24 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null }) => {
     const src = sources(key, classroom);
     const set = homeworkSet.get(key) || 0;
 
-    const columns = columnsFor(scheme, classroom).map((col) => ({
-      key: col.key,
-      label: col.label,
-      max: rules.max[col.maxField],
-      entered: col.entered,
-      // Kept for the screens that read it; every column applies every week.
-      applicable: true,
-      ...measure(src[col.key], size, range.weeks, range.period),
-    }));
+    let columns;
+    let lasts;
+    if (weekly) {
+      columns = columnsFor(scheme, classroom).map((col) => ({
+        key: col.key,
+        label: col.label,
+        max: rules.max[col.maxField],
+        entered: col.entered,
+        // Kept for the screens that read it; every column applies every week.
+        applicable: true,
+        ...measure(src[col.key], size, range.weeks, range.period),
+      }));
+      lasts = ["homework", "weekly", "classwork", "conduct"].map((k) => src[k]?.last).filter(Boolean);
+    } else {
+      const entry = tests.columnsFor(key, scheme, size);
+      columns = entry.columns;
+      lasts = entry.last ? [entry.last] : [];
+    }
 
     // Complete when every column the teacher fills in is in for the whole
     // class. The classic مواظبة (outside a school that enters it by hand)
@@ -291,8 +364,6 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null }) => {
     if (owed.every((c) => c.full)) status = "complete";
     else if (teacherAny) status = "partial";
     if (range.weeks.length === 0) status = teacherAny ? "complete" : "none";
-
-    const lasts = ["homework", "weekly", "classwork", "conduct"].map((k) => src[k]?.last).filter(Boolean);
 
     const teacherId = String(row.teacher._id);
     if (!teachers.has(teacherId)) {
@@ -356,6 +427,9 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null }) => {
   list.sort((a, b) => rank[a.status] - rank[b.status] || a.name.localeCompare(b.name, "ar"));
 
   return {
+    kind,
+    // The tests view's month, and the term its weekly40 tests are of.
+    ...(weekly ? {} : { month: tests.month, year: tests.year, term: tests.term }),
     period: range.period,
     start: range.start,
     end: range.end,
@@ -372,14 +446,16 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null }) => {
 
 exports.getGradeEntry = async (req, res) => {
   try {
-    const range = reportPeriod(req.query.period, req.query.date);
+    // ?kind=tests: who recorded the month's test — always a whole month.
+    const kind = req.query.kind === "tests" ? "tests" : "weeks";
+    const range = reportPeriod(kind === "tests" ? "month" : req.query.period, req.query.date);
 
     const classFilter = scopeFilter(req, {}, "grade");
     if (!classFilter) {
       return res.status(400).json({ message: "Please specify a school (?school=id) for this report." });
     }
 
-    return res.status(200).json(await buildGradeEntry({ classFilter, range }));
+    return res.status(200).json(await buildGradeEntry({ classFilter, range, kind }));
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
