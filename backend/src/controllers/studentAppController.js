@@ -9,6 +9,7 @@ const Behavior = require("../models/Behavior");
 const Notification = require("../models/Notification");
 const School = require("../models/School");
 const { studentPerformance } = require("../utils/studentPerformance");
+const { testMarksOf } = require("../utils/testMarks");
 
 // Everything a student may read about themselves. Four screens, no more:
 // what's on today, the week's timetable, their homework, their marks. The
@@ -91,7 +92,7 @@ exports.getToday = async (req, res) => {
     const timeZone = await schoolTimezone(student.school);
     const { day, startOfDay } = schoolToday(timeZone);
 
-    const [lessons, homework, attendance, praise, announcement] = await Promise.all([
+    const [lessons, homework, attendance, praise, announcement, unreadNotifications] = await Promise.all([
       student.classroom
         ? Schedule.find({ classroom: student.classroom._id, day })
             .populate("subject", "name")
@@ -126,6 +127,8 @@ exports.getToday = async (req, res) => {
           },
         ],
       }).sort({ createdAt: -1 }),
+      // The bell's count: notices this student hasn't opened yet.
+      Notification.countDocuments({ ...noticesFor(student, req.user._id), readBy: { $ne: req.user._id } }),
     ]);
 
     const submitted = await HomeworkResult.find({
@@ -170,6 +173,7 @@ exports.getToday = async (req, res) => {
               createdAt: announcement.createdAt,
             }
           : null,
+        unreadNotifications,
       },
     });
   } catch (err) {
@@ -270,13 +274,16 @@ exports.getPerformance = async (req, res) => {
   }
 };
 
-// Exam marks and monthly-test marks — the student's own, and only their own.
+// Exam marks and test marks — the student's own, and only their own.
+// `tests` is what the parent's الدرجات shows (utils/testMarks.js): the
+// monthly test month by month, or on weekly40 the term's two tests, which
+// `monthly` never had. `monthly` stays for apps from before it.
 exports.getGrades = async (req, res) => {
   try {
     const student = await myStudent(req);
     if (!student) return notFound(res);
 
-    const [exams, monthly] = await Promise.all([
+    const [exams, monthly, tests] = await Promise.all([
       Result.find({ student: student._id })
         .populate("exam", "title examType academicYear")
         .populate("subject", "name")
@@ -284,6 +291,7 @@ exports.getGrades = async (req, res) => {
       MonthlyGrade.find({ student: student._id })
         .populate("subject", "name")
         .sort({ year: -1, month: -1 }),
+      testMarksOf(student),
     ]);
 
     res.status(200).json({
@@ -306,8 +314,89 @@ exports.getGrades = async (req, res) => {
           grade: m.grade,
           outOf: 15,
         })),
+        tests,
       },
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// The notices a student may read: those addressed to them (a teacher's
+// action, utils/notify.js) and the school's announcements reaching their
+// stage and class — the same rule as the home screen's latest announcement.
+const noticesFor = (student, userId) => ({
+  school: student.school,
+  $or: [
+    { target: "student", user: userId },
+    {
+      target: "all",
+      $and: [
+        { $or: [{ stages: { $exists: false } }, { stages: { $size: 0 } }, { stages: student.grade?.stage }] },
+        {
+          $or: [
+            { classrooms: { $exists: false } },
+            { classrooms: { $size: 0 } },
+            ...(student.classroom ? [{ classrooms: student.classroom._id }] : []),
+          ],
+        },
+      ],
+    },
+  ],
+});
+
+// الإشعارات: everything sent to this student, newest first, each saying who
+// sent it — a teacher by name, otherwise the school's administration.
+exports.getNotifications = async (req, res) => {
+  try {
+    const student = await myStudent(req);
+    if (!student) return notFound(res);
+
+    const notices = await Notification.find(noticesFor(student, req.user._id))
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .populate("createdBy", "firstName lastName role")
+      .lean();
+
+    const me = String(req.user._id);
+    res.status(200).json({
+      success: true,
+      data: notices.map((n) => ({
+        _id: n._id,
+        title: n.title,
+        message: n.message,
+        type: n.type,
+        target: n.target,
+        createdAt: n.createdAt,
+        read: (n.readBy || []).some((id) => String(id) === me),
+        from:
+          n.createdBy?.role === "teacher"
+            ? `أ. ${n.createdBy.firstName} ${n.createdBy.lastName}`
+            : "إدارة المدرسة",
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Opening the notifications screen settles what is on it, as the parent's
+// does — only notices this student may read in the first place.
+exports.markNotificationsRead = async (req, res) => {
+  try {
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: "لا يوجد إشعارات لتحديدها كمقروءة." });
+    }
+
+    const student = await myStudent(req);
+    if (!student) return notFound(res);
+
+    await Notification.updateMany(
+      { _id: { $in: ids }, ...noticesFor(student, req.user._id) },
+      { $addToSet: { readBy: req.user._id } },
+    );
+    res.status(200).json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

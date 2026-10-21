@@ -6,6 +6,8 @@ const {
   getHomework,
   getGrades,
   getPerformance,
+  getNotifications,
+  markNotificationsRead,
 } = require("../controllers/studentAppController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
@@ -19,5 +21,7 @@ router.get("/schedule", getSchedule);
 router.get("/homework", getHomework);
 router.get("/grades", getGrades);
 router.get("/performance", getPerformance);
+router.get("/notifications", getNotifications);
+router.patch("/notifications/read", markNotificationsRead);
 
 module.exports = router;
