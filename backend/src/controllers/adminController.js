@@ -297,14 +297,14 @@ exports.updateUser = async (req, res) => {
       delete updates.managedStages;
     }
 
-    // Per-user app control (active + appFeatures) for teachers/parents is
-    // the platform owner's tool only (SchoolManager's "المعلمين"/"أولياء
-    // الأمور" panels) — a school's own admin has no UI for this anymore
+    // Per-user app control (active + appFeatures) for teachers, parents and
+    // students is the platform owner's tool only (SchoolManager's
+    // "المعلمين"/"أولياء الأمور"/"الطلاب" panels) — a school's own admin has no UI for this anymore
     // and shouldn't be able to reach the same effect by calling this
     // shared endpoint directly.
     if (
       !req.user.isSuperAdmin &&
-      (targetUser.role === "teacher" || targetUser.role === "parent")
+      ["teacher", "parent", "student"].includes(targetUser.role)
     ) {
       delete updates.active;
       delete updates.appFeatures;
@@ -324,6 +324,33 @@ exports.updateUser = async (req, res) => {
     res.json({ message: "data updated successfully", user: updatedUser });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+};
+
+// The platform owner's lock and unlock for many students' app at once — a
+// whole grade, say, until the school's subscription is paid. Students only:
+// a parent's account can be switched off for other reasons (merged
+// families keep their old login off), which a bulk unlock must not undo.
+exports.setStudentsAppAccess = async (req, res) => {
+  try {
+    const { ids, active } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0 || typeof active !== "boolean") {
+      return res.status(400).json({ success: false, message: "اختار الطلاب وحالة التطبيق." });
+    }
+
+    const filter = scopeFilter(req, { _id: { $in: ids }, role: "student" });
+    if (!filter) {
+      return res.status(400).json({ success: false, message: "Please specify a school (?school=id)." });
+    }
+
+    const result = await User.updateMany(filter, { $set: { active } });
+    res.status(200).json({
+      success: true,
+      updated: result.modifiedCount,
+      message: `تم ${active ? "فتح" : "قفل"} التطبيق لـ ${result.matchedCount} طالب.`,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -373,6 +400,26 @@ exports.getAllUsers = async (req, res) => {
         ...u.toObject(),
         children: childrenByParent.get(u._id.toString()) || [],
       }));
+    }
+
+    // A student account is a login; the class and grade it belongs to are on
+    // the student record it points at — sent along for the platform owner's
+    // list, which searches and filters by them.
+    if (req.query.role === "student" && users.length > 0) {
+      const profiles = await Student.find({ _id: { $in: users.map((u) => u.studentProfile).filter(Boolean) } })
+        .select("grade classroom")
+        .populate("grade", "name")
+        .populate("classroom", "name");
+      const profileOf = new Map(profiles.map((p) => [String(p._id), p]));
+      data = users.map((u) => {
+        const p = profileOf.get(String(u.studentProfile));
+        return {
+          ...u.toObject(),
+          profile: p
+            ? { grade: p.grade ? { _id: p.grade._id, name: p.grade.name } : null, classroom: p.classroom?.name || "" }
+            : null,
+        };
+      });
     }
 
     res.status(200).json({

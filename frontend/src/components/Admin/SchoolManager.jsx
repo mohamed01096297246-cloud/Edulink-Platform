@@ -23,6 +23,9 @@ import {
   Link2,
   ClipboardList,
   KeyRound,
+  GraduationCap,
+  Lock,
+  Unlock,
 } from "lucide-react";
 
 // Platform-super-admin only — onboarding new schools onto EduLink,
@@ -92,7 +95,18 @@ const SchoolManager = () => {
       notifications: "الإشعارات",
       report: "تقرير الأداء",
     },
+    // The student app's five tabs and its notifications (backend
+    // studentAppRoutes): يومي is `home`, أدائي is `report`.
+    student: {
+      home: "يومي",
+      schedule: "الجدول",
+      homework: "واجباتي",
+      report: "أدائي",
+      grades: "درجاتي",
+      notifications: "الإشعارات",
+    },
   };
+  const ROLE_TITLES = { teacher: "معلمو", parent: "أولياء أمور", student: "طلاب" };
   // Linking students to their parents and parents' logins (FamilyAccessManager).
   const [familiesSchool, setFamiliesSchool] = useState(null);
   // Students' own app logins, preparatory and secondary (StudentAccountManager).
@@ -260,15 +274,19 @@ const SchoolManager = () => {
     }
   };
 
-  const openManageUsers = async (school, role) => {
+  // `keepFilters`: reloading after a change keeps the search and grade the
+  // owner had narrowed the list to.
+  const openManageUsers = async (school, role, { keepFilters = false } = {}) => {
     setManageUsers({ school, role });
-    setUserSearch("");
-    setUserGradeFilter("");
+    if (!keepFilters) {
+      setUserSearch("");
+      setUserGradeFilter("");
+    }
     setUsersLoading(true);
     try {
       const [usersRes, gradesRes] = await Promise.all([
         API.get(`/admin/users?role=${role}&school=${school._id}`),
-        role === "parent"
+        role === "parent" || role === "student"
           ? API.get(`/grades?school=${school._id}`)
           : Promise.resolve({ data: { data: [] } }),
       ]);
@@ -277,7 +295,7 @@ const SchoolManager = () => {
     } catch (err) {
       showToast(
         err.response?.data?.message ||
-          (role === "teacher" ? "فشل تحميل المعلمين" : "فشل تحميل أولياء الأمور"),
+          { teacher: "فشل تحميل المعلمين", parent: "فشل تحميل أولياء الأمور", student: "فشل تحميل الطلاب" }[role],
         "error",
       );
     } finally {
@@ -295,14 +313,41 @@ const SchoolManager = () => {
   };
 
   const filteredUsersList = usersList.filter((user) => {
+    const query = userSearch.trim();
+    // A student is found by name or by the login code on their sheet.
     const nameMatch =
-      !userSearch.trim() ||
-      `${user.firstName} ${user.lastName}`.includes(userSearch.trim());
+      !query ||
+      `${user.firstName} ${user.lastName}`.includes(query) ||
+      (manageUsers?.role === "student" && String(user.username || "").includes(query));
     const gradeMatch =
       !userGradeFilter ||
-      (user.children || []).some((c) => c.grade?._id === userGradeFilter);
+      (manageUsers?.role === "student"
+        ? user.profile?.grade?._id === userGradeFilter
+        : (user.children || []).some((c) => c.grade?._id === userGradeFilter));
     return nameMatch && gradeMatch;
   });
+
+  // Closing or opening the app for every student the list shows — a whole
+  // grade once it is filtered to one.
+  const setShownStudentsAccess = async (active) => {
+    const ids = filteredUsersList.map((u) => u._id);
+    if (!ids.length) return;
+    const ok = window.confirm(
+      `${active ? "فتح" : "قفل"} التطبيق لـ ${ids.length} طالب؟` +
+        (active ? "" : "\nاللي فاتحين التطبيق هيخرجوا منه أول ما يفتحوه تاني، ومش هيقدروا يدخلوا لحد ما تفتحه."),
+    );
+    if (!ok) return;
+    setActionLoading(true);
+    try {
+      const res = await API.put(`/admin/users/students-app-access?school=${manageUsers.school._id}`, { ids, active });
+      showToast(res.data?.message || "تم", "success");
+      openManageUsers(manageUsers.school, "student", { keepFilters: true });
+    } catch (err) {
+      showToast(err.response?.data?.message || "فشل تحديث الطلاب", "error");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const openEditUser = (user) => {
     const featureSet = APP_FEATURE_SETS[manageUsers.role];
@@ -321,7 +366,7 @@ const SchoolManager = () => {
       await API.put(`/admin/user/${editUserTarget._id}`, editUserForm);
       showToast("تم تحديث صلاحيات الحساب بنجاح", "success");
       setEditUserTarget(null);
-      openManageUsers(manageUsers.school, manageUsers.role);
+      openManageUsers(manageUsers.school, manageUsers.role, { keepFilters: true });
     } catch (err) {
       showToast(err.response?.data?.message || "فشل تحديث الحساب", "error");
     } finally {
@@ -507,6 +552,13 @@ const SchoolManager = () => {
                                 className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all text-xs font-bold"
                               >
                                 <Baby size={15} /> أولياء الأمور
+                              </button>
+                              <button
+                                onClick={() => openManageUsers(school, "student")}
+                                title="التحكم في تطبيق الطلاب (فتح وقفل)"
+                                className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all text-xs font-bold"
+                              >
+                                <GraduationCap size={15} /> الطلاب
                               </button>
                               <button
                                 onClick={() => setFamiliesSchool(school)}
@@ -924,7 +976,7 @@ const SchoolManager = () => {
           <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
             <div className="p-6 bg-blue-600 text-white flex justify-between items-center flex-shrink-0">
               <h2 className="text-lg font-black">
-                {manageUsers.role === "teacher" ? "معلمو" : "أولياء أمور"} — {manageUsers.school.name}
+                {ROLE_TITLES[manageUsers.role]} — {manageUsers.school.name}
               </h2>
               <button onClick={closeManageUsers} className="p-2 hover:bg-white/10 rounded-full">
                 <X />
@@ -934,10 +986,14 @@ const SchoolManager = () => {
               <input
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
-                placeholder={manageUsers.role === "teacher" ? "بحث باسم المعلم..." : "بحث باسم ولي الأمر..."}
+                placeholder={
+                  { teacher: "بحث باسم المعلم...", parent: "بحث باسم ولي الأمر...", student: "بحث باسم الطالب أو كود الدخول..." }[
+                    manageUsers.role
+                  ]
+                }
                 className="flex-1 p-3.5 bg-slate-50 rounded-xl font-bold text-sm text-slate-700 outline-none border-2 border-transparent focus:border-blue-500 transition-all"
               />
-              {manageUsers.role === "parent" && (
+              {(manageUsers.role === "parent" || manageUsers.role === "student") && (
                 <select
                   value={userGradeFilter}
                   onChange={(e) => setUserGradeFilter(e.target.value)}
@@ -952,6 +1008,28 @@ const SchoolManager = () => {
                 </select>
               )}
             </div>
+            {manageUsers.role === "student" && !usersLoading && filteredUsersList.length > 0 && (
+              <div className="px-6 py-3 flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/60 flex-shrink-0">
+                <span className="text-xs font-black text-slate-500 ml-auto">
+                  {filteredUsersList.length} طالب ظاهرين — منهم{" "}
+                  {filteredUsersList.filter((u) => u.active === false).length} التطبيق مقفول عندهم
+                </span>
+                <button
+                  onClick={() => setShownStudentsAccess(false)}
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-black disabled:opacity-50"
+                >
+                  <Lock size={14} /> قفل التطبيق لـ {filteredUsersList.length} طالب
+                </button>
+                <button
+                  onClick={() => setShownStudentsAccess(true)}
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-black disabled:opacity-50"
+                >
+                  <Unlock size={14} /> فتح التطبيق لـ {filteredUsersList.length} طالب
+                </button>
+              </div>
+            )}
             <div className="p-6 pt-3 overflow-y-auto space-y-3">
               {usersLoading ? (
                 <div className="py-12 text-center">
@@ -959,9 +1037,13 @@ const SchoolManager = () => {
                 </div>
               ) : usersList.length === 0 ? (
                 <p className="text-slate-400 font-bold text-sm py-8 text-center">
-                  {manageUsers.role === "teacher"
-                    ? "لا يوجد معلمين مسجّلين لهذه المدرسة بعد."
-                    : "لا يوجد أولياء أمور مسجّلين لهذه المدرسة بعد."}
+                  {
+                    {
+                      teacher: "لا يوجد معلمين مسجّلين لهذه المدرسة بعد.",
+                      parent: "لا يوجد أولياء أمور مسجّلين لهذه المدرسة بعد.",
+                      student: "مفيش حسابات طلاب للمدرسة دي — بتتعمل من «دخول الطلاب» للإعدادي والثانوي.",
+                    }[manageUsers.role]
+                  }
                 </p>
               ) : filteredUsersList.length === 0 ? (
                 <p className="text-slate-400 font-bold text-sm py-8 text-center">
@@ -988,6 +1070,15 @@ const SchoolManager = () => {
                               {c.grade ? ` · ${c.grade.name}` : ""}
                             </span>
                           ))}
+                        </p>
+                      )}
+                      {manageUsers.role === "student" && user.profile && (
+                        <p className="text-indigo-600 text-[11px] font-bold mt-1.5">
+                          <span className="bg-indigo-50 px-2 py-0.5 rounded-full">
+                            {[user.profile.grade?.name, user.profile.classroom && `فصل ${user.profile.classroom}`]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
                         </p>
                       )}
                     </div>
