@@ -43,8 +43,12 @@ const sectionsOf = (rows) =>
       .sort(byClassThenName),
   })).filter((section) => section.rows.length > 0);
 
-const StudentAccountManager = () => {
+// A school's own admin opens this as a page of their panel. The platform
+// owner opens it from the schools page as a window over one `school` — they
+// have no school of their own, so every request names it (?school=id).
+const StudentAccountManager = ({ school = null, onClose } = {}) => {
   const { canEdit } = useAdminScope();
+  const scope = school ? { school: school._id } : undefined;
   const [grades, setGrades] = useState([]);
   const [grade, setGrade] = useState("");
   const [students, setStudents] = useState([]);
@@ -59,7 +63,7 @@ const StudentAccountManager = () => {
   };
 
   useEffect(() => {
-    API.get("/student-accounts/grades")
+    API.get("/student-accounts/grades", { params: scope })
       .then((res) => {
         const list = res.data?.data || [];
         setGrades(list);
@@ -72,7 +76,7 @@ const StudentAccountManager = () => {
     if (!gradeId) return setStudents([]);
     setLoading(true);
     try {
-      const res = await API.get("/student-accounts", { params: { grade: gradeId } });
+      const res = await API.get("/student-accounts", { params: { grade: gradeId, ...scope } });
       setStudents(res.data?.data || []);
     } catch (err) {
       showToast(err.response?.data?.message || "تعذّر تحميل الطلاب", "error");
@@ -90,7 +94,7 @@ const StudentAccountManager = () => {
   const issueAll = async () => {
     setWorking(true);
     try {
-      const res = await API.post("/student-accounts/issue", { grade });
+      const res = await API.post("/student-accounts/issue", { grade }, { params: scope });
       setIssued({
         title: "بيانات دخول الطلاب",
         gradeName: grades.find((g) => g._id === grade)?.name || "",
@@ -117,7 +121,7 @@ const StudentAccountManager = () => {
 
     setWorking(true);
     try {
-      const res = await API.post("/student-accounts/reissue", { grade });
+      const res = await API.post("/student-accounts/reissue", { grade }, { params: scope });
       setIssued({
         title: "كلمات مرور جديدة",
         gradeName,
@@ -134,7 +138,7 @@ const StudentAccountManager = () => {
   const reissue = async (student) => {
     setWorking(true);
     try {
-      const res = await API.post(`/student-accounts/${student._id}/reissue`);
+      const res = await API.post(`/student-accounts/${student._id}/reissue`, null, { params: scope });
       setIssued({
         title: "كلمة مرور جديدة",
         gradeName: grades.find((g) => g._id === grade)?.name || "",
@@ -167,8 +171,8 @@ const StudentAccountManager = () => {
     setTimeout(() => window.print(), 50);
   };
 
-  return (
-    <div className="p-8 bg-[#F8FAFC] min-h-screen" dir="rtl">
+  const page = (
+    <div className={school ? "p-6" : "p-8 bg-[#F8FAFC] min-h-screen"} dir="rtl">
       {toast && (
         <div
           className={`fixed bottom-6 left-6 z-[60] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl border text-sm font-bold no-print ${
@@ -190,19 +194,21 @@ const StudentAccountManager = () => {
       )}
 
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center gap-4 mb-8 no-print">
-          <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-100">
-            <KeyRound size={28} />
+        {!school && (
+          <div className="flex items-center gap-4 mb-8 no-print">
+            <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-100">
+              <KeyRound size={28} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-slate-800 tracking-tight">
+                بيانات دخول الطلاب
+              </h1>
+              <p className="text-slate-400 font-medium text-sm italic">
+                للمرحلة الإعدادية والثانوية — كود دخول لكل طالب مع كلمة مرور ثابتة
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight">
-              بيانات دخول الطلاب
-            </h1>
-            <p className="text-slate-400 font-medium text-sm italic">
-              للمرحلة الإعدادية والثانوية — كود دخول لكل طالب مع كلمة مرور ثابتة
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* The printable sheet. Kept mounted above everything else while it
             exists, because these passwords cannot be shown a second time. */}
@@ -437,6 +443,14 @@ const StudentAccountManager = () => {
           }
           .no-print { display: none !important; }
           .print-skip { display: none !important; }
+          /* Opened as a window from the schools page: the window must not
+             clip or pin the sheet to one screen's height on paper. */
+          .sam-overlay, .sam-panel {
+            position: static !important; display: block !important;
+            overflow: visible !important; max-height: none !important;
+            padding: 0 !important; background: white !important;
+            box-shadow: none !important; backdrop-filter: none !important;
+          }
           .print-page-break { break-before: page; page-break-before: always; border: none !important; }
           body { background: white; }
           table { page-break-inside: auto; }
@@ -446,6 +460,27 @@ const StudentAccountManager = () => {
       `,
         }}
       />
+    </div>
+  );
+
+  if (!school) return page;
+
+  return (
+    <div className="sam-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div className="sam-panel bg-[#F8FAFC] w-full max-w-6xl rounded-[2.5rem] shadow-2xl overflow-y-auto max-h-[92vh]">
+        <div className="p-6 bg-indigo-600 text-white flex justify-between items-center no-print" dir="rtl">
+          <div>
+            <h2 className="text-lg font-black">بيانات دخول الطلاب — {school.name}</h2>
+            <p className="text-indigo-50 text-xs font-bold mt-1">
+              أكواد دخول تطبيق الطلاب للمرحلة الإعدادية والثانوية، مع كلمة مرور لكل طالب.
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full">
+            <X />
+          </button>
+        </div>
+        {page}
+      </div>
     </div>
   );
 };

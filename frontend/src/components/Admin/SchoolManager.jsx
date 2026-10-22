@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import API from "../../api/axios";
 import { STAGES, stageLabel } from "../../constants/stages";
 import FamilyAccessManager from "./FamilyAccessManager";
+import StudentAccountManager from "./StudentAccountManager";
 import SurveyPanel from "./SurveyPanel";
 import {
   Building2,
@@ -21,6 +22,7 @@ import {
   Baby,
   Link2,
   ClipboardList,
+  KeyRound,
 } from "lucide-react";
 
 // Platform-super-admin only — onboarding new schools onto EduLink,
@@ -93,6 +95,8 @@ const SchoolManager = () => {
   };
   // Linking students to their parents and parents' logins (FamilyAccessManager).
   const [familiesSchool, setFamiliesSchool] = useState(null);
+  // Students' own app logins, preparatory and secondary (StudentAccountManager).
+  const [accountsSchool, setAccountsSchool] = useState(null);
   // The app-subscription survey and its answers (SurveyPanel).
   const [surveySchool, setSurveySchool] = useState(null);
   const [manageUsers, setManageUsers] = useState(null); // { school, role }
@@ -510,6 +514,13 @@ const SchoolManager = () => {
                                 className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all text-xs font-bold"
                               >
                                 <Link2 size={15} /> ربط الطلاب والدخول
+                              </button>
+                              <button
+                                onClick={() => setAccountsSchool(school)}
+                                title="أكواد دخول تطبيق الطلاب (إعدادي وثانوي)"
+                                className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all text-xs font-bold"
+                              >
+                                <KeyRound size={15} /> دخول الطلاب
                               </button>
                               <button
                                 onClick={() => setSurveySchool(school)}
@@ -1010,6 +1021,14 @@ const SchoolManager = () => {
           school={familiesSchool}
           onClose={() => setFamiliesSchool(null)}
           showToast={showToast}
+        />
+      )}
+
+      {accountsSchool && (
+        <StudentAccountManager
+          key={accountsSchool._id}
+          school={accountsSchool}
+          onClose={() => setAccountsSchool(null)}
         />
       )}
 
