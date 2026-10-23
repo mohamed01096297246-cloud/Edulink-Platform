@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import API from "../../api/axios";
 import useAdminScope from "../../hooks/useAdminScope";
 import ClassTimetable from "./ClassTimetable";
+import SecondLanguageAssign from "./SecondLanguageAssign";
 import {
   Calendar,
   Clock,
@@ -39,6 +40,15 @@ const PERIOD_NAMES = ["", "الأولى", "الثانية", "الثالثة", "�
 // Posted to the server as an empty teacher.
 const NO_TEACHER = "__none__";
 
+// The subject picker's value for «مادة ثانية»: one period the class spends
+// split between languages (French and German, say), each with its teacher —
+// one timetable row per language on the server (Schedule.secondLanguage).
+const SECOND_LANGUAGE = "__second__";
+const emptyOptions = () => [
+  { subjectId: "", teacherId: "" },
+  { subjectId: "", teacherId: "" },
+];
+
 const SchedulesPage = () => {
   const { canEdit } = useAdminScope();
   const [schedules, setSchedules] = useState([]);
@@ -63,7 +73,10 @@ const SchedulesPage = () => {
     type: "success",
   });
 
-  const [deleteId, setDeleteId] = useState(null);
+  // The rows a delete removes — a «مادة ثانية» period goes as a whole.
+  const [deleteIds, setDeleteIds] = useState(null);
+  // The class whose pupils are being given their «مادة ثانية» language.
+  const [languageClass, setLanguageClass] = useState(null);
 
   // ---- منشئ جدول الفصل — الأساس هنا الفصل، مش المعلم ----
   // تختار المرحلة والفصل مرة واحدة، وبعدها تضيف كل حصص الفصل ده يوم بيوم
@@ -78,7 +91,11 @@ const SchedulesPage = () => {
     periods: [],
     subjectId: "",
     teacherId: "",
+    options: emptyOptions(),
   });
+  // The rows the period being edited takes the place of: the lesson itself,
+  // or every language of a «مادة ثانية» period.
+  const [replaceIds, setReplaceIds] = useState([]);
   const [periodSaving, setPeriodSaving] = useState(false);
   const [periodError, setPeriodError] = useState("");
 
@@ -134,16 +151,33 @@ const SchedulesPage = () => {
     }
   };
 
+  // The other languages of a «مادة ثانية» period, the lesson itself included.
+  const siblingsOf = (lesson) =>
+    lesson?.secondLanguage
+      ? schedules.filter(
+          (s) =>
+            s.secondLanguage &&
+            s.classroom?._id === lesson.classroom?._id &&
+            s.day === lesson.day &&
+            s.period === lesson.period,
+        )
+      : [lesson];
+
+  const askDelete = (lesson) => setDeleteIds(siblingsOf(lesson).map((s) => s._id));
+
   const handleDelete = async () => {
-    if (!deleteId) return;
+    if (!deleteIds?.length) return;
     try {
-      await API.delete(`/schedules/${deleteId}`);
+      for (const id of deleteIds) {
+        // eslint-disable-next-line no-await-in-loop -- one period's two or three rows.
+        await API.delete(`/schedules/${id}`);
+      }
       showToast("تم حذف الحصة بنجاح", "success");
       fetchInitialData();
-      setDeleteId(null);
+      setDeleteIds(null);
     } catch (err) {
       showToast("فشل حذف الحصة", "error");
-      setDeleteId(null);
+      setDeleteIds(null);
     }
   };
 
@@ -214,11 +248,11 @@ const SchedulesPage = () => {
     [...(bellForDay(day)?.periods || [])].sort((a, b) => a.period - b.period);
 
   // الحصص المحجوزة بالفعل للفصل ده في اليوم ده — عشان تظهر مقفولة في الاختيار.
-  // وقت التعديل، الحصة اللي بتتعدل نفسها مش محسوبة محجوزة.
+  // وقت التعديل، الحصة اللي بتتعدل نفسها مش محسوبة محجوزة (ولا باقي لغات المادة الثانية).
   const takenPeriods = (day) => {
     const map = {};
     periodsForDay(day)
-      .filter((s) => s._id !== editingPeriodId && s.period)
+      .filter((s) => s._id !== editingPeriodId && !replaceIds.includes(s._id) && s.period)
       .forEach((s) => {
         map[s.period] = s;
       });
@@ -240,9 +274,10 @@ const SchedulesPage = () => {
   };
 
   const resetPeriodForm = () => {
-    setPeriodForm({ periods: [], subjectId: "", teacherId: "" });
+    setPeriodForm({ periods: [], subjectId: "", teacherId: "", options: emptyOptions() });
     setPeriodError("");
     setEditingPeriodId(null);
+    setReplaceIds([]);
   };
 
   const openBuilder = () => {
@@ -267,11 +302,25 @@ const SchedulesPage = () => {
     setBuilderClassroom(schedule.classroom?._id || "");
     setAddingDay(schedule.day);
     setEditingPeriodId(schedule._id);
-    setPeriodForm({
-      periods: schedule.period ? [schedule.period] : [],
-      subjectId: schedule.subject?._id || "",
-      teacherId: schedule.teacher?._id || NO_TEACHER,
-    });
+    if (schedule.secondLanguage) {
+      // A «مادة ثانية» period opens as a whole: every language, each with its teacher.
+      const rows = siblingsOf(schedule);
+      setReplaceIds(rows.map((s) => s._id));
+      setPeriodForm({
+        periods: schedule.period ? [schedule.period] : [],
+        subjectId: SECOND_LANGUAGE,
+        teacherId: "",
+        options: rows.map((s) => ({ subjectId: s.subject?._id || "", teacherId: s.teacher?._id || "" })),
+      });
+    } else {
+      setReplaceIds([schedule._id]);
+      setPeriodForm({
+        periods: schedule.period ? [schedule.period] : [],
+        subjectId: schedule.subject?._id || "",
+        teacherId: schedule.teacher?._id || NO_TEACHER,
+        options: emptyOptions(),
+      });
+    }
     setPeriodError("");
   };
 
@@ -283,7 +332,7 @@ const SchedulesPage = () => {
     setBuilderClassroom(classroom._id);
     setAddingDay(day);
     resetPeriodForm();
-    setPeriodForm({ periods: [period], subjectId: "", teacherId: "" });
+    setPeriodForm({ periods: [period], subjectId: "", teacherId: "", options: emptyOptions() });
   };
 
   const startAddingPeriod = (day) => {
@@ -291,7 +340,48 @@ const SchedulesPage = () => {
     resetPeriodForm();
   };
 
+  // The teacher a language of «مادة ثانية» starts with: the one assigned to
+  // it in this class, else the only one teaching it at this grade.
+  const defaultTeacherFor = (subjectId) => {
+    const assigned = assignedTeacherFor(subjectId);
+    if (assigned) return assigned._id;
+    const able = teachers.filter(
+      (t) =>
+        (t.subjects || []).some((s) => s._id === subjectId) &&
+        (t.teachingGrades || []).some((g) => g._id === builderGrade),
+    );
+    return able.length === 1 ? able[0]._id : "";
+  };
+
+  // Teachers who may take a language of «مادة ثانية» in this class.
+  const teachersForOption = (subjectId) => {
+    const assigned = assignedTeacherFor(subjectId);
+    return teachers.filter((t) =>
+      assigned
+        ? t._id === assigned._id
+        : (t.subjects || []).some((s) => s._id === subjectId) &&
+          (t.teachingGrades || []).some((g) => g._id === builderGrade),
+    );
+  };
+
+  const updateOption = (index, changes) =>
+    setPeriodForm((prev) => ({
+      ...prev,
+      options: prev.options.map((o, i) => (i === index ? { ...o, ...changes } : o)),
+    }));
+
   const handleSubjectChange = (subjectId) => {
+    if (subjectId === SECOND_LANGUAGE) {
+      // Turning an ordinary lesson into «مادة ثانية» keeps it as the first language.
+      setPeriodForm((prev) => {
+        const keep =
+          editingPeriodId && prev.subjectId && prev.subjectId !== SECOND_LANGUAGE && prev.teacherId !== NO_TEACHER
+            ? [{ subjectId: prev.subjectId, teacherId: prev.teacherId }, { subjectId: "", teacherId: "" }]
+            : emptyOptions();
+        return { ...prev, subjectId, teacherId: "", options: keep };
+      });
+      return;
+    }
     const assigned = assignedTeacherFor(subjectId);
     const teachersForSubject = teachers.filter(
       (t) =>
@@ -320,6 +410,35 @@ const SchedulesPage = () => {
       setPeriodError("اختار حصة واحدة على الأقل.");
       return;
     }
+
+    if (periodForm.subjectId === SECOND_LANGUAGE) {
+      const options = periodForm.options.filter((o) => o.subjectId || o.teacherId);
+      if (options.length < 2 || options.some((o) => !o.subjectId || !o.teacherId)) {
+        setPeriodError("المادة الثانية محتاجة لغتين على الأقل، وكل لغة بمعلمها.");
+        return;
+      }
+      setPeriodSaving(true);
+      try {
+        const res = await API.post("/schedules", {
+          secondLanguage: true,
+          classroom: builderClassroom,
+          day,
+          periods: periodForm.periods,
+          options: options.map((o) => ({ subjectId: o.subjectId, teacher: o.teacherId })),
+          replaceIds: editingPeriodId ? replaceIds : [],
+        });
+        showToast(res.data?.message || "تم حفظ المادة الثانية", "success");
+        setAddingDay(null);
+        resetPeriodForm();
+        fetchInitialData();
+      } catch (err) {
+        setPeriodError(err.response?.data?.message || "حدث خطأ أثناء الحفظ");
+      } finally {
+        setPeriodSaving(false);
+      }
+      return;
+    }
+
     if (!periodForm.subjectId || !periodForm.teacherId) {
       setPeriodError('اختار المادة والمعلم (أو "بدون معلم").');
       return;
@@ -458,7 +577,8 @@ const SchedulesPage = () => {
               onAdd={(day, period) =>
                 openBuilderForSlot(classrooms.find((c) => c._id === selectedClassroom), day, period)
               }
-              onDelete={(lesson) => setDeleteId(lesson._id)}
+              onDelete={askDelete}
+              onSecondLanguage={() => setLanguageClass(classrooms.find((c) => c._id === selectedClassroom))}
             />
           ) : filteredSchedules.length === 0 ? (
             <div className="bg-white rounded-[2.5rem] border border-slate-100 p-6 text-center py-32 text-slate-400 font-bold uppercase tracking-wider">
@@ -501,7 +621,7 @@ const SchedulesPage = () => {
                             {s.subject?.name || "لا توجد مادة محددة"}
                           </h4>
                           <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wide">
-                            المادة
+                            {s.secondLanguage ? "مادة ثانية" : "المادة"}
                           </span>
                         </div>
                       </div>
@@ -548,7 +668,7 @@ const SchedulesPage = () => {
                       <Edit size={14} /> تعديل
                     </button>
                     <button
-                      onClick={() => setDeleteId(s._id)}
+                      onClick={() => askDelete(s)}
                       className="py-2.5 px-3 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-xl transition-all flex items-center justify-center text-xs font-bold"
                     >
                       <Trash2 size={14} />
@@ -682,7 +802,10 @@ const SchedulesPage = () => {
                         </p>
                       )}
 
-                      {periodsForDay(day).map((s) => (
+                      {periodsForDay(day)
+                        // A «مادة ثانية» period is listed once, its languages together.
+                        .filter((s) => !s.secondLanguage || siblingsOf(s)[0]?._id === s._id)
+                        .map((s) => (
                         <div
                           key={s._id}
                           className="flex items-center justify-between gap-3 bg-white rounded-2xl border border-slate-100 p-3"
@@ -696,14 +819,27 @@ const SchedulesPage = () => {
                             <span className="text-xs font-black text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg shrink-0">
                               {s.startTime}–{s.endTime}
                             </span>
-                            <span className="text-sm font-black text-slate-700 truncate">
-                              {s.subject?.name || "بدون مادة"}
-                            </span>
-                            <span className="text-xs font-bold text-slate-400 truncate">
-                              {s.teacher
-                                ? `أ. ${s.teacher.firstName} ${s.teacher.lastName}`
-                                : "بدون معلم"}
-                            </span>
+                            {s.secondLanguage ? (
+                              <>
+                                <span className="text-sm font-black text-amber-700 shrink-0">مادة ثانية</span>
+                                <span className="text-xs font-bold text-slate-500 truncate">
+                                  {siblingsOf(s)
+                                    .map((x) => `${x.subject?.name || ""} (أ. ${x.teacher?.firstName || ""} ${x.teacher?.lastName || ""})`)
+                                    .join(" · ")}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-sm font-black text-slate-700 truncate">
+                                  {s.subject?.name || "بدون مادة"}
+                                </span>
+                                <span className="text-xs font-bold text-slate-400 truncate">
+                                  {s.teacher
+                                    ? `أ. ${s.teacher.firstName} ${s.teacher.lastName}`
+                                    : "بدون معلم"}
+                                </span>
+                              </>
+                            )}
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
@@ -715,7 +851,7 @@ const SchedulesPage = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => setDeleteId(s._id)}
+                              onClick={() => askDelete(s)}
                               className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
                             >
                               <Trash2 size={14} />
@@ -793,6 +929,7 @@ const SchedulesPage = () => {
                                 onChange={(e) => handleSubjectChange(e.target.value)}
                               >
                                 <option value="">اختر المادة...</option>
+                                <option value={SECOND_LANGUAGE}>مادة ثانية — لغتين في نفس الحصة (ألماني / فرنساوي)</option>
                                 {gradeSubjects.map((sub) => {
                                   const assigned = assignedTeacherFor(sub._id);
                                   return (
@@ -804,6 +941,7 @@ const SchedulesPage = () => {
                                 })}
                               </select>
                             </div>
+                            {periodForm.subjectId !== SECOND_LANGUAGE && (
                             <div className="space-y-1">
                               <label className="text-[10px] font-black text-slate-400 uppercase">
                                 المعلم
@@ -850,7 +988,85 @@ const SchedulesPage = () => {
                                 )
                               )}
                             </div>
+                            )}
                           </div>
+
+                          {periodForm.subjectId === SECOND_LANGUAGE && (
+                            <div className="space-y-2 bg-amber-50/60 border border-amber-100 rounded-2xl p-3">
+                              <p className="text-[11px] font-bold text-amber-800">
+                                الفصل بيتقسم في الحصة دي: كل طالب يحضر لغته مع مدرسها. وزّع الطلاب على اللغات بعد الحفظ من زرار «توزيع الطلاب على المادة الثانية» فوق الجدول.
+                              </p>
+                              {periodForm.options.map((option, index) => {
+                                const able = option.subjectId ? teachersForOption(option.subjectId) : [];
+                                return (
+                                  <div key={index} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                                    <select
+                                      className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 bg-white outline-none font-bold text-slate-700 text-sm"
+                                      value={option.subjectId}
+                                      onChange={(e) =>
+                                        updateOption(index, {
+                                          subjectId: e.target.value,
+                                          teacherId: e.target.value ? defaultTeacherFor(e.target.value) : "",
+                                        })
+                                      }
+                                    >
+                                      <option value="">اللغة {index + 1}...</option>
+                                      {gradeSubjects.map((sub) => (
+                                        <option key={sub._id} value={sub._id}>
+                                          {sub.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <select
+                                      disabled={!option.subjectId}
+                                      className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 bg-white outline-none font-bold text-slate-700 text-sm disabled:opacity-50"
+                                      value={option.teacherId}
+                                      onChange={(e) => updateOption(index, { teacherId: e.target.value })}
+                                    >
+                                      <option value="">{option.subjectId ? "اختر المعلم..." : "اختر اللغة أولاً"}</option>
+                                      {able.map((t) => (
+                                        <option key={t._id} value={t._id}>
+                                          {t.firstName} {t.lastName}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <button
+                                      type="button"
+                                      disabled={periodForm.options.length <= 2}
+                                      onClick={() =>
+                                        setPeriodForm((prev) => ({
+                                          ...prev,
+                                          options: prev.options.filter((_, i) => i !== index),
+                                        }))
+                                      }
+                                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                                      aria-label="شيل اللغة دي"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                    {option.subjectId && able.length === 0 && (
+                                      <p className="sm:col-span-3 text-[10px] font-bold text-rose-500">
+                                        مفيش معلم بيدرّس المادة دي للمرحلة دي.
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPeriodForm((prev) => ({
+                                    ...prev,
+                                    options: [...prev.options, { subjectId: "", teacherId: "" }],
+                                  }))
+                                }
+                                className="flex items-center gap-1.5 text-xs font-black text-amber-800 hover:bg-amber-100 px-3 py-1.5 rounded-xl transition-all"
+                              >
+                                <Plus size={13} /> لغة تالتة
+                              </button>
+                            </div>
+                          )}
+
                           <div className="flex gap-2 pt-1">
                             <button
                               type="button"
@@ -891,7 +1107,16 @@ const SchedulesPage = () => {
         </div>
       )}
 
-      {deleteId && (
+      {languageClass && (
+        <SecondLanguageAssign
+          classroom={languageClass}
+          canEdit={canEdit}
+          onClose={() => setLanguageClass(null)}
+          onSaved={(message) => showToast(message, "success")}
+        />
+      )}
+
+      {deleteIds && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-6 text-center space-y-6">
             <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto text-rose-500">
@@ -907,7 +1132,7 @@ const SchedulesPage = () => {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => setDeleteId(null)}
+                onClick={() => setDeleteIds(null)}
                 className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all"
               >
                 إلغاء

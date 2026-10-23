@@ -18,6 +18,7 @@ const { schoolMonth, schoolMonthStartingIn, monthsBegun } = require("../utils/sc
 // Shared with the weekly-evaluation screen, so what the teacher edits on
 // screen is literally the same number that lands in the printed register.
 const { computeWeekScores, computeMonthScores, toWeekStart } = require("../utils/weekScores");
+const { rosterWhere } = require("../utils/secondLanguage");
 
 // The register goes out as the workbook, or — with ?format=pdf — as a PDF
 // drawn from that same workbook (utils/sheetPdf), which any phone opens
@@ -84,7 +85,7 @@ exports.exportWeeklyRegister = async (req, res) => {
     const subjectDoc = await Subject.findById(subjectId).select("name");
 
     const students = sortByArabicName(
-      await Student.find({ classroom: classroomId, active: true }).select(
+      await Student.find({ classroom: classroomId, active: true, ...(await rosterWhere(classroomId, subjectId)) }).select(
         "firstName lastName",
       ),
     );
@@ -195,7 +196,7 @@ exports.exportMonthlyRegister = async (req, res) => {
     const subjectDoc = await Subject.findById(subjectId).select("name");
 
     const students = sortByArabicName(
-      await Student.find({ classroom: classroomId, active: true }).select(
+      await Student.find({ classroom: classroomId, active: true, ...(await rosterWhere(classroomId, subjectId)) }).select(
         "firstName lastName",
       ),
     );
@@ -273,7 +274,7 @@ exports.exportTermRegister = async (req, res) => {
 
     const subjectDoc = await Subject.findById(subjectId).select("name");
     const students = sortByArabicName(
-      await Student.find({ classroom: classroomId, active: true }).select(
+      await Student.find({ classroom: classroomId, active: true, ...(await rosterWhere(classroomId, subjectId)) }).select(
         "firstName lastName",
       ),
     );

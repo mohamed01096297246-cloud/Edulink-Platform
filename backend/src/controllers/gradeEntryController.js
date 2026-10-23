@@ -21,6 +21,7 @@ const { SCHEMES, schemeFor } = require("../utils/gradebook");
 const { isDailyMode } = require("../utils/dailyAttendance");
 const { reportPeriod, weekKey } = require("../utils/reportPeriod");
 const { termOfDate } = require("../utils/schoolMonths");
+const { electivesByClass } = require("../utils/secondLanguage");
 
 // "رصد الدرجات" — for a week or a month, which teachers have recorded marks
 // for their classes and which have not. Read only, over the same documents
@@ -216,9 +217,12 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null, kind = "w
     pairs.set(`${row.teacher._id}:${key}`, row);
   }
 
-  const students = await Student.find({ classroom: { $in: classIds }, active: { $ne: false } })
-    .select("_id classroom")
-    .lean();
+  const [students, electives] = await Promise.all([
+    Student.find({ classroom: { $in: classIds }, active: { $ne: false } })
+      .select("_id classroom secondLanguage")
+      .lean(),
+    electivesByClass(classIds),
+  ]);
   const sizes = new Map();
   const classOfStudent = new Map();
   for (const s of students) {
@@ -229,6 +233,16 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null, kind = "w
   // by a pupil who has since moved class or left the school would otherwise
   // make it look marked ("4 of 34" with none of the 34 marked).
   const onRoster = (doc) => classOfStudent.get(String(doc.student)) === String(doc.classroom);
+  // What a class owes marks for: all of it, or — in one of its «مادة ثانية»
+  // languages — the pupils taking it (and those not yet given one).
+  const sizeFor = (classroomId, subjectId) => {
+    if (!electives.get(String(classroomId))?.has(String(subjectId))) return sizes.get(String(classroomId)) || 0;
+    return students.filter(
+      (s) =>
+        String(s.classroom) === String(classroomId) &&
+        (!s.secondLanguage || String(s.secondLanguage) === String(subjectId)),
+    ).length;
+  };
 
   const inClasses = { classroom: { $in: classIds } };
   const window = { $gte: range.start, $lte: range.end };
@@ -332,7 +346,7 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null, kind = "w
   for (const row of pairs.values()) {
     const classroom = classById.get(String(row.classroom));
     if (!classroom) continue;
-    const size = sizes.get(String(row.classroom)) || 0;
+    const size = sizeFor(row.classroom, row.subject._id);
     if (size === 0) continue; // a class with no pupils owes no marks
 
     const scheme = schemeOf(classroom);

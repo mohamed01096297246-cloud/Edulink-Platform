@@ -34,8 +34,15 @@ const utcMidnight = (dateStr) => {
 // "which is the first lesson" (the register, the server's alarm, the
 // phone's alarm) goes through here, so they can never disagree.
 //
+// A «مادة ثانية» period (Schedule.secondLanguage) is passed over the same
+// way while the class has a lesson it sits whole: in it the class is split
+// between two teachers, and neither has every pupil in front of them.
+//
 // Takes lessons already in period order. Works on populated or raw ids.
-const registerLesson = (lessons) => lessons.find((lesson) => lesson.teacher) || null;
+const registerLesson = (lessons) =>
+  lessons.find((lesson) => lesson.teacher && !lesson.secondLanguage) ||
+  lessons.find((lesson) => lesson.teacher) ||
+  null;
 
 // A class's lessons on a weekday, in period order, and the one its day's
 // register lives in.

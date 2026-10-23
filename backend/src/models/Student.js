@@ -61,6 +61,17 @@ parent: {
       type: Boolean,
       default: true,
     },
+
+    // The language this pupil takes in the class's «مادة ثانية» period
+    // (French or German, say) — a subject of their class's second-language
+    // rows on the timetable (Schedule.secondLanguage). Unset until the school
+    // assigns it, and an unset pupil stays on every language's list, so
+    // nobody drops off a register before then (utils/secondLanguage.js).
+    secondLanguage: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Subject",
+      default: null,
+    },
   },
   {
     timestamps: true,

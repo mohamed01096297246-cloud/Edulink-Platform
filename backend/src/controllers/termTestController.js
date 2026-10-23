@@ -4,6 +4,7 @@ const Classroom = require("../models/Classroom");
 const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { schemeForClassroom, SCHEMES } = require("../utils/gradebook");
+const { rosterWhere } = require("../utils/secondLanguage");
 
 // The two tests of a term on the weekly40 scheme — the screen that replaces
 // "اختبار الشهر" for those classrooms. See models/TermTest.js.
@@ -52,7 +53,11 @@ exports.getClassroomTermTests = async (req, res) => {
     });
     if (!subjectId) return undefined;
 
-    const students = await Student.find({ classroom: classroomId, active: true })
+    const students = await Student.find({
+      classroom: classroomId,
+      active: true,
+      ...(await rosterWhere(classroomId, subjectId)),
+    })
       .select("firstName lastName gender")
       .sort({ firstName: 1 });
 

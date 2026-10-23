@@ -49,6 +49,16 @@ const scheduleSchema = new mongoose.Schema(
       ref: "School",
       required: true,
     },
+    // Part of the class's «مادة ثانية» period: two (or more) languages taught
+    // at the same time, each pupil sitting the one set on their record
+    // (Student.secondLanguage). It is one row per language, so each teacher's
+    // timetable, attendance and cover lessons work as for any lesson; only
+    // these rows may share a class's time, and who is in the room is
+    // narrowed by utils/secondLanguage.js.
+    secondLanguage: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true },
 );

@@ -20,6 +20,7 @@ const {
 } = require("../utils/tenant");
 const { friendlyDuplicateKeyMessage } = require("../utils/formatDbError");
 const { resolveTeacherSubject } = require("../utils/teacherSubject");
+const { teacherLanguageIn } = require("../utils/secondLanguage");
 const {
   isGmailAddress,
   GMAIL_REQUIRED_MESSAGE,
@@ -272,10 +273,14 @@ exports.getTeacherDashboard = async (req, res) => {
 
     let currentClassStudents = [];
     if (classroomId) {
+      // A teacher who takes this class only for one «مادة ثانية» language
+      // has only that language's pupils in front of them.
+      const language = await teacherLanguageIn(teacherId, classroomId);
       currentClassStudents = await Student.find({
         classroom: classroomId,
         school: req.user.school,
         active: true,
+        ...(language ? { secondLanguage: { $in: [language, null] } } : {}),
       }).select("firstName lastName gender phoneNumber");
     }
 

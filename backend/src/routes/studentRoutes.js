@@ -14,6 +14,10 @@ const {
 
 const { protect, authorize } = require("../middleware/authMiddleware");
 const { getStudentRecord } = require("../controllers/studentRecordController");
+const {
+  getClassSecondLanguages,
+  setClassSecondLanguages,
+} = require("../controllers/secondLanguageController");
 
 router.post("/", protect, authorize("admin"), createStudent);
 router.post(
@@ -31,6 +35,9 @@ router.get(
   authorize("admin"),
   getUnassignedStudents,
 );
+// «مادة ثانية»: which language each pupil of a class takes. Before "/:id".
+router.get("/second-language", protect, authorize("admin"), getClassSecondLanguages);
+router.put("/second-language", protect, authorize("admin"), setClassSecondLanguages);
 router.get("/parent/:parentId", protect, getStudentsByParent);
 router.get("/:id/record", protect, authorize("admin"), getStudentRecord);
 router.get("/:id", protect, getStudent);

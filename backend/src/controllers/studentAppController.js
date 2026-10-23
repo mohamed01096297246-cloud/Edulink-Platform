@@ -10,6 +10,7 @@ const Notification = require("../models/Notification");
 const School = require("../models/School");
 const { studentPerformance } = require("../utils/studentPerformance");
 const { testMarksOf } = require("../utils/testMarks");
+const { asTakenBy, otherLanguagesFor } = require("../utils/secondLanguage");
 
 // Everything a student may read about themselves. Four screens, no more:
 // what's on today, the week's timetable, their homework, their marks. The
@@ -91,6 +92,7 @@ exports.getToday = async (req, res) => {
 
     const timeZone = await schoolTimezone(student.school);
     const { day, startOfDay } = schoolToday(timeZone);
+    const otherLanguages = await otherLanguagesFor(student);
 
     const [lessons, homework, attendance, praise, announcement, unreadNotifications] = await Promise.all([
       student.classroom
@@ -102,6 +104,7 @@ exports.getToday = async (req, res) => {
         ? Homework.find({
             classroom: student.classroom._id,
             dueDate: { $gte: startOfDay },
+            ...(otherLanguages.length ? { subject: { $nin: otherLanguages } } : {}),
           })
             .populate("subject", "name")
             .sort({ dueDate: 1 })
@@ -146,7 +149,7 @@ exports.getToday = async (req, res) => {
           grade: student.grade?.name || "",
         },
         today: { day },
-        lessons: lessons.sort(byPeriod).map(lessonShape),
+        lessons: asTakenBy(lessons, student).sort(byPeriod).map(lessonShape),
         homework: homework.map((h) => ({
           _id: h._id,
           title: h.title,
@@ -190,9 +193,12 @@ exports.getSchedule = async (req, res) => {
       return res.status(200).json({ success: true, data: { days: [], classroom: null } });
     }
 
-    const lessons = await Schedule.find({ classroom: student.classroom._id })
-      .populate("subject", "name")
-      .populate("teacher", "firstName lastName");
+    const lessons = asTakenBy(
+      await Schedule.find({ classroom: student.classroom._id })
+        .populate("subject", "name")
+        .populate("teacher", "firstName lastName"),
+      student,
+    );
 
     const week = ["sat", "sun", "mon", "tue", "wed", "thu"];
     res.status(200).json({
@@ -220,7 +226,11 @@ exports.getHomework = async (req, res) => {
       return res.status(200).json({ success: true, data: [] });
     }
 
-    const homework = await Homework.find({ classroom: student.classroom._id })
+    const otherLanguages = await otherLanguagesFor(student);
+    const homework = await Homework.find({
+      classroom: student.classroom._id,
+      ...(otherLanguages.length ? { subject: { $nin: otherLanguages } } : {}),
+    })
       .populate("subject", "name")
       .sort({ dueDate: -1 })
       .limit(60);

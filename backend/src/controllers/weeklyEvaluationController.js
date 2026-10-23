@@ -5,6 +5,7 @@ const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { toWeekStart } = require("../utils/weekScores");
 const { schemeForClassroom, SCHEMES } = require("../utils/gradebook");
+const { rosterWhere } = require("../utils/secondLanguage");
 
 exports.getClassroomWeeklyEvaluation = async (req, res) => {
   try {
@@ -27,7 +28,11 @@ exports.getClassroomWeeklyEvaluation = async (req, res) => {
     });
     if (!subjectId) return undefined;
 
-    const students = await Student.find({ classroom: classroomId, active: true })
+    const students = await Student.find({
+      classroom: classroomId,
+      active: true,
+      ...(await rosterWhere(classroomId, subjectId)),
+    })
       .select("firstName lastName gender")
       .sort({ firstName: 1 });
 

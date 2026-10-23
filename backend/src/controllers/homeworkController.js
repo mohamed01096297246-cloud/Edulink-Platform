@@ -11,6 +11,7 @@ const { marksFromInput } = require("../utils/homeworkMarks");
 const Subject = require("../models/Subject");
 const { scopeFilter, sameSchool } = require("../utils/tenant");
 const { notifyParentsOfStudents } = require("../utils/notify");
+const { rosterWhere, otherLanguagesFor, electivesByClass } = require("../utils/secondLanguage");
 
 const DAY_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
 const DAY_NAMES_AR = {
@@ -188,9 +189,11 @@ async function notifyParents(homeworkEntries, subjectName, title) {
       ? `تم تسجيل واجب جديد في مادة ${subjectName || ""}: "${title}". الواجب اتسلّم يوم ${dayName}، وميعاد تسليمه هو نفس اليوم (${dayName}) الأسبوع الجاي.`
       : `تم تسجيل واجب جديد في مادة ${subjectName || ""}: "${title}".`;
 
+    // In a «مادة ثانية» language, only the pupils taking it.
     const students = await Student.find({
       classroom: entry.classroom,
       active: true,
+      ...(await rosterWhere(entry.classroom, entry.subject)),
     }).populate("parent", "email pushToken");
 
     await notifyParentsOfStudents({
@@ -236,18 +239,29 @@ exports.getAllHomeworks = async (req, res) => {
     const classroomIds = [...new Set(homeworks.map((h) => String(h.classroom?._id || h.classroom)))]
       .filter((id) => mongoose.isValidObjectId(id))
       .map((id) => new mongoose.Types.ObjectId(id));
-    const [marked, classSizes] = await Promise.all([
+    const [marked, classSizes, electives] = await Promise.all([
       HomeworkResult.aggregate([
         { $match: { homework: { $in: homeworks.map((h) => h._id) } } },
         { $group: { _id: "$homework", count: { $sum: 1 }, at: { $max: "$updatedAt" } } },
       ]),
       Student.aggregate([
         { $match: { classroom: { $in: classroomIds }, active: { $ne: false } } },
-        { $group: { _id: "$classroom", count: { $sum: 1 } } },
+        { $group: { _id: { classroom: "$classroom", language: "$secondLanguage" }, count: { $sum: 1 } } },
       ]),
+      electivesByClass(classroomIds),
     ]);
     const markedBy = new Map(marked.map((m) => [String(m._id), m]));
-    const sizeOf = new Map(classSizes.map((c) => [String(c._id), c.count]));
+    // A class's size, or — for homework in one of its «مادة ثانية»
+    // languages — the pupils taking that language (and those not yet given one).
+    const sizeOf = (h) => {
+      const classId = String(h.classroom?._id || h.classroom);
+      const subjectId = String(h.subject?._id || h.subject);
+      const elective = electives.get(classId)?.has(subjectId);
+      return classSizes
+        .filter((c) => String(c._id.classroom) === classId)
+        .filter((c) => !elective || !c._id.language || String(c._id.language) === subjectId)
+        .reduce((sum, c) => sum + c.count, 0);
+    };
 
     res.status(200).json({
       success: true,
@@ -258,7 +272,7 @@ exports.getAllHomeworks = async (req, res) => {
           grading: {
             gradedCount: m?.count || 0,
             gradedAt: m?.at || null,
-            classSize: sizeOf.get(String(h.classroom?._id || h.classroom)) || 0,
+            classSize: sizeOf(h),
           },
         };
       }),
@@ -287,8 +301,13 @@ exports.getStudentHomeworks = async (req, res) => {
     // must never reach Homework.find with an undefined `classroom`, which
     // Mongoose would silently drop from the filter and return every
     // classroom's homework instead of none.
+    // The other languages of the class's «مادة ثانية» aren't this child's.
+    const otherLanguages = await otherLanguagesFor(student);
     const homeworks = student.classroom
-      ? await Homework.find({ classroom: student.classroom })
+      ? await Homework.find({
+          classroom: student.classroom,
+          ...(otherLanguages.length ? { subject: { $nin: otherLanguages } } : {}),
+        })
           .populate("subject", "name")
           .populate("teacher", "firstName lastName")
           .populate({

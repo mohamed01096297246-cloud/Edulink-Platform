@@ -5,6 +5,8 @@ const Subject = require("../models/Subject");
 const Grade = require("../models/Grade");
 const BellSchedule = require("../models/BellSchedule");
 const ClassAssignment = require("../models/ClassAssignment");
+const Student = require("../models/Student");
+const { asTakenBy } = require("../utils/secondLanguage");
 const {
   scopeFilter,
   sameSchool,
@@ -137,6 +139,144 @@ const createTeacherlessSchedule = async (req, res, { classroom, day, subjectId, 
   });
 };
 
+// «مادة ثانية» — one period the class spends split between languages, each
+// with its own teacher (models/Schedule.js `secondLanguage`). Booked as a
+// whole: one row per language for every period asked for, the class free
+// at that time and every teacher too.
+//
+// `replaceIds` are the rows this period takes the place of — an ordinary
+// lesson being turned into «مادة ثانية», or the period itself being edited.
+// They are left out of the clash check, and a row that already holds one of
+// the languages at that period is kept and updated rather than deleted, so
+// the registers taken on it stay attached to it.
+const createSecondLanguageSchedule = async (req, res, { classroom, day, periods, school }) => {
+  const options = Array.isArray(req.body.options) ? req.body.options : [];
+  const picked = options
+    .map((o) => ({ subject: String(o?.subjectId || o?.subject || ""), teacher: String(o?.teacher || "") }))
+    .filter((o) => o.subject && o.teacher);
+
+  if (picked.length < 2) {
+    return res.status(400).json({ message: "المادة الثانية محتاجة لغتين على الأقل، كل لغة بمعلمها." });
+  }
+  if (new Set(picked.map((o) => o.subject)).size !== picked.length) {
+    return res.status(400).json({ message: "كل لغة تتختار مرة واحدة بس." });
+  }
+  if (new Set(picked.map((o) => o.teacher)).size !== picked.length) {
+    return res.status(400).json({ message: "المعلم مينفعش يدرّس لغتين في نفس الحصة." });
+  }
+
+  const classroomData = await Classroom.findById(classroom);
+  if (!classroomData || classroomData.school.toString() !== school.toString()) {
+    return res.status(404).json({ message: "Classroom not found" });
+  }
+  if (!inStage(req, classroomData.grade)) {
+    return res.status(403).json({ message: STAGE_DENIED });
+  }
+
+  const [teachers, subjects] = await Promise.all([
+    User.find({ _id: { $in: picked.map((o) => o.teacher) }, role: "teacher", school }),
+    Subject.find({ _id: { $in: picked.map((o) => o.subject) }, school }),
+  ]);
+  for (const option of picked) {
+    const teacherDoc = teachers.find((t) => String(t._id) === option.teacher);
+    const subjectDoc = subjects.find((s) => String(s._id) === option.subject);
+    if (!teacherDoc || !subjectDoc) {
+      return res.status(404).json({ message: "معلم أو مادة من اللي اخترتهم مش موجودين." });
+    }
+    if (!subjectDoc.coversGrade(classroomData.grade)) {
+      return res.status(400).json({ message: `${subjectDoc.name} مش بتتدرّس للمرحلة الخاصة بالفصل ده.` });
+    }
+    if (!(teacherDoc.teachingGrades || []).some((g) => String(g) === String(classroomData.grade))) {
+      return res.status(400).json({
+        message: `أ. ${teacherDoc.firstName} ${teacherDoc.lastName} مش مسموحله يدرّس المرحلة دي — راجع بيانات المعلم.`,
+      });
+    }
+    if (!(teacherDoc.subjects || []).some((s) => String(s) === option.subject)) {
+      return res.status(400).json({
+        message: `${subjectDoc.name} مش من مواد أ. ${teacherDoc.firstName} ${teacherDoc.lastName}.`,
+      });
+    }
+    // eslint-disable-next-line no-await-in-loop -- two or three languages.
+    const mismatch = await assignmentMismatch(classroom, option.subject, option.teacher);
+    if (mismatch) return res.status(400).json({ message: mismatch });
+  }
+
+  const replaceIds = (Array.isArray(req.body.replaceIds) ? req.body.replaceIds : []).map(String);
+  const replaced = replaceIds.length
+    ? await Schedule.find({ _id: { $in: replaceIds }, classroom, school })
+    : [];
+  if (replaced.length !== replaceIds.length) {
+    return res.status(404).json({ message: "الحصة اللي بتتبدّل مش موجودة في جدول الفصل ده." });
+  }
+
+  const { bell, error: bellError } = await bellForClassroomDay(classroomData, day);
+  if (bellError) return res.status(400).json({ message: bellError });
+
+  const missing = periods.filter((p) => !slotFor(bell, p));
+  if (missing.length > 0) {
+    return res.status(400).json({
+      message: `${missing.map(periodLabel).join(" و")} مش موجودة يوم ${DAY_NAMES[day]} للمرحلة دي.`,
+    });
+  }
+  const slots = periods.map((period) => {
+    const slot = slotFor(bell, period);
+    return { period, startTime: slot.startTime, endTime: slot.endTime };
+  });
+
+  const existing = await Schedule.find({
+    _id: { $nin: replaceIds },
+    day,
+    $or: [{ classroom }, { teacher: { $in: picked.map((o) => o.teacher) } }],
+  }).populate("classroom", "name");
+  const problems = [];
+  for (const slot of slots) {
+    const conflict = existing.find((sch) => timesOverlap(slot, sch));
+    if (conflict) problems.push(describeConflict(slot.period, conflict, classroom));
+  }
+  if (problems.length > 0) {
+    return res.status(400).json({ message: problems.join(" ") });
+  }
+
+  const reusable = [...replaced];
+  const updates = [];
+  const inserts = [];
+  for (const slot of slots) {
+    for (const option of picked) {
+      const at = reusable.findIndex(
+        (row) => row.day === day && row.period === slot.period && String(row.subject) === option.subject,
+      );
+      const fields = {
+        teacher: option.teacher,
+        subject: option.subject,
+        classroom,
+        day,
+        period: slot.period,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        school,
+        secondLanguage: true,
+      };
+      if (at >= 0) {
+        updates.push({ updateOne: { filter: { _id: reusable[at]._id }, update: { $set: fields } } });
+        reusable.splice(at, 1);
+      } else {
+        inserts.push(fields);
+      }
+    }
+  }
+
+  if (updates.length) await Schedule.bulkWrite(updates);
+  if (inserts.length) await Schedule.insertMany(inserts);
+  if (reusable.length) await Schedule.deleteMany({ _id: { $in: reusable.map((row) => row._id) } });
+
+  return res.status(201).json({
+    message:
+      slots.length === 1
+        ? "تمت إضافة حصة المادة الثانية"
+        : `تمت إضافة ${slots.length} حصص مادة ثانية`,
+  });
+};
+
 exports.createSchedule = async (req, res) => {
   try {
     const { teacher, classroom, day, subjectId } = req.body;
@@ -162,6 +302,10 @@ exports.createSchedule = async (req, res) => {
       return res.status(400).json({
         message: "Please specify a school (?school=id) to create a schedule for.",
       });
+    }
+
+    if (req.body.secondLanguage === true) {
+      return createSecondLanguageSchedule(req, res, { classroom, day, periods, school });
     }
 
     if (!teacher) {
@@ -534,6 +678,23 @@ exports.getTeacherSchedule = async (req, res) => {
   }
 };
 
+// The parent's child in this class whose timetable is being read: the one
+// named by ?student= when it is theirs, else their only child in the class.
+// Null when there is no telling (two children in one class, none named).
+const parentsChildIn = async (req, classroomId) => {
+  const parent = await User.findById(req.user.id).select("linkedStudents");
+  const children = await Student.find({
+    classroom: classroomId,
+    $or: [{ parent: req.user.id }, { _id: { $in: parent?.linkedStudents || [] } }],
+  }).select("secondLanguage");
+  if (req.query.student) {
+    return children.find((c) => String(c._id) === String(req.query.student)) || null;
+  }
+  if (children.length === 1) return children[0];
+  const languages = new Set(children.map((c) => String(c.secondLanguage || "")));
+  return children.length && languages.size === 1 ? children[0] : null;
+};
+
 exports.getClassSchedule = async (req, res) => {
   try {
     const data = await Schedule.find({
@@ -543,6 +704,11 @@ exports.getClassSchedule = async (req, res) => {
       .populate("teacher", "firstName lastName")
       .populate("subject", "name")
       .sort({ startTime: 1 });
+    // A parent reads the class's «مادة ثانية» as their child takes it.
+    if (req.user.role === "parent" && data.some((lesson) => lesson.secondLanguage)) {
+      const child = await parentsChildIn(req, req.params.classroom);
+      if (child) return res.json(asTakenBy(data, child));
+    }
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });

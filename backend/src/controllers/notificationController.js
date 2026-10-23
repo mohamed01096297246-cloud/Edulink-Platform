@@ -3,6 +3,7 @@ const User = require("../models/User");
 const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
 const { teacherClassroomIds } = require("../utils/teacherClassrooms");
+const { taughtByWhere } = require("../utils/secondLanguage");
 const { sendPushNotifications } = require("../utils/pushNotifications");
 const {
   scopeFilter,
@@ -22,8 +23,9 @@ const getTeacherParents = async (teacherId) => {
   // Timetabled classes and assigned ones alike (utils/teacherClassrooms).
   const classroomIds = await teacherClassroomIds(teacherId);
 
+  // In a class taken only for a «مادة ثانية» language, that language's pupils.
   const students = await Student.find({
-    classroom: { $in: classroomIds },
+    ...(await taughtByWhere(teacherId, classroomIds)),
     active: true,
   })
     .select("firstName lastName parent")
@@ -47,9 +49,11 @@ const getTeacherParents = async (teacherId) => {
 
 // Everyone a message to these classes reaches: the parents of their
 // students, and the students' own accounts (preparatory and secondary).
-const recipientsOfClassrooms = async (classroomIds) => {
+// From a teacher, a class they take only for a «مادة ثانية» language
+// reaches that language's pupils.
+const recipientsOfClassrooms = async (classroomIds, teacherId = null) => {
   const students = await Student.find({
-    classroom: { $in: classroomIds },
+    ...(teacherId ? await taughtByWhere(teacherId, classroomIds) : { classroom: { $in: classroomIds } }),
     active: true,
   }).select("parent");
   const parentIds = [...new Set(students.filter((s) => s.parent).map((s) => String(s.parent)))];
@@ -151,7 +155,7 @@ exports.createNotification = async (req, res) => {
           return res.status(400).json({ message: "مفيش فصول مسندة ليك لسه." });
         }
         target = "all";
-        recipients = await recipientsOfClassrooms(classrooms);
+        recipients = await recipientsOfClassrooms(classrooms, req.user.id);
       }
     }
 

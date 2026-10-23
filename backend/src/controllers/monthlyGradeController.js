@@ -5,6 +5,7 @@ const Classroom = require("../models/Classroom");
 const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { teacherClassroomIds, teacherMarkClassroomIds } = require("../utils/teacherClassrooms");
+const { rosterWhere } = require("../utils/secondLanguage");
 
 // The school year's real teaching months, in chronological order — Term 1
 // runs September through January, Term 2 runs February through May. A
@@ -93,7 +94,10 @@ exports.getClassroomMonthlyGrades = async (req, res) => {
 
     const year = yearForMonth(Number(month), classroom.academicYear);
 
-    const students = await Student.find({ classroom: classroomId })
+    const students = await Student.find({
+      classroom: classroomId,
+      ...(await rosterWhere(classroomId, subjectId)),
+    })
       .select("firstName lastName gender")
       .sort({ firstName: 1 });
 

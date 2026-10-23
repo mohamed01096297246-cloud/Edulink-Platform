@@ -408,7 +408,7 @@ exports.getDailyFirstLessons = async (req, res) => {
     // no longer exists counts as having none — the same reading the register
     // itself makes (utils/dailyAttendance.classroomDay).
     const all = await Schedule.find({ classroom: { $in: classroomIds } })
-      .select("classroom day period startTime teacher")
+      .select("classroom day period startTime teacher secondLanguage")
       .populate("teacher", "_id")
       .sort({ period: 1, startTime: 1 })
       .lean();

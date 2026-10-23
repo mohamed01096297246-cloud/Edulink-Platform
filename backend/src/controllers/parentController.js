@@ -12,6 +12,7 @@ const { buildStudentReport } = require("../utils/reportBuilder");
 const { testMarksOf } = require("../utils/testMarks");
 const { SCHEMES, DEFAULT_SCHEME, schemeForClassroom } = require("../utils/gradebook");
 const { computeWeekScores, toWeekStart, weekEnd } = require("../utils/weekScores");
+const { subjectsTakenBy } = require("../utils/secondLanguage");
 
 exports.getParentDashboard = async (req, res) => {
   try {
@@ -175,7 +176,9 @@ exports.getWeekEvaluation = async (req, res) => {
     const max = (SCHEMES[scheme] || SCHEMES.classic).max.weeklyEvalScore;
 
     const scoreOf = new Map(evaluations.map((e) => [String(e.subject), e.score]));
-    const subjectIds = [...new Set([...scheduledSubjects.filter(Boolean).map(String), ...scoreOf.keys()])];
+    // The class's other second languages aren't this child's subjects.
+    const taken = await subjectsTakenBy(student, scheduledSubjects.filter(Boolean).map(String));
+    const subjectIds = [...new Set([...taken, ...scoreOf.keys()])];
     const subjectDocs = await Subject.find({ _id: { $in: subjectIds } }).select("name noMarks");
 
     const subjects = subjectDocs
@@ -241,7 +244,10 @@ exports.getHomeworkWeek = async (req, res) => {
     const max = (SCHEMES[scheme] || SCHEMES.classic).max.homeworkScore;
 
     const subjectIds = student.classroom
-      ? (await Schedule.distinct("subject", { classroom: student.classroom })).filter(Boolean)
+      ? await subjectsTakenBy(
+          student,
+          (await Schedule.distinct("subject", { classroom: student.classroom })).filter(Boolean).map(String),
+        )
       : [];
     const subjectDocs = (await Subject.find({ _id: { $in: subjectIds } }).select("name noMarks")).filter(
       (s) => !s.noMarks && !NOT_IN_WEEK_EVALUATION.has(normalizeSubjectName(s.name)),

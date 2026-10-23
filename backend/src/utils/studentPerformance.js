@@ -13,6 +13,7 @@ const Result = require("../models/Result");
 const Behavior = require("../models/Behavior");
 const { SCHEMES, schemeForClassroom } = require("./gradebook");
 const { computeWeekScores } = require("./weekScores");
+const { otherLanguagesFor } = require("./secondLanguage");
 const { monthsOfTerm, termSpan, termOfDate } = require("./schoolMonths");
 const { isDailyMode } = require("./dailyAttendance");
 const { averageToHalf } = require("./halfMarks");
@@ -190,10 +191,13 @@ const studentPerformance = async ({ student, term, today }) => {
   const daily = await isDailyMode(student.school);
   const chosenTerm = [1, 2].includes(Number(term)) ? Number(term) : termOfDate(today);
 
+  // The other languages of the class's «مادة ثانية» aren't the student's.
+  const otherLanguages = await otherLanguagesFor(student);
   const subjects = await Subject.find({
     school: student.school,
     noMarks: { $ne: true },
     ...Subject.coveringGrade(student.grade?._id || student.grade),
+    ...(otherLanguages.length ? { _id: { $nin: otherLanguages } } : {}),
   }).sort({ name: 1 });
 
   const perSubject = await Promise.all(

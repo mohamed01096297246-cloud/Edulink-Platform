@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Trash2, Printer } from "lucide-react";
+import { Plus, Trash2, Printer, Languages } from "lucide-react";
 
 // One class's week laid out the way it hangs on the classroom wall: days
 // down the side, periods across the top, the subject in each square with
@@ -19,6 +19,11 @@ const PERIOD_NAMES = ["", "الأولى", "الثانية", "الثالثة", "�
 
 const teacherName = (t) => (t ? `أ. ${t.firstName} ${t.lastName}` : "");
 
+// A «مادة ثانية» square holds one row per language (Schedule.secondLanguage):
+// the period named once, each language with its teacher under it.
+const SECOND_LANGUAGE_NAME = "مادة ثانية";
+const isSplit = (cell) => cell.length > 1 || Boolean(cell[0]?.secondLanguage);
+
 // The bell schedule covering this class's grade on a day.
 const bellFor = (bells, gradeId, day) =>
   bells.find(
@@ -28,7 +33,7 @@ const bellFor = (bells, gradeId, day) =>
 const escapeHtml = (s) =>
   String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
-const ClassTimetable = ({ classroom, lessons, bells, canEdit, onEdit, onAdd, onDelete }) => {
+const ClassTimetable = ({ classroom, lessons, bells, canEdit, onEdit, onAdd, onDelete, onSecondLanguage }) => {
   const gradeId = classroom?.grade?._id || classroom?.grade;
 
   const slots = new Map(); // `${day}:${period}` → bell slot
@@ -40,12 +45,18 @@ const ClassTimetable = ({ classroom, lessons, bells, canEdit, onEdit, onAdd, onD
       maxPeriod = Math.max(maxPeriod, p.period);
     }
   }
-  const byCell = new Map();
+  const byCell = new Map(); // `${day}:${period}` → the lessons in that square
   for (const l of lessons) {
     if (!l.period) continue;
     maxPeriod = Math.max(maxPeriod, l.period);
-    byCell.set(`${l.day}:${l.period}`, l);
+    const key = `${l.day}:${l.period}`;
+    if (!byCell.has(key)) byCell.set(key, []);
+    byCell.get(key).push(l);
   }
+  for (const cell of byCell.values()) {
+    cell.sort((a, b) => String(a.subject?.name || "").localeCompare(String(b.subject?.name || ""), "ar"));
+  }
+  const hasSplit = lessons.some((l) => l.secondLanguage);
   const periods = Array.from({ length: maxPeriod }, (_, i) => i + 1);
 
   // A school-week day shows even with no lessons yet; Saturday only when
@@ -62,7 +73,14 @@ const ClassTimetable = ({ classroom, lessons, bells, canEdit, onEdit, onAdd, onD
       .map(([day, label]) => {
         const cells = periods
           .map((p) => {
-            const lesson = byCell.get(`${day}:${p}`);
+            const cell = byCell.get(`${day}:${p}`);
+            if (cell && isSplit(cell)) {
+              const parts = cell
+                .map((l) => `<small>${escapeHtml(l.subject?.name)} — ${escapeHtml(teacherName(l.teacher))}</small>`)
+                .join("");
+              return `<td><b>${SECOND_LANGUAGE_NAME}</b>${parts}</td>`;
+            }
+            const lesson = cell?.[0];
             if (lesson) {
               return `<td><b>${escapeHtml(lesson.subject?.name)}</b><small>${escapeHtml(teacherName(lesson.teacher))}</small></td>`;
             }
@@ -103,12 +121,22 @@ const ClassTimetable = ({ classroom, lessons, bells, canEdit, onEdit, onAdd, onD
             <span className="text-sm font-bold text-slate-400"> — {classroom?.grade?.name}</span>
           </h2>
         </div>
-        <button
-          onClick={print}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-black hover:bg-indigo-600 transition-colors"
-        >
-          <Printer size={16} /> طباعة الجدول
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {hasSplit && canEdit && onSecondLanguage && (
+            <button
+              onClick={onSecondLanguage}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-sm font-black hover:bg-amber-100 transition-colors"
+            >
+              <Languages size={16} /> توزيع الطلاب على المادة الثانية
+            </button>
+          )}
+          <button
+            onClick={print}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-black hover:bg-indigo-600 transition-colors"
+          >
+            <Printer size={16} /> طباعة الجدول
+          </button>
+        </div>
       </div>
 
       {periods.length === 0 ? (
@@ -135,7 +163,8 @@ const ClassTimetable = ({ classroom, lessons, bells, canEdit, onEdit, onAdd, onD
                 <tr key={day}>
                   <th className="border-2 border-slate-700 bg-slate-100 p-2 text-sm font-black text-slate-800">{label}</th>
                   {periods.map((p) => {
-                    const lesson = byCell.get(`${day}:${p}`);
+                    const cell = byCell.get(`${day}:${p}`);
+                    const lesson = cell?.[0];
                     const slot = slots.get(`${day}:${p}`);
                     if (!lesson && !slot) {
                       return (
@@ -170,10 +199,23 @@ const ClassTimetable = ({ classroom, lessons, bells, canEdit, onEdit, onAdd, onD
                           onClick={canEdit ? () => onEdit(lesson) : undefined}
                           title={`${lesson.startTime} - ${lesson.endTime}`}
                         >
-                          <p className="font-black text-slate-800 text-[15px] leading-tight">{lesson.subject?.name}</p>
-                          <p className={`text-[10px] font-bold mt-1 leading-tight ${lesson.teacher ? "text-slate-500" : "text-slate-300"}`}>
-                            {lesson.teacher ? teacherName(lesson.teacher) : "بدون معلم"}
-                          </p>
+                          {isSplit(cell) ? (
+                            <>
+                              <p className="font-black text-amber-700 text-[14px] leading-tight">{SECOND_LANGUAGE_NAME}</p>
+                              {cell.map((l) => (
+                                <p key={l._id} className="text-[10px] font-bold mt-1 leading-tight text-slate-500">
+                                  <span className="text-slate-700">{l.subject?.name}</span> · {teacherName(l.teacher)}
+                                </p>
+                              ))}
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-black text-slate-800 text-[15px] leading-tight">{lesson.subject?.name}</p>
+                              <p className={`text-[10px] font-bold mt-1 leading-tight ${lesson.teacher ? "text-slate-500" : "text-slate-300"}`}>
+                                {lesson.teacher ? teacherName(lesson.teacher) : "بدون معلم"}
+                              </p>
+                            </>
+                          )}
                           {canEdit && (
                             <button
                               onClick={(e) => {

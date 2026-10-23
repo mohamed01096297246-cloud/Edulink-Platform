@@ -7,6 +7,7 @@ const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { sameSchool } = require("../utils/tenant");
 const { notifyParentsOfStudents } = require("../utils/notify");
+const { rosterWhere, otherLanguagesFor } = require("../utils/secondLanguage");
 
 exports.createBoardNote = async (req, res) => {
   try {
@@ -75,9 +76,11 @@ exports.createBoardNote = async (req, res) => {
     }
 
     const subjectDoc = await Subject.findById(subjectId).select("name");
+    // In a «مادة ثانية» language, only the pupils taking it.
     const students = await Student.find({
       classroom: classroomId,
       active: true,
+      ...(await rosterWhere(classroomId, subjectId)),
     }).populate("parent", "pushToken");
 
     // Best-effort — never blocks the note save if it fails partway through.
@@ -153,8 +156,13 @@ exports.getStudentBoardNotes = async (req, res) => {
     // must never reach BoardNote.find with an undefined `classroom`, which
     // Mongoose would silently drop from the filter and return every
     // classroom's notes instead of none.
+    // The other languages of the class's «مادة ثانية» aren't this child's.
+    const otherLanguages = await otherLanguagesFor(student);
     const notes = student.classroom
-      ? await BoardNote.find({ classroom: student.classroom })
+      ? await BoardNote.find({
+          classroom: student.classroom,
+          ...(otherLanguages.length ? { subject: { $nin: otherLanguages } } : {}),
+        })
           .populate("subject", "name")
           .populate("teacher", "firstName lastName")
           .sort({ createdAt: -1 })

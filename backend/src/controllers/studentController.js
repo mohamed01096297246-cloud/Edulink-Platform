@@ -471,6 +471,9 @@ exports.updateStudent = async (req, res) => {
     // silently moved to a different tenant via this endpoint.
     delete req.body.school;
     delete req.body.admissionCandidate;
+    // The «مادة ثانية» language is set per class, against the languages the
+    // class has (controllers/secondLanguageController.js), never here.
+    delete req.body.secondLanguage;
     if (req.body.phoneNumber !== undefined) {
       req.body.phoneNumber = toLatinDigits(req.body.phoneNumber).trim();
     }

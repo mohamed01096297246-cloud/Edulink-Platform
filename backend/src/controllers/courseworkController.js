@@ -23,6 +23,7 @@ const {
 const { isDailyMode } = require("../utils/dailyAttendance");
 const { worthOf, earnedOn } = require("../utils/homeworkMarks");
 const { averageToHalf } = require("../utils/halfMarks");
+const { rosterWhere } = require("../utils/secondLanguage");
 
 const round1 = (n) =>
   n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
@@ -60,6 +61,7 @@ exports.getClassroomCoursework = async (req, res) => {
     const students = await Student.find({
       classroom: classroomId,
       active: true,
+      ...(await rosterWhere(classroomId, subjectId)),
     })
       .select("firstName lastName")
       .sort({ firstName: 1 });
@@ -261,7 +263,11 @@ exports.getClassroomWeekCoursework = async (req, res) => {
     });
     if (!subjectId) return undefined;
 
-    const students = await Student.find({ classroom: classroomId, active: true })
+    const students = await Student.find({
+      classroom: classroomId,
+      active: true,
+      ...(await rosterWhere(classroomId, subjectId)),
+    })
       .select("firstName lastName gender")
       .sort({ firstName: 1 });
 
@@ -328,7 +334,13 @@ const conductShownToTheRest = async ({ classroom, subjectId, weekStart, list, sc
   if (!from || isConductEntered(from, weekStart)) return [];
 
   const sent = new Set(list.map((entry) => String(entry.studentId)));
-  const others = (await Student.find({ classroom: classroom._id, active: true }).select("_id"))
+  const others = (
+    await Student.find({
+      classroom: classroom._id,
+      active: true,
+      ...(await rosterWhere(classroom._id, subjectId)),
+    }).select("_id")
+  )
     .map((s) => s._id)
     .filter((id) => !sent.has(String(id)));
   if (others.length === 0) return [];
