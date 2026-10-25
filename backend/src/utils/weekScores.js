@@ -8,6 +8,8 @@ const { SCHEMES, DEFAULT_SCHEME, conductEnteredFrom, isConductEntered } = requir
 const Classroom = require("../models/Classroom");
 const { isDailyMode } = require("./dailyAttendance");
 const { worthOf, earnedOn } = require("./homeworkMarks");
+const { hasWeeklyEval } = require("./schoolMonths");
+const { averageToHalf } = require("./halfMarks");
 
 // The four "أعمال السنة" columns for a single [weekStart, weekStart+6 days]
 // window. Lives here rather than inside a controller because two different
@@ -68,6 +70,10 @@ const computeWeekScores = async (
   // A school that moved مواظبة وسلوك to the teacher's hand: from that week
   // on, only what the teacher entered counts — attendance no longer does.
   const conductEntered = isConductEntered(await conductEnteredFrom(classroomDoc?.school), weekStart);
+  // A week with no تقييم أسبوعي in any school (utils/schoolMonths.js): the
+  // column is empty whatever was filed under it, and the week's total is
+  // the rest of its columns.
+  const evalApplies = hasWeeklyEval(weekStart);
 
   const [
     attendanceRecords,
@@ -95,11 +101,13 @@ const computeWeekScores = async (
       subject: subjectId,
       createdAt: { $gte: weekStart, $lte: rangeEnd },
     }).select("_id totalMarks"),
-    WeeklyEvaluation.find({
-      classroom: classroomId,
-      subject: subjectId,
-      weekStart,
-    }).select("student score"),
+    evalApplies
+      ? WeeklyEvaluation.find({
+          classroom: classroomId,
+          subject: subjectId,
+          weekStart,
+        }).select("student score")
+      : [],
     rules.classwork
       ? ClassworkNotebook.find({
           classroom: classroomId,
@@ -234,10 +242,33 @@ const computeWeekScores = async (
         attendanceScore: computedAttendance,
         homeworkScore: computedHomework,
       },
+      // False in a week with no تقييم أسبوعي (utils/schoolMonths.js).
+      weeklyEvalApplies: evalApplies,
     };
   });
 
   return scores;
+};
+
+// One student's month — the average of the totals of their recorded weeks,
+// as a whole mark or a half (utils/halfMarks.js). A week with no تقييم
+// أسبوعي would otherwise pull the month down by the whole column, so there
+// it stands at the average of the month's other evaluations: the month's
+// weekly evaluation is the average of the weeks that had one, and its other
+// columns the average of every week, which is what the paper adds up to.
+// `weeks` are { weekStart, total, weeklyEvalScore } — the student's entries
+// of the weeks recorded in the month. With every week evaluated it is
+// simply the average of the totals.
+const monthAverage = (weeks) => {
+  const recorded = weeks.filter((w) => w && w.total !== null && w.total !== undefined);
+  const evaluated = recorded
+    .filter((w) => hasWeeklyEval(w.weekStart))
+    .map((w) => w.weeklyEvalScore)
+    .filter((v) => v !== null && v !== undefined);
+  const evalMean = evaluated.length ? evaluated.reduce((a, b) => a + b, 0) / evaluated.length : null;
+  return averageToHalf(
+    recorded.map((w) => (!hasWeeklyEval(w.weekStart) && evalMean !== null ? w.total + evalMean : w.total)),
+  );
 };
 
 // A school month's four weeks (utils/schoolMonths.js), each scored, or with
@@ -252,7 +283,11 @@ const computeMonthScores = async (classroomId, subjectId, studentIds, month, sch
     CourseworkOverride.find(where).distinct("weekStart"),
     rules.classwork ? ClassworkNotebook.find(where).distinct("weekStart") : [],
   ]);
-  const recorded = new Set([...evaluated, ...adjusted, ...notebook].map((d) => new Date(d).getTime()));
+  // An evaluation filed under a week that has none doesn't make the week
+  // recorded on its own (utils/schoolMonths.js).
+  const recorded = new Set(
+    [...evaluated.filter(hasWeeklyEval), ...adjusted, ...notebook].map((d) => new Date(d).getTime()),
+  );
 
   const weeklyScores = [];
   for (const weekStart of month.weekStarts) {
@@ -268,6 +303,7 @@ const computeMonthScores = async (classroomId, subjectId, studentIds, month, sch
 module.exports = {
   computeWeekScores,
   computeMonthScores,
+  monthAverage,
   normalizeDate,
   toWeekStart,
   weekEnd,

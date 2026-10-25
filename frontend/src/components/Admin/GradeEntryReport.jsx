@@ -273,9 +273,12 @@ const GradeEntryReport = () => {
                               return (
                                 <td key={col.key} className="p-3">
                                   {!cell ? (
-                                    <span className="text-slate-300 text-xs font-bold">—</span>
+                                    <span className="text-slate-600 text-sm font-black">—</span>
                                   ) : !cell.applicable ? (
-                                    <span className="text-slate-300 text-xs font-bold whitespace-nowrap">مفيش واجب</span>
+                                    <span className="text-slate-700 text-xs font-black whitespace-nowrap">
+                                      {/* A week with no تقييم أسبوعي in any school (backend utils/schoolMonths.js). */}
+                                      {col.key === "weekly" ? "مالوش تقييم الأسبوع ده" : "مفيش واجب"}
+                                    </span>
                                   ) : (
                                     <Coverage
                                       cell={cell}

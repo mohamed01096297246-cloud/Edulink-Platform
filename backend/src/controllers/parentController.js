@@ -13,6 +13,7 @@ const { testMarksOf } = require("../utils/testMarks");
 const { SCHEMES, DEFAULT_SCHEME, schemeForClassroom } = require("../utils/gradebook");
 const { computeWeekScores, toWeekStart, weekEnd } = require("../utils/weekScores");
 const { subjectsTakenBy } = require("../utils/secondLanguage");
+const { hasWeeklyEval, weeksWithoutWeeklyEval } = require("../utils/schoolMonths");
 
 exports.getParentDashboard = async (req, res) => {
   try {
@@ -158,18 +159,25 @@ exports.getWeekEvaluation = async (req, res) => {
     }
 
     let weekStart = req.query.weekStart ? toWeekStart(req.query.weekStart) : null;
+    // Opens on the latest week that had a تقييم أسبوعي (utils/schoolMonths.js);
+    // a week without one shows none, whatever was filed under it.
     if (!weekStart) {
-      const latest = await WeeklyEvaluation.findOne({ student: student._id })
+      const latest = await WeeklyEvaluation.findOne({
+        student: student._id,
+        weekStart: { $nin: weeksWithoutWeeklyEval() },
+      })
         .sort({ weekStart: -1 })
         .select("weekStart");
       weekStart = toWeekStart(latest ? latest.weekStart : new Date());
     }
 
     const [evaluations, scheduledSubjects, scheme] = await Promise.all([
-      WeeklyEvaluation.find({
-        student: student._id,
-        weekStart: { $gte: weekStart, $lte: weekEnd(weekStart) },
-      }).select("subject score"),
+      hasWeeklyEval(weekStart)
+        ? WeeklyEvaluation.find({
+            student: student._id,
+            weekStart: { $gte: weekStart, $lte: weekEnd(weekStart) },
+          }).select("subject score")
+        : [],
       student.classroom ? Schedule.distinct("subject", { classroom: student.classroom }) : [],
       student.classroom ? schemeForClassroom(student.classroom) : "classic",
     ]);
@@ -202,7 +210,13 @@ exports.getWeekEvaluation = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: { weekStart: weekStart.toISOString().slice(0, 10), max, overall, subjects },
+      data: {
+        weekStart: weekStart.toISOString().slice(0, 10),
+        max,
+        overall,
+        subjects,
+        noWeeklyEval: !hasWeeklyEval(weekStart),
+      },
     });
   } catch (err) {
     res.status(500).json({ message: "خطأ داخلي في السيرفر: " + err.message });

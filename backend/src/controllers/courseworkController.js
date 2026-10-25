@@ -24,6 +24,7 @@ const { isDailyMode } = require("../utils/dailyAttendance");
 const { worthOf, earnedOn } = require("../utils/homeworkMarks");
 const { averageToHalf } = require("../utils/halfMarks");
 const { rosterWhere } = require("../utils/secondLanguage");
+const { weeksWithoutWeeklyEval } = require("../utils/schoolMonths");
 
 const round1 = (n) =>
   n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
@@ -138,10 +139,12 @@ exports.getClassroomCoursework = async (req, res) => {
     });
 
     // ---- التقييم الأسبوعي: متوسط أسابيع الترم اللي اتسجلت (من 10) ----
+    // A week with no تقييم أسبوعي (utils/schoolMonths.js) is left out,
+    // whatever was filed under it.
     const weeklyEvaluations = await WeeklyEvaluation.find({
       classroom: classroomId,
       subject: subjectId,
-      weekStart: { $gte: dateStart, $lte: dateEnd },
+      weekStart: { $gte: dateStart, $lte: dateEnd, $nin: weeksWithoutWeeklyEval() },
     }).select("student score");
 
     const weeklyByStudent = new Map();

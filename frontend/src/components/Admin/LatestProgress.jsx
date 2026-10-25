@@ -39,6 +39,8 @@ const n = (value) => Number(value || 0).toLocaleString("ar-EG");
 // attendance register).
 const stateOf = (col, students) => {
   if (col.key === "homework" && !col.applicable) return { kind: "na", note: "مفيش واجب" };
+  // A week with no تقييم أسبوعي in any school (backend utils/schoolMonths.js).
+  if (col.key === "weekly" && !col.applicable) return { kind: "na", note: "مالوش تقييم الأسبوع ده" };
   if (col.key === "attendance" && !col.entered) return { kind: "na", note: "من الحضور" };
   if (col.full) return { kind: "done" };
   if (col.students > 0) return { kind: "partial", note: `${n(col.students)}/${n(students)}` };
@@ -49,7 +51,7 @@ const CHIP = {
   done: { tone: "bg-emerald-50 text-emerald-700 border-emerald-100", Icon: CheckCircle2 },
   partial: { tone: "bg-amber-50 text-amber-700 border-amber-100", Icon: CircleDashed },
   todo: { tone: "bg-rose-50 text-rose-700 border-rose-100", Icon: Clock },
-  na: { tone: "bg-slate-50 text-slate-400 border-slate-100", Icon: null },
+  na: { tone: "bg-slate-100 text-slate-700 border-slate-300", Icon: null },
 };
 
 const LatestProgress = () => {

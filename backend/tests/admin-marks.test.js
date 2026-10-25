@@ -22,7 +22,8 @@ const future = async ({ on = true } = {}) => {
   return { s, g, c, math, teacher, admin, a: a.student, b: b.student };
 };
 
-const WEEK = "2026-10-18";
+// Week 7 — week 6 has no تقييم أسبوعي (tests/no-weekly-eval-week.test.js).
+const WEEK = "2026-10-25";
 
 test("a school without it can't reach it; with it, the admin sees its classes, subjects and weeks", async () => {
   const off = await future({ on: false });

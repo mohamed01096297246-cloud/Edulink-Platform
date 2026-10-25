@@ -11,7 +11,7 @@ const TermTest = require("../models/TermTest");
 const { scopeFilter, sameSchool } = require("../utils/tenant");
 const { SCHEMES, schemeForClassroom } = require("../utils/gradebook");
 const { computeWeekScores, toWeekStart, maxScoresFor } = require("../utils/weekScores");
-const { markedWeeks, termOfDate } = require("../utils/schoolMonths");
+const { markedWeeks, termOfDate, hasWeeklyEval } = require("../utils/schoolMonths");
 const { rosterWhere } = require("../utils/secondLanguage");
 
 // رصد الدرجات من الإدارة: a school's admins type in the same marks its
@@ -37,6 +37,17 @@ const WEEK_COLUMNS = [
   { key: "classworkScore", label: "كراسة الحصة", steps: 4 },
   { key: "attendanceScore", label: "مواظبة وسلوك", steps: 4 },
 ];
+
+// The week sheet's columns for a class's scheme — without تقييم أسبوعي in
+// a week that has none in any school (utils/schoolMonths.js).
+const weekColumnsFor = (scheme, weekStart) => {
+  const max = maxScoresFor(scheme);
+  return WEEK_COLUMNS.filter(
+    (c) => max[c.key] !== undefined && (c.key !== "weeklyEvalScore" || hasWeeklyEval(weekStart)),
+  ).map((c) => ({ ...c, max: max[c.key] }));
+};
+
+const NO_WEEKLY_EVAL = "الأسبوع ده مالوش تقييم أسبوعي في كل المدارس، فمش محتاج يترصد.";
 
 // Who has a subject in a class: the class assignment first, then the
 // timetable — the same order every teacher screen settles it in.
@@ -197,18 +208,14 @@ exports.getWeek = async (req, res) => {
       weekStart,
       sheet.scheme,
     );
-    const max = maxScoresFor(sheet.scheme);
-    const columns = WEEK_COLUMNS.filter((c) => max[c.key] !== undefined).map((c) => ({
-      key: c.key,
-      label: c.label,
-      max: max[c.key],
-    }));
+    const columns = weekColumnsFor(sheet.scheme, weekStart).map(({ key, label, max }) => ({ key, label, max }));
 
     return res.status(200).json({
       success: true,
       data: {
         columns,
-        total: SCHEMES[sheet.scheme]?.weekTotal || null,
+        total: columns.reduce((sum, c) => sum + c.max, 0) || null,
+        note: hasWeeklyEval(weekStart) ? null : NO_WEEKLY_EVAL,
         students: students.map((s) => {
           const score = scores[String(s._id)] || {};
           return {
@@ -237,7 +244,7 @@ exports.saveWeek = async (req, res) => {
     const sheet = await loadSheet(req, res, req.body);
     if (!sheet) return undefined;
     const max = maxScoresFor(sheet.scheme);
-    const columns = WEEK_COLUMNS.filter((c) => max[c.key] !== undefined);
+    const columns = weekColumnsFor(sheet.scheme, weekStart);
     const onSheet = new Set((await rosterOf(sheet.classroom, sheet.subject._id)).map((s) => String(s._id)));
 
     const overrides = [];
@@ -254,7 +261,10 @@ exports.saveWeek = async (req, res) => {
       for (const key of Object.keys(marks)) {
         const column = columns.find((c) => c.key === key);
         if (!column) {
-          return res.status(400).json({ success: false, message: "العمود ده مش في كشف الفصل ده." });
+          return res.status(400).json({
+            success: false,
+            message: key === "weeklyEvalScore" ? NO_WEEKLY_EVAL : "العمود ده مش في كشف الفصل ده.",
+          });
         }
         const mark = markOf(marks[key], max[key], column.steps);
         if (mark.error) {

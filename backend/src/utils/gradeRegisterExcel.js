@@ -1,5 +1,6 @@
 const ExcelJS = require("exceljs");
 const { averageToHalf } = require("./halfMarks");
+const { monthAverage } = require("./weekScores");
 
 // Mirrors the paper "سجل رصد درجات فصل" register the school already uses on
 // paper — weeks (or a month's worth of weeks) as column groups, students as
@@ -455,13 +456,14 @@ exports.buildMonth40Workbook = ({
 
   writeStudentRows(sheet, firstDataRow, students, (key) => {
     const cells = [];
-    const totals = [];
-    weeklyScores.forEach(({ scores }) => {
+    const weeks = [];
+    weeklyScores.forEach(({ weekStart, scores }) => {
       const entry = (scores && scores[key]) || {};
       WEEK40_PARTS.forEach((p) => cells.push(entry[p.key]));
-      if (scores) totals.push(entry.total);
+      if (scores) weeks.push({ weekStart, ...entry });
     });
-    cells.push(average(totals));
+    // A week with no تقييم أسبوعي doesn't pull the month down for it.
+    cells.push(monthAverage(weeks));
     return cells;
   });
 

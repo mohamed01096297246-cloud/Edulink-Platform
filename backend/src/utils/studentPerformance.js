@@ -12,9 +12,9 @@ const MonthlyGrade = require("../models/MonthlyGrade");
 const Result = require("../models/Result");
 const Behavior = require("../models/Behavior");
 const { SCHEMES, schemeForClassroom } = require("./gradebook");
-const { computeWeekScores } = require("./weekScores");
+const { computeWeekScores, monthAverage } = require("./weekScores");
 const { otherLanguagesFor } = require("./secondLanguage");
-const { monthsOfTerm, termSpan, termOfDate } = require("./schoolMonths");
+const { monthsOfTerm, termSpan, termOfDate, hasWeeklyEval } = require("./schoolMonths");
 const { isDailyMode } = require("./dailyAttendance");
 const { averageToHalf } = require("./halfMarks");
 
@@ -55,7 +55,10 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
     rules.classwork ? ClassworkNotebook.find({ ...where, weekStart: inTerm }).distinct("weekStart") : [],
   ]);
   const byTime = new Map();
-  [...evaluated, ...adjusted, ...notebook].forEach((d) => byTime.set(new Date(d).getTime(), new Date(d)));
+  // An evaluation filed under a week with none doesn't list the week alone.
+  [...evaluated.filter(hasWeeklyEval), ...adjusted, ...notebook].forEach((d) =>
+    byTime.set(new Date(d).getTime(), new Date(d)),
+  );
   const weekStarts = [...byTime.values()].sort((a, b) => a - b);
 
   const key = String(student._id);
@@ -85,9 +88,8 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
       // before school months names it by.
       month: m.from.getUTCMonth() + 1,
       year: m.from.getUTCFullYear(),
-      average: average(
-        weeks.filter((w) => inMonth.has(new Date(w.weekStart).getTime())).map((w) => w.total),
-      ),
+      // A week with no تقييم أسبوعي doesn't pull the month down for it.
+      average: monthAverage(weeks.filter((w) => inMonth.has(new Date(w.weekStart).getTime()))),
     };
   });
   const weeksAverage = average(monthAverages.map((m) => m.average));

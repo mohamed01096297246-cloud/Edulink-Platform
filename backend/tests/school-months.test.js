@@ -85,7 +85,8 @@ test("the month sheet prints the month's four weeks and averages the recorded on
   await evaluate("2026-09-20", 8);
   await evaluate("2026-09-27", 6);
   await evaluate("2026-10-11", 10);
-  await evaluate("2026-10-18", 2);
+  // Week 7 (week 6 has no تقييم أسبوعي) is in the next month.
+  await evaluate("2026-10-25", 2);
 
   const sheet = await sheetOf(t, `/api/grade-register/month/${c._id}?schoolMonth=1`);
   const all = texts(sheet);
@@ -152,7 +153,7 @@ test("weekly40: the month sheet, the term sheet and أدائي add up the same m
   await evaluate("2026-09-20", 20);
   await evaluate("2026-10-04", 10);
   await evaluate("2026-10-11", 12);
-  await evaluate("2026-10-18", 16);
+  await evaluate("2026-10-25", 16); // week 7: week 6 has no تقييم أسبوعي
 
   const month = await sheetOf(t, `/api/grade-register/month/${c._id}?schoolMonth=1`);
   expect(texts(month)).toContain("المادة: رياضيات — الشهر الأول (من 2026/09/20 إلى 2026/10/15)");

@@ -6,6 +6,9 @@ const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { toWeekStart } = require("../utils/weekScores");
 const { schemeForClassroom, SCHEMES } = require("../utils/gradebook");
 const { rosterWhere } = require("../utils/secondLanguage");
+const { hasWeeklyEval } = require("../utils/schoolMonths");
+
+const NO_WEEKLY_EVAL = "الأسبوع ده مالوش تقييم أسبوعي في كل المدارس، فمش محتاج يترصد.";
 
 exports.getClassroomWeeklyEvaluation = async (req, res) => {
   try {
@@ -36,11 +39,16 @@ exports.getClassroomWeeklyEvaluation = async (req, res) => {
       .select("firstName lastName gender")
       .sort({ firstName: 1 });
 
-    const evaluations = await WeeklyEvaluation.find({
-      classroom: classroomId,
-      subject: subjectId,
-      weekStart,
-    });
+    // A week with no تقييم أسبوعي (utils/schoolMonths.js) shows none, and
+    // says so, whatever was filed under it.
+    const applies = hasWeeklyEval(weekStart);
+    const evaluations = applies
+      ? await WeeklyEvaluation.find({
+          classroom: classroomId,
+          subject: subjectId,
+          weekStart,
+        })
+      : [];
 
     const scores = {};
     evaluations.forEach((entry) => {
@@ -59,6 +67,8 @@ exports.getClassroomWeeklyEvaluation = async (req, res) => {
         weekStart,
         scheme,
         maxScore: SCHEMES[scheme].max.weeklyEvalScore,
+        noWeeklyEval: !applies,
+        ...(applies ? {} : { message: NO_WEEKLY_EVAL }),
       },
     });
   } catch (err) {
@@ -82,6 +92,10 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
         success: false,
         message: "اختر تاريخ بداية الأسبوع أولًا.",
       });
+    }
+
+    if (!hasWeeklyEval(weekStart)) {
+      return res.status(400).json({ success: false, message: NO_WEEKLY_EVAL });
     }
 
     if (!gradesList || gradesList.length === 0) {

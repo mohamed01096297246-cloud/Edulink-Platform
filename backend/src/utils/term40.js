@@ -1,6 +1,6 @@
 const TermTest = require("../models/TermTest");
 const Attendance = require("../models/Attendance");
-const { computeMonthScores } = require("./weekScores");
+const { computeMonthScores, monthAverage } = require("./weekScores");
 const { monthsOfTerm, termSpan } = require("./schoolMonths");
 const { isDailyMode } = require("./dailyAttendance");
 const { averageToHalf } = require("./halfMarks");
@@ -41,8 +41,9 @@ exports.computeTerm40 = async ({ classroom, subjectId, students, term }) => {
     studentIds.forEach((id) => {
       const key = id.toString();
       if (!monthAverages[key]) monthAverages[key] = {};
+      // A week with no تقييم أسبوعي doesn't pull the month down for it.
       monthAverages[key][month.month] = weeklyScores.length
-        ? average(weeklyScores.map(({ scores }) => scores[key]?.total))
+        ? monthAverage(weeklyScores.map(({ weekStart, scores }) => ({ weekStart, ...scores[key] })))
         : null;
     });
   }

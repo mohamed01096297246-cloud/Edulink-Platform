@@ -13,6 +13,13 @@ const FIRST_WEEK_START = "2026-09-13";
 const FIRST_MARKED_WEEK = 2;
 const TERM_2_FIRST_WEEK = "2027-02-07";
 
+// Weeks with no تقييم أسبوعي in any school (Mohamed, 2026-10-25: الأسبوع
+// السادس) — by their Sunday. Such a week isn't asked for one or counted
+// short for lacking it: the column is closed, a mark filed under it anyway
+// is left out, and a month averages its weekly evaluation over its other
+// weeks (utils/weekScores.monthAverage). Revisit each September.
+const WEEKS_WITHOUT_WEEKLY_EVAL = ["2026-10-18"];
+
 const WEEKS_PER_MONTH = 4;
 const MONTHS_PER_TERM = 4;
 const MONTH_COUNT = MONTHS_PER_TERM * 2;
@@ -119,6 +126,17 @@ const markedWeeks = (today = new Date()) => {
   return weeks.reverse();
 };
 
+const isoDay = (date) => {
+  const d = new Date(date);
+  return Number.isNaN(d.getTime()) ? "" : weekStartOf(d).toISOString().slice(0, 10);
+};
+
+// Whether the week a date falls in has a تقييم أسبوعي.
+const hasWeeklyEval = (date) => !WEEKS_WITHOUT_WEEKLY_EVAL.includes(isoDay(date));
+
+// The Sundays of those weeks, as dates — to leave them out of a query.
+const weeksWithoutWeeklyEval = () => WEEKS_WITHOUT_WEEKLY_EVAL.map(utc);
+
 // For an app that still offers calendar months: the school month that
 // starts in that calendar month, or null.
 const schoolMonthStartingIn = (month, year) => {
@@ -137,4 +155,6 @@ module.exports = {
   monthsBegun,
   schoolMonthStartingIn,
   markedWeeks,
+  hasWeeklyEval,
+  weeksWithoutWeeklyEval,
 };

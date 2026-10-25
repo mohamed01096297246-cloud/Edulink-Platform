@@ -375,6 +375,11 @@ const AdminMarks = () => {
                   </h2>
                   <span className="text-base font-black text-slate-800">{sheet.students.length} طالب</span>
                 </div>
+                {sheet.note && (
+                  <div className="px-6 py-3 bg-sky-50 border-b-2 border-sky-300 text-sky-950 font-black text-base">
+                    {sheet.note}
+                  </div>
+                )}
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse min-w-[680px]">
                     <thead>

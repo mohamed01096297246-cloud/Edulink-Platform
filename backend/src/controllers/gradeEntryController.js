@@ -20,7 +20,7 @@ const { scopeFilter } = require("../utils/tenant");
 const { SCHEMES, schemeFor } = require("../utils/gradebook");
 const { isDailyMode } = require("../utils/dailyAttendance");
 const { reportPeriod, weekKey } = require("../utils/reportPeriod");
-const { termOfDate } = require("../utils/schoolMonths");
+const { termOfDate, hasWeeklyEval } = require("../utils/schoolMonths");
 const { electivesByClass } = require("../utils/secondLanguage");
 
 // "رصد الدرجات" — for a week or a month, which teachers have recorded marks
@@ -358,15 +358,21 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null, kind = "w
     let columns;
     let lasts;
     if (weekly) {
-      columns = columnsFor(scheme, classroom).map((col) => ({
-        key: col.key,
-        label: col.label,
-        max: rules.max[col.maxField],
-        entered: col.entered,
-        // Kept for the screens that read it; every column applies every week.
-        applicable: true,
-        ...measure(src[col.key], size, range.weeks, range.period),
-      }));
+      columns = columnsFor(scheme, classroom).map((col) => {
+        // A week with no تقييم أسبوعي in any school owes none
+        // (utils/schoolMonths.js): a month counts its other weeks, and a
+        // period with nothing but such weeks doesn't ask for the column.
+        const weeks = col.key === "weekly" ? range.weeks.filter(hasWeeklyEval) : range.weeks;
+        const applicable = weeks.length > 0 || range.weeks.length === 0;
+        return {
+          key: col.key,
+          label: col.label,
+          max: rules.max[col.maxField],
+          entered: col.entered && applicable,
+          applicable,
+          ...measure(src[col.key], size, weeks, range.period),
+        };
+      });
       lasts = ["homework", "weekly", "classwork", "conduct"].map((k) => src[k]?.last).filter(Boolean);
     } else {
       const entry = tests.columnsFor(key, scheme, size);
