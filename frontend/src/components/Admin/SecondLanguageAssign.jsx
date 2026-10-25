@@ -78,7 +78,7 @@ const SecondLanguageAssign = ({ classroom, canEdit, onClose, onSaved }) => {
             <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
               <Languages className="text-amber-600" size={22} /> توزيع الطلاب على المادة الثانية
             </h2>
-            <p className="text-slate-400 text-xs font-bold mt-1">
+            <p className="text-slate-700 text-sm font-bold mt-1">
               فصل {classroom.name} — {classroom.grade?.name}. كل طالب يحضر حصة لغته مع مدرسها، ويظهرله في جدوله.
             </p>
           </div>
@@ -92,7 +92,7 @@ const SecondLanguageAssign = ({ classroom, canEdit, onClose, onSaved }) => {
             <Loader2 className="animate-spin text-indigo-500" size={40} />
           </div>
         ) : languages.length === 0 ? (
-          <p className="p-10 text-center font-bold text-slate-400">
+          <p className="p-10 text-center font-black text-slate-800">
             الفصل ده مفيش في جدوله حصة «مادة ثانية» لسه. ضيفها من الجدول الأول.
           </p>
         ) : (
@@ -100,23 +100,23 @@ const SecondLanguageAssign = ({ classroom, canEdit, onClose, onSaved }) => {
             <div className="px-6 pt-4 space-y-3">
               <div className="flex flex-wrap gap-2">
                 {languages.map((l) => (
-                  <span key={l._id} className="text-xs font-black bg-amber-50 text-amber-800 border border-amber-100 px-3 py-1.5 rounded-xl">
+                  <span key={l._id} className="text-xs font-black bg-amber-50 text-amber-900 border-2 border-amber-300 px-3 py-1.5 rounded-xl">
                     {l.name}
                     {l.teacher ? ` · أ. ${l.teacher}` : ""}: {countOf(String(l._id))} طالب
                   </span>
                 ))}
-                <span className="text-xs font-black bg-slate-50 text-slate-500 border border-slate-100 px-3 py-1.5 rounded-xl">
+                <span className="text-xs font-black bg-white text-slate-800 border-2 border-slate-300 px-3 py-1.5 rounded-xl">
                   لسه ماتحددش: {countOf(NONE)}
                 </span>
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
                 <div className="relative flex-1">
-                  <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600" />
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="دوّر باسم الطالب"
-                    className="w-full pr-9 pl-3 py-2.5 bg-slate-50 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none font-bold text-sm"
+                    className="w-full pr-9 pl-3 py-2.5 bg-white rounded-xl border-2 border-slate-400 focus:border-indigo-700 outline-none font-bold text-sm text-slate-900"
                   />
                 </div>
                 {canEdit && (
@@ -126,7 +126,7 @@ const SecondLanguageAssign = ({ classroom, canEdit, onClose, onSaved }) => {
                         key={l._id}
                         type="button"
                         onClick={() => setAll(String(l._id))}
-                        className="text-xs font-black px-3 py-2 rounded-xl bg-white border-2 border-slate-100 text-slate-600 hover:border-amber-300 hover:text-amber-800"
+                        className="text-xs font-black px-3 py-2 rounded-xl bg-white border-2 border-slate-400 text-slate-800 hover:border-amber-500 hover:text-amber-900"
                       >
                         {search.trim() ? "اللي ظاهرين" : "الكل"}: {l.name}
                       </button>
@@ -148,10 +148,10 @@ const SecondLanguageAssign = ({ classroom, canEdit, onClose, onSaved }) => {
                   <div
                     key={s._id}
                     className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-2xl border p-2.5 ${
-                      current !== original[s._id] ? "border-amber-200 bg-amber-50/40" : "border-slate-100"
+                      current !== original[s._id] ? "border-amber-400 bg-amber-50" : "border-slate-300"
                     }`}
                   >
-                    <span className="text-sm font-black text-slate-700">{s.name}</span>
+                    <span className="text-base font-black text-slate-900">{s.name}</span>
                     <div className="flex flex-wrap gap-1.5">
                       {languages.map((l) => {
                         const on = current === String(l._id);
@@ -163,8 +163,8 @@ const SecondLanguageAssign = ({ classroom, canEdit, onClose, onSaved }) => {
                             onClick={() => setChosen((prev) => ({ ...prev, [s._id]: String(l._id) }))}
                             className={`text-xs font-black px-3 py-1.5 rounded-xl border-2 transition-all ${
                               on
-                                ? "bg-amber-500 border-amber-500 text-white"
-                                : "bg-white border-slate-100 text-slate-500 hover:border-amber-300"
+                                ? "bg-amber-600 border-amber-600 text-white"
+                                : "bg-white border-slate-400 text-slate-800 hover:border-amber-500"
                             }`}
                           >
                             {l.name}
@@ -175,7 +175,7 @@ const SecondLanguageAssign = ({ classroom, canEdit, onClose, onSaved }) => {
                         <button
                           type="button"
                           onClick={() => setChosen((prev) => ({ ...prev, [s._id]: NONE }))}
-                          className="text-[11px] font-bold px-2 py-1.5 rounded-xl text-slate-400 hover:text-rose-600"
+                          className="text-xs font-black px-2 py-1.5 rounded-xl text-rose-700 hover:bg-rose-50"
                         >
                           شيل
                         </button>
@@ -185,20 +185,20 @@ const SecondLanguageAssign = ({ classroom, canEdit, onClose, onSaved }) => {
                 );
               })}
               {shown.length === 0 && (
-                <p className="py-10 text-center text-sm font-bold text-slate-400">مفيش طلاب بالاسم ده.</p>
+                <p className="py-10 text-center text-base font-black text-slate-800">مفيش طلاب بالاسم ده.</p>
               )}
             </div>
 
             {canEdit && (
               <div className="p-5 border-t border-slate-100 flex items-center justify-between gap-3">
-                <span className="text-xs font-bold text-slate-500">
+                <span className="text-sm font-black text-slate-800">
                   {changed.length ? `${changed.length} طالب اتغيّرت لغتهم` : "مفيش تغييرات لسه"}
                 </span>
                 <button
                   type="button"
                   disabled={saving || changed.length === 0}
                   onClick={save}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black flex items-center gap-2 text-sm disabled:opacity-50"
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black flex items-center gap-2 text-sm disabled:bg-slate-300 disabled:text-slate-800"
                 >
                   {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                   حفظ التوزيع

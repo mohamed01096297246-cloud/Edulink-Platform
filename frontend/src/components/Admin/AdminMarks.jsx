@@ -240,47 +240,53 @@ const AdminMarks = () => {
     return `الاختبار ${b === "1" ? "الأول" : "الثاني"} — الترم ${a === "1" ? "الأول" : "الثاني"}`;
   })();
 
+
+  // Everything on this page reads at a glance: dark borders, near-black
+  // text, big numbers — the people using it are copying paper registers,
+  // not exploring software. A read-only view stays just as readable.
   const selectClass =
-    "w-full p-4 bg-white rounded-2xl border-2 border-slate-200 focus:border-indigo-500 outline-none font-black text-slate-800 text-base transition-all disabled:opacity-50 disabled:bg-slate-50";
+    "w-full p-4 bg-white rounded-2xl border-2 border-slate-500 focus:border-indigo-700 focus:ring-4 focus:ring-indigo-100 outline-none font-black text-slate-900 text-lg transition-all disabled:bg-slate-100 disabled:text-slate-700 disabled:border-slate-400";
+
+  const stepBadge = "w-8 h-8 rounded-full bg-indigo-700 text-white grid place-items-center text-base font-black";
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-slate-50 p-8" dir="rtl">
-        <div className="max-w-3xl mx-auto p-6 bg-rose-50 border border-rose-100 rounded-3xl text-rose-700 font-bold flex items-center gap-2">
-          <AlertCircle size={18} /> {loadError}
+      <div className="min-h-screen bg-slate-100 p-8" dir="rtl">
+        <div className="max-w-3xl mx-auto p-6 bg-rose-50 border-2 border-rose-500 rounded-3xl text-rose-800 font-black flex items-center gap-2">
+          <AlertCircle size={20} /> {loadError}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 lg:p-8 pb-32 font-sans" dir="rtl">
+    <div className="min-h-screen bg-slate-100 p-4 lg:p-8 pb-36 font-sans" dir="rtl">
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-            <PenLine className="text-indigo-600" size={34} /> رصد الدرجات
+          <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3">
+            <PenLine className="text-indigo-700" size={34} /> رصد الدرجات
           </h1>
-          <p className="text-slate-500 font-bold text-sm mt-2">
+          <p className="text-slate-800 font-bold text-base mt-2 leading-relaxed">
             اختار الفصل والمادة والأسبوع، واكتب الدرجات زي الكشف الورقي بالظبط، وبعدين دوس «حفظ الدرجات». الدرجات بتظهر عند المعلم كأنه هو اللي رصدها.
           </p>
         </div>
 
         {!canEdit && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 font-bold text-sm">
-            حسابك بيتابع الدرجات بس. الرصد بيتعمل من حساب مدير المرحلة.
+          <div className="p-4 bg-amber-100 border-2 border-amber-500 rounded-2xl text-amber-950 font-black text-base">
+            حسابك بيتابع الدرجات بس ومينفعش يعدّلها. الرصد بيتعمل من حساب مدير المرحلة.
           </div>
         )}
 
         {!options ? (
           <div className="py-32 flex justify-center">
-            <Loader2 className="animate-spin text-indigo-500" size={44} />
+            <Loader2 className="animate-spin text-indigo-700" size={44} />
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <label className="space-y-2 block">
-                <span className="flex items-center gap-2 text-sm font-black text-slate-600">
-                  <span className="w-7 h-7 rounded-full bg-indigo-600 text-white grid place-items-center text-sm">1</span>
+                <span className="flex items-center gap-2 text-base font-black text-slate-900">
+                  <span className={stepBadge}>1</span>
                   الفصل
                 </span>
                 <select className={selectClass} value={classId} onChange={(e) => pickClass(e.target.value)}>
@@ -295,8 +301,8 @@ const AdminMarks = () => {
               </label>
 
               <label className="space-y-2 block">
-                <span className="flex items-center gap-2 text-sm font-black text-slate-600">
-                  <span className="w-7 h-7 rounded-full bg-indigo-600 text-white grid place-items-center text-sm">2</span>
+                <span className="flex items-center gap-2 text-base font-black text-slate-900">
+                  <span className={stepBadge}>2</span>
                   المادة
                 </span>
                 <select
@@ -315,8 +321,8 @@ const AdminMarks = () => {
               </label>
 
               <label className="space-y-2 block">
-                <span className="flex items-center gap-2 text-sm font-black text-slate-600">
-                  <span className="w-7 h-7 rounded-full bg-indigo-600 text-white grid place-items-center text-sm">3</span>
+                <span className="flex items-center gap-2 text-base font-black text-slate-900">
+                  <span className={stepBadge}>3</span>
                   الأسبوع أو الاختبار
                 </span>
                 <select className={selectClass} value={sheetKey} onChange={(e) => pickSheet(e.target.value)}>
@@ -343,100 +349,102 @@ const AdminMarks = () => {
             </div>
 
             {currentClass && currentClass.subjects.length === 0 && (
-              <p className="p-4 bg-amber-50 border border-amber-100 rounded-2xl text-amber-700 font-bold text-sm">
+              <p className="p-4 bg-amber-100 border-2 border-amber-500 rounded-2xl text-amber-950 font-black text-base">
                 الفصل ده مافيهوش مواد متسندة لمعلمين. اسندها من «إسناد الفصول» الأول.
               </p>
             )}
 
             {!classId || !subjectId ? (
-              <div className="bg-white rounded-[2rem] border border-slate-100 py-24 text-center text-slate-400 font-black">
+              <div className="bg-white rounded-[2rem] border-2 border-slate-300 py-24 text-center text-slate-800 text-lg font-black">
                 اختار الفصل والمادة علشان يظهر الكشف.
               </div>
             ) : sheetLoading ? (
               <div className="py-24 flex justify-center">
-                <Loader2 className="animate-spin text-indigo-500" size={40} />
+                <Loader2 className="animate-spin text-indigo-700" size={40} />
               </div>
             ) : sheetError ? (
-              <div className="p-5 bg-rose-50 border border-rose-100 rounded-2xl text-rose-700 font-bold flex items-center gap-2">
-                <AlertCircle size={18} /> {sheetError}
+              <div className="p-5 bg-rose-50 border-2 border-rose-500 rounded-2xl text-rose-800 font-black flex items-center gap-2">
+                <AlertCircle size={20} /> {sheetError}
               </div>
             ) : sheet ? (
-              <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-lg font-black text-slate-800">
+              <div className="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b-2 border-slate-300 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-xl font-black text-slate-900">
                     {currentSubject?.name} — {currentClass?.grade?.name} {currentClass?.name}
-                    <span className="text-indigo-600"> · {sheetLabel}</span>
+                    <span className="text-indigo-700"> · {sheetLabel}</span>
                   </h2>
-                  <span className="text-xs font-bold text-slate-400">{sheet.students.length} طالب</span>
+                  <span className="text-base font-black text-slate-800">{sheet.students.length} طالب</span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse min-w-[640px]">
+                  <table className="w-full border-collapse min-w-[680px]">
                     <thead>
-                      <tr className="bg-slate-50 text-slate-700">
-                        <th className="w-14 p-3 text-sm font-black border-b border-slate-200">م</th>
-                        <th className="p-3 text-right text-sm font-black border-b border-slate-200">اسم الطالب</th>
+                      <tr className="bg-slate-800 text-white">
+                        <th className="w-14 p-3 text-base font-black border border-slate-600">م</th>
+                        <th className="p-3 text-right text-base font-black border border-slate-600">اسم الطالب</th>
                         {sheet.columns.map((column) => (
-                          <th key={column.key} className="p-3 text-sm font-black border-b border-slate-200 w-40">
+                          <th key={column.key} className="p-3 text-base font-black border border-slate-600 w-44">
                             <div>{column.label}</div>
-                            <div className="text-[11px] text-slate-400">من {column.max}</div>
+                            <div className="text-sm font-bold text-amber-300">من {column.max}</div>
                             {/* A week's columns only: a test has no mark most pupils simply get. */}
                             {canEdit && sheetKey.startsWith("week") && (
                               <button
                                 type="button"
                                 onClick={() => fillEmpty(column)}
-                                className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-black text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg"
+                                className="mt-2 inline-flex items-center gap-1 text-sm font-black bg-white text-indigo-800 hover:bg-indigo-50 px-3 py-1.5 rounded-lg"
                                 title="بيكتب الدرجة النهائية في الخانات الفاضية بس"
                               >
-                                <Wand2 size={12} /> كمّل الفاضي بـ {column.max}
+                                <Wand2 size={14} /> كمّل الفاضي بـ {column.max}
                               </button>
                             )}
                           </th>
                         ))}
                         {sheet.total && (
-                          <th className="p-3 text-sm font-black border-b border-slate-200 w-28">
+                          <th className="p-3 text-base font-black border border-slate-600 w-32">
                             المجموع
-                            <div className="text-[11px] text-slate-400">من {sheet.total}</div>
+                            <div className="text-sm font-bold text-amber-300">من {sheet.total}</div>
                           </th>
                         )}
                       </tr>
                     </thead>
                     <tbody>
                       {sheet.students.map((student, rowIndex) => (
-                        <tr key={student._id} className="odd:bg-white even:bg-slate-50/60">
-                          <td className="p-2 text-center text-sm font-black text-slate-400 border-b border-slate-100">
+                        <tr key={student._id} className="odd:bg-white even:bg-slate-50">
+                          <td className="p-2 text-center text-base font-black text-slate-900 border border-slate-300">
                             {rowIndex + 1}
                           </td>
-                          <td className="p-2 text-sm font-black text-slate-800 border-b border-slate-100">{student.name}</td>
+                          <td className="p-2 px-3 text-base font-black text-slate-900 border border-slate-300">{student.name}</td>
                           {sheet.columns.map((column) => {
                             const key = `${student._id}:${column.key}`;
                             const change = changes.find((c) => c.key === key);
                             return (
-                              <td key={column.key} className="p-2 border-b border-slate-100 text-center">
+                              <td key={column.key} className="p-2 border border-slate-300 text-center">
                                 <input
                                   ref={(el) => {
                                     inputs.current[key] = el;
                                   }}
                                   value={valueOf(student, column)}
-                                  disabled={!canEdit}
+                                  readOnly={!canEdit}
                                   inputMode="decimal"
                                   dir="ltr"
                                   aria-label={`${column.label} — ${student.name}`}
                                   onChange={(e) => setTyped((prev) => ({ ...prev, [key]: e.target.value }))}
                                   onKeyDown={(e) => onKeyDown(e, rowIndex, column.key)}
                                   onFocus={(e) => e.target.select()}
-                                  className={`w-24 h-12 text-center text-lg font-black rounded-xl border-2 outline-none transition-all disabled:bg-slate-50 ${
+                                  className={`w-28 h-14 text-center text-2xl font-black rounded-xl border-2 outline-none transition-all focus:ring-4 ${
                                     change?.invalid
-                                      ? "border-rose-400 bg-rose-50 text-rose-700"
+                                      ? "border-rose-600 bg-rose-50 text-rose-700 focus:ring-rose-100"
                                       : change
-                                        ? "border-amber-300 bg-amber-50 text-slate-800"
-                                        : "border-slate-200 bg-white text-slate-800 focus:border-indigo-500"
+                                        ? "border-amber-500 bg-amber-50 text-slate-900 focus:ring-amber-100"
+                                        : canEdit
+                                          ? "border-slate-500 bg-white text-slate-900 focus:border-indigo-700 focus:ring-indigo-100"
+                                          : "border-slate-400 bg-slate-50 text-slate-900 focus:ring-slate-100"
                                   }`}
                                 />
                               </td>
                             );
                           })}
                           {sheet.total && (
-                            <td className="p-2 border-b border-slate-100 text-center text-lg font-black text-indigo-700">
+                            <td className="p-2 border border-slate-300 text-center text-2xl font-black text-indigo-800">
                               {rowTotal(student)}
                             </td>
                           )}
@@ -446,7 +454,7 @@ const AdminMarks = () => {
                   </table>
                 </div>
                 {sheet.students.length === 0 && (
-                  <p className="p-10 text-center text-slate-400 font-bold">الفصل ده مافيهوش طلاب.</p>
+                  <p className="p-10 text-center text-slate-800 text-lg font-black">الفصل ده مافيهوش طلاب.</p>
                 )}
               </div>
             ) : null}
@@ -455,35 +463,35 @@ const AdminMarks = () => {
       </div>
 
       {sheet && canEdit && (
-        <div className="fixed bottom-0 left-0 right-0 lg:right-72 bg-white/95 backdrop-blur border-t border-slate-200 px-6 py-4 z-40">
+        <div className="fixed bottom-0 left-0 right-0 lg:right-72 bg-white border-t-2 border-slate-300 shadow-[0_-6px_20px_rgba(15,23,42,0.08)] px-6 py-4 z-40">
           <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm font-black">
+            <div className="text-base font-black">
               {invalidCount > 0 ? (
-                <span className="text-rose-600 flex items-center gap-1.5">
-                  <AlertCircle size={16} /> فيه {invalidCount} درجة أكبر من الدرجة النهائية أو مش رقم — صحّح اللي باللون الأحمر.
+                <span className="text-rose-700 flex items-center gap-1.5">
+                  <AlertCircle size={20} /> فيه {invalidCount} درجة أكبر من الدرجة النهائية أو مش رقم — صحّح اللي باللون الأحمر.
                 </span>
               ) : saved && changes.length === 0 ? (
-                <span className="text-emerald-600 flex items-center gap-1.5">
-                  <CheckCircle2 size={16} /> {saved}
+                <span className="text-emerald-700 flex items-center gap-1.5">
+                  <CheckCircle2 size={20} /> {saved}
                 </span>
               ) : saveError ? (
-                <span className="text-rose-600 flex items-center gap-1.5">
-                  <AlertCircle size={16} /> {saveError}
+                <span className="text-rose-700 flex items-center gap-1.5">
+                  <AlertCircle size={20} /> {saveError}
                 </span>
               ) : changes.length > 0 ? (
-                <span className="text-amber-700">اتغيّرت درجات {changedStudents} طالب ولسه ماتحفظتش.</span>
+                <span className="text-amber-800">اتغيّرت درجات {changedStudents} طالب ولسه ماتحفظتش.</span>
               ) : (
-                <span className="text-slate-400">اكتب الدرجات في الخانات، و«Enter» بينزلك للطالب اللي بعده.</span>
+                <span className="text-slate-800">اكتب الدرجات في الخانات، و«Enter» بينزلك للطالب اللي بعده.</span>
               )}
             </div>
             <button
               type="button"
               onClick={save}
               disabled={saving || changes.length === 0 || invalidCount > 0}
-              className="px-10 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-lg flex items-center gap-2 shadow-lg shadow-emerald-100 disabled:opacity-40 disabled:shadow-none"
+              className="px-10 py-4 rounded-2xl font-black text-lg flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-100 disabled:bg-slate-300 disabled:text-slate-800 disabled:shadow-none disabled:cursor-not-allowed"
             >
               {saving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-              حفظ الدرجات
+              {changes.length === 0 && !saving ? "مفيش تغييرات تتحفظ" : "حفظ الدرجات"}
             </button>
           </div>
         </div>

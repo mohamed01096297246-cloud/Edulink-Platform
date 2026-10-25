@@ -203,7 +203,7 @@ const ClassTimetable = ({ classroom, lessons, bells, canEdit, onEdit, onAdd, onD
                             <>
                               <p className="font-black text-amber-700 text-[14px] leading-tight">{SECOND_LANGUAGE_NAME}</p>
                               {cell.map((l) => (
-                                <p key={l._id} className="text-[10px] font-bold mt-1 leading-tight text-slate-500">
+                                <p key={l._id} className="text-[11px] font-bold mt-1 leading-tight text-slate-700">
                                   <span className="text-slate-700">{l.subject?.name}</span> · {teacherName(l.teacher)}
                                 </p>
                               ))}
