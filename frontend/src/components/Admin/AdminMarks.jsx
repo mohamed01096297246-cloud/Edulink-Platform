@@ -260,7 +260,7 @@ const AdminMarks = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 lg:p-8 pb-36 font-sans" dir="rtl">
+    <div className="min-h-screen bg-slate-100 p-4 lg:p-8 font-sans" dir="rtl">
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3">
@@ -461,6 +461,11 @@ const AdminMarks = () => {
           </>
         )}
       </div>
+
+      {/* Room under the register for the save bar fixed at the bottom, so
+          scrolling to the end shows the last pupil above it, not behind it.
+          A spacer, not bottom padding: the page's lg:p-8 would override that. */}
+      {sheet && canEdit && <div className="h-40" aria-hidden="true" />}
 
       {sheet && canEdit && (
         <div className="fixed bottom-0 left-0 right-0 lg:right-72 bg-white border-t-2 border-slate-300 shadow-[0_-6px_20px_rgba(15,23,42,0.08)] px-6 py-4 z-40">
