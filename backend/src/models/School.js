@@ -57,6 +57,10 @@ const schoolSchema = new mongoose.Schema(
       examAnalytics: { type: Boolean, default: true },
       staffAttendance: { type: Boolean, default: true },
       behavior: { type: Boolean, default: true },
+      // The school's own admins record marks from the web panel, alongside
+      // the teachers (controllers/adminMarksController.js). Off unless the
+      // platform owner turns it on for the school.
+      adminMarks: { type: Boolean, default: false },
     },
 
     // The school's own shared inbox for parents' login credentials. Most

@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  PenLine,
   LayoutDashboard,
   BookOpen,
   Layers,
@@ -49,6 +50,8 @@ import StaffAccountManager from "../components/Admin/StaffAccountManager";
 import ClassAssignmentManager from "../components/Admin/ClassAssignmentManager";
 import AttendanceRegister from "../components/Admin/AttendanceRegister";
 import LatestProgress from "../components/Admin/LatestProgress";
+import AdminMarks from "../components/Admin/AdminMarks";
+import API from "../api/axios";
 
 // Grouped the way MySchool and every mature school system organizes its
 // menu — by area of the school, not one flat list — but scoped to what
@@ -83,6 +86,8 @@ const NAV_GROUPS = [
     icon: <ClipboardList size={18} />,
     items: [
       { name: "آخر التطورات", icon: <ListChecks size={18} />, path: "/admin/latest-progress" },
+      // Only where the platform owner turned it on (School.features.adminMarks).
+      { name: "رصد الدرجات", icon: <PenLine size={18} />, path: "/admin/marks", featureOn: "adminMarks" },
       { name: "سجل الحضور", icon: <ClipboardCheck size={18} />, path: "/admin/attendance-register" },
       { name: "إسناد الفصول", icon: <Link2 size={18} />, path: "/admin/class-assignments" },
       { name: "الجدول الدراسي", icon: <Calendar size={18} />, path: "/admin/schedules" },
@@ -128,13 +133,34 @@ const AdminDashboard = ({ onLogout }) => {
   // switched off by the platform owner (see SchoolManager's feature
   // toggles) — filter those out here, and drop any group left empty as a
   // result, instead of showing a category with nothing clickable inside it.
-  const features = userInfo.features;
+  // Read fresh from the server too, so a module the platform owner turns on
+  // or off shows up on the next page load without signing in again.
+  const [features, setFeatures] = useState(userInfo.features);
+  useEffect(() => {
+    if (isSuperAdmin) return;
+    API.get("/auth/me")
+      .then((res) => {
+        const fresh = res.data?.user?.features;
+        if (!fresh) return;
+        setFeatures(fresh);
+        try {
+          const stored = JSON.parse(localStorage.getItem("userInfo") || "{}");
+          localStorage.setItem("userInfo", JSON.stringify({ ...stored, features: fresh }));
+        } catch {
+          /* the menu still follows `fresh` for this visit */
+        }
+      })
+      .catch(() => {});
+  }, [isSuperAdmin]);
   const visibleGroups = isSuperAdmin
     ? []
     : NAV_GROUPS.map((group) => ({
         ...group,
         items: group.items.filter(
-          (item) => !item.feature || !features || features[item.feature] !== false,
+          (item) =>
+            (!item.feature || !features || features[item.feature] !== false) &&
+            // A module that is off unless turned on shows only when it is.
+            (!item.featureOn || features?.[item.featureOn] === true),
         ),
       })).filter((group) => group.items.length > 0);
 
@@ -271,6 +297,7 @@ const AdminDashboard = ({ onLogout }) => {
             <Route path="class-assignments" element={<ClassAssignmentManager />} />
             <Route path="attendance-register" element={<AttendanceRegister />} />
             <Route path="latest-progress" element={<LatestProgress />} />
+            <Route path="marks" element={<AdminMarks />} />
             <Route path="fees" element={<FeeManager />} />
             <Route path="teachers/*" element={<TeacherManager />} />
             <Route path="staff-attendance" element={<TeacherAttendanceManager />} />

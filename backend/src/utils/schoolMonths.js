@@ -83,6 +83,42 @@ const monthsBegun = (today = new Date()) => {
   return months.length ? months : [schoolMonth(1)];
 };
 
+const WEEK_ORDINALS = ["", "الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس", "السابع", "الثامن", "التاسع"];
+const WEEK_ORDINALS_COMPOUND = ["", "الحادي", "الثاني", "الثالث", "الرابع", "الخامس", "السادس", "السابع", "الثامن", "التاسع"];
+const WEEK_TENS = { 2: "العشرون", 3: "الثلاثون", 4: "الأربعون", 5: "الخمسون" };
+
+// 1 → "الأول", 11 → "الحادي عشر", 23 → "الثالث والعشرون" — the names the
+// teacher's app gives the weeks (edulink-mobile src/utils/schoolWeeks.js).
+const weekOrdinal = (n) => {
+  if (n < 10) return WEEK_ORDINALS[n];
+  if (n === 10) return "العاشر";
+  if (n < 20) return `${WEEK_ORDINALS_COMPOUND[n - 10]} عشر`;
+  const tens = Math.floor(n / 10);
+  const units = n % 10;
+  if (!WEEK_TENS[tens]) return String(n);
+  return units === 0 ? WEEK_TENS[tens] : `${WEEK_ORDINALS_COMPOUND[units]} و${WEEK_TENS[tens]}`;
+};
+
+// The weeks marks are recorded for, from the first marked week up to the
+// one `today` falls in, newest first, numbered and named as the teacher's
+// app numbers them (week 1 is FIRST_WEEK_START).
+const markedWeeks = (today = new Date()) => {
+  const first = termFirstWeek(1);
+  const thisWeek = weekStartOf(today);
+  const weeks = [];
+  for (let start = first; start <= thisWeek; start = addDays(start, 7)) {
+    const number = Math.round((start - utc(FIRST_WEEK_START)) / (7 * DAY)) + 1;
+    weeks.push({
+      weekStart: start,
+      number,
+      label: `الأسبوع ${weekOrdinal(number)}`,
+      from: start,
+      to: addDays(start, 4),
+    });
+  }
+  return weeks.reverse();
+};
+
 // For an app that still offers calendar months: the school month that
 // starts in that calendar month, or null.
 const schoolMonthStartingIn = (month, year) => {
@@ -100,4 +136,5 @@ module.exports = {
   termOfDate,
   monthsBegun,
   schoolMonthStartingIn,
+  markedWeeks,
 };
