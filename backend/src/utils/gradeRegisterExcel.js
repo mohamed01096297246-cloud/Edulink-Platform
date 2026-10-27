@@ -1,6 +1,7 @@
 const ExcelJS = require("exceljs");
 const { averageToHalf } = require("./halfMarks");
 const { monthAverage } = require("./weekScores");
+const { ABSENT } = require("./absentMark");
 
 // Mirrors the paper "سجل رصد درجات فصل" register the school already uses on
 // paper — weeks (or a month's worth of weeks) as column groups, students as
@@ -110,6 +111,10 @@ const styleDataCell = (cell, { bold = false } = {}) => {
 // Averages print as a whole mark or a half (utils/halfMarks).
 const average = averageToHalf;
 
+// A week's mark as the register prints it: the number, or «غ» for a pupil
+// who was away (utils/absentMark.js) — still a 0 in the total beside it.
+const markCell = (entry, key) => (entry.absent?.[key] ? ABSENT : entry[key]);
+
 exports.buildWeeklyRegisterWorkbook = ({
   subjectName,
   classroomName,
@@ -153,10 +158,10 @@ exports.buildWeeklyRegisterWorkbook = ({
     const values = [
       index + 1,
       `${student.firstName} ${student.lastName}`,
-      entry.attendanceScore ?? "-",
-      entry.weeklyEvalScore ?? "-",
-      entry.homeworkScore ?? "-",
-      entry.classworkScore ?? "-",
+      markCell(entry, "attendanceScore") ?? "-",
+      markCell(entry, "weeklyEvalScore") ?? "-",
+      markCell(entry, "homeworkScore") ?? "-",
+      markCell(entry, "classworkScore") ?? "-",
       entry.total ?? "-",
     ];
 
@@ -278,10 +283,10 @@ exports.buildMonthlyRegisterWorkbook = ({
       const entry = (scores && scores[key]) || {};
 
       [
-        entry.attendanceScore,
-        entry.weeklyEvalScore,
-        entry.homeworkScore,
-        entry.classworkScore,
+        markCell(entry, "attendanceScore"),
+        markCell(entry, "weeklyEvalScore"),
+        markCell(entry, "homeworkScore"),
+        markCell(entry, "classworkScore"),
         entry.total,
       ].forEach((value) => {
         const cell = row.getCell(c++);
@@ -417,7 +422,7 @@ exports.buildWeek40Workbook = ({ subjectName, classroomName, weekStart, students
 
   writeStudentRows(sheet, firstDataRow, students, (key) => {
     const entry = scores[key] || {};
-    return WEEK40_PARTS.map((p) => entry[p.key]);
+    return WEEK40_PARTS.map((p) => markCell(entry, p.key));
   });
 
   writeSignatureBlock(sheet, totalCols, firstDataRow + students.length - 1);
@@ -459,7 +464,7 @@ exports.buildMonth40Workbook = ({
     const weeks = [];
     weeklyScores.forEach(({ weekStart, scores }) => {
       const entry = (scores && scores[key]) || {};
-      WEEK40_PARTS.forEach((p) => cells.push(entry[p.key]));
+      WEEK40_PARTS.forEach((p) => cells.push(markCell(entry, p.key)));
       if (scores) weeks.push({ weekStart, ...entry });
     });
     // A week with no تقييم أسبوعي doesn't pull the month down for it.
@@ -517,8 +522,8 @@ exports.buildTerm40Workbook = ({
     return [
       ...months.map((m) => r.monthAverages?.[m.month] ?? null),
       r.weeksAverage,
-      r.test1,
-      r.test2,
+      r.absent?.test1 ? ABSENT : r.test1,
+      r.absent?.test2 ? ABSENT : r.test2,
       r.testsTotal,
       r.yearWork,
       r.absentDays,

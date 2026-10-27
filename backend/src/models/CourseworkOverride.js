@@ -65,6 +65,11 @@ const courseworkOverrideSchema = new mongoose.Schema(
       min: 0,
       max: 10,
     },
+
+    // «غ» in either column: away that week — its score is 0, shown as غ
+    // (utils/absentMark.js).
+    attendanceAbsent: { type: Boolean },
+    homeworkAbsent: { type: Boolean },
   },
   { timestamps: true },
 );

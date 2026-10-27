@@ -17,6 +17,7 @@ const { otherLanguagesFor } = require("./secondLanguage");
 const { monthsOfTerm, termSpan, termOfDate, hasWeeklyEval } = require("./schoolMonths");
 const { isDailyMode } = require("./dailyAttendance");
 const { averageToHalf } = require("./halfMarks");
+const { isAbsent } = require("./absentMark");
 
 // "أدائي" — one student's standing in each subject over a term, built from
 // exactly the numbers their teachers record and the register prints: every
@@ -73,6 +74,8 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
         attendanceScore: mine.attendanceScore ?? null,
         classworkScore: rules.classwork ? mine.classworkScore ?? null : undefined,
         total: mine.total ?? null,
+        // The columns that read «غ» (utils/absentMark.js).
+        absent: mine.absent || {},
       };
     }),
   );
@@ -106,7 +109,7 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
     Behavior.countDocuments({ student: student._id, subject: subject._id, type: "positive", date: inTerm }),
     scheme === "weekly40"
       ? TermTest.find({ student: student._id, subject: subject._id, academicYear: classroom.academicYear, term })
-          .select("testNo grade")
+          .select("testNo grade absent")
       : [],
     scheme === "weekly40"
       ? []
@@ -157,7 +160,8 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
     const test1 = test(1);
     const test2 = test(2);
     const testsTotal = test1 === null && test2 === null ? null : (test1 || 0) + (test2 || 0);
-    out.tests = { test1, test2, total: testsTotal };
+    const missed = (n) => tests.some((t) => t.testNo === n && isAbsent(t.absent, t.grade));
+    out.tests = { test1, test2, total: testsTotal, absent: { test1: missed(1), test2: missed(2) } };
     out.yearWork =
       weeksAverage === null && testsTotal === null ? null : round1((weeksAverage || 0) + (testsTotal || 0));
   } else {

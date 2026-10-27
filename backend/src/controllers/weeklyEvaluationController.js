@@ -139,6 +139,9 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
     });
     if (!subjectId) return undefined;
 
+    // A pupil the admin marked «غ» (utils/absentMark.js) keeps it while the
+    // teacher's screen saves their 0 back unchanged; any other mark is a real
+    // one and takes it off.
     const bulkOps = gradesList.map((record) => ({
       updateOne: {
         filter: {
@@ -153,6 +156,7 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
             teacher: req.user.id,
             school: req.user.school,
           },
+          ...(Number(record.score) !== 0 ? { $unset: { absent: "" } } : {}),
         },
         upsert: true,
       },

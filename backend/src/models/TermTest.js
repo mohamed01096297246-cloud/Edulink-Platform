@@ -24,6 +24,8 @@ const termTestSchema = new mongoose.Schema(
       min: 0,
       max: 15,
     },
+    // «غ»: missed the test — a grade of 0 shown as غ (utils/absentMark.js).
+    absent: { type: Boolean },
   },
   { timestamps: true },
 );

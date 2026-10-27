@@ -45,6 +45,8 @@ const classworkNotebookSchema = new mongoose.Schema(
         message: "درجة كراسة الحصة لازم تكون رقم صحيح أو بربع أو نص درجة (زي 4.5 أو 3.25).",
       },
     },
+    // «غ»: away that week — a score of 0 shown as غ (utils/absentMark.js).
+    absent: { type: Boolean },
   },
   { timestamps: true },
 );

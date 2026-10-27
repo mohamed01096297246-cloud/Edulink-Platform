@@ -3,6 +3,7 @@ const f = require("./helpers/factory");
 const School = require("../src/models/School");
 const Schedule = require("../src/models/Schedule");
 const ClassAssignment = require("../src/models/ClassAssignment");
+const ExcelJS = require("exceljs");
 const WeeklyEvaluation = require("../src/models/WeeklyEvaluation");
 const TermTest = require("../src/models/TermTest");
 
@@ -19,7 +20,32 @@ const future = async ({ on = true } = {}) => {
   const admin = await f.user("admin", s);
   const a = await f.student(c);
   const b = await f.student(c);
-  return { s, g, c, math, teacher, admin, a: a.student, b: b.student };
+  return { s, g, c, math, teacher, admin, a: a.student, b: b.student, parentA: a.parent };
+};
+
+// The register's workbook, read back.
+const readWorkbook = async (client, url) => {
+  const res = await client
+    .get(url)
+    .buffer(true)
+    .parse((stream, done) => {
+      const chunks = [];
+      stream.on("data", (chunk) => chunks.push(chunk));
+      stream.on("end", () => done(null, Buffer.concat(chunks)));
+    });
+  expect(res.status).toBe(200);
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(res.body);
+  return workbook.worksheets[0];
+};
+
+// The cells of the row that carries a student's name.
+const rowOf = (sheet, name) => {
+  let found = null;
+  sheet.eachRow((row) => {
+    if (row.getCell(2).value === name) found = row.values.slice(1);
+  });
+  return found;
 };
 
 // Week 7 — week 6 has no تقييم أسبوعي (tests/no-weekly-eval-week.test.js).
@@ -92,6 +118,93 @@ test("the term's tests too, and the teacher reads them back", async () => {
   const theirs = (await (await f.signIn(r.teacher)).get(`/api/term-tests/classroom/${r.c._id}?term=1&testNo=1`)).body.data;
   expect(JSON.stringify(theirs)).toContain("14.5");
   expect(String((await TermTest.findOne({ student: r.a._id })).teacher)).toBe(String(r.teacher._id));
+});
+
+test("«غ» is a 0 in every total, and reads غ to the parent, the student and in print", async () => {
+  const r = await future();
+  const a = await f.signIn(r.admin);
+  const nameA = `${r.a.firstName} ${r.a.lastName}`;
+  const week = (list) =>
+    a.put("/api/admin-marks/week", { classroom: String(r.c._id), subject: String(r.math._id), weekStart: WEEK, list });
+  const test1 = (grade) =>
+    a.put("/api/admin-marks/test", {
+      classroom: String(r.c._id), subject: String(r.math._id), term: 1, testNo: 1,
+      list: [{ student: String(r.a._id), marks: { grade } }],
+    });
+
+  // Anything else that isn't a mark is still refused.
+  expect((await week([{ student: String(r.a._id), marks: { weeklyEvalScore: "ع" } }])).status).toBe(400);
+  expect(
+    (await week([{ student: String(r.a._id), marks: { homeworkScore: "غ", weeklyEvalScore: " غائب ", attendanceScore: 10 } }]))
+      .status,
+  ).toBe(200);
+  expect((await test1("غ")).status).toBe(200);
+
+  // The admin's sheet reads it back as typed.
+  const sheet = (await a.get(`/api/admin-marks/week?classroom=${r.c._id}&subject=${r.math._id}&weekStart=${WEEK}`)).body.data;
+  expect(sheet.students.find((x) => String(x._id) === String(r.a._id)).marks).toEqual({
+    homeworkScore: "غ",
+    weeklyEvalScore: "غ",
+    attendanceScore: 10,
+  });
+  const testSheet = (await a.get(`/api/admin-marks/test?classroom=${r.c._id}&subject=${r.math._id}&term=1&testNo=1`)).body.data;
+  expect(testSheet.students.find((x) => String(x._id) === String(r.a._id)).marks.grade).toBe("غ");
+
+  // A zero to the teacher, in the total too.
+  const t = await f.signIn(r.teacher);
+  const rowA = (await t.get(`/api/coursework/classroom/${r.c._id}/week?weekStart=${WEEK}`)).body.data.students.find(
+    (x) => String(x.studentId) === String(r.a._id),
+  );
+  expect([rowA.homeworkScore, rowA.weeklyEvalScore, rowA.attendanceScore, rowA.total]).toEqual([0, 0, 10, 10]);
+
+  // The parent reads غ, not a poor mark.
+  const p = await f.signIn(r.parentA);
+  const evaluation = (await p.get(`/api/parent/week-evaluation/${r.a._id}?weekStart=${WEEK}`)).body.data.subjects[0];
+  expect([evaluation.score, evaluation.absent]).toEqual([0, true]);
+  const homework = (await p.get(`/api/parent/homework-week/${r.a._id}?weekStart=${WEEK}`)).body.data.subjects[0];
+  expect([homework.score, homework.absent]).toEqual([0, true]);
+  const tests = (await p.get(`/api/parent/monthly-tests/${r.a._id}`)).body.data.groups[0].subjects[0];
+  expect([tests.grade, tests.absent]).toEqual([0, true]);
+
+  // So does the student, in درجاتي and أدائي.
+  const s = await f.signIn(await f.user("student", r.s, { studentProfile: r.a._id }));
+  expect((await s.get("/api/student/grades")).body.data.tests.groups[0].subjects[0].absent).toBe(true);
+  const mine = (await s.get("/api/student/performance?term=1")).body.data.subjects.find(
+    (x) => String(x.subjectId) === String(r.math._id),
+  );
+  expect(mine.tests).toMatchObject({ test1: 0, total: 0, absent: { test1: true, test2: false } });
+  expect(mine.weeks.find((w) => String(w.weekStart).startsWith(WEEK)).absent).toMatchObject({
+    homeworkScore: true,
+    weeklyEvalScore: true,
+    attendanceScore: false,
+  });
+
+  // The printed register writes غ in the box and 0 into the total.
+  const week40 = await readWorkbook(t, `/api/grade-register/week/${r.c._id}?weekStart=${WEEK}`);
+  expect(rowOf(week40, nameA).slice(2)).toEqual(["غ", "غ", 10, 10]);
+  const term = await readWorkbook(t, `/api/grade-register/term/${r.c._id}?term=1`);
+  const termRow = rowOf(term, nameA);
+  expect(termRow).toContain("غ");
+  const pdf = await t.get(`/api/grade-register/week/${r.c._id}?weekStart=${WEEK}&format=pdf`);
+  expect([pdf.status, pdf.headers["content-type"]]).toEqual([200, "application/pdf"]);
+
+  // The teacher's screen saving the 0 back keeps it; a real mark takes it off.
+  const evalAgain = (score) =>
+    t.post("/api/weekly-evaluation/bulk", { classroomId: String(r.c._id), weekStart: WEEK, gradesList: [{ studentId: String(r.a._id), score }] });
+  await evalAgain(0);
+  expect((await p.get(`/api/parent/week-evaluation/${r.a._id}?weekStart=${WEEK}`)).body.data.subjects[0].absent).toBe(true);
+  await evalAgain(12);
+  await evalAgain(0);
+  expect((await p.get(`/api/parent/week-evaluation/${r.a._id}?weekStart=${WEEK}`)).body.data.subjects[0].absent).toBe(false);
+
+  // And the admin typing a number over غ makes it a mark again.
+  expect((await test1(9)).status).toBe(200);
+  expect((await TermTest.findOne({ student: r.a._id }).lean()).absent).toBeUndefined();
+  expect((await week([{ student: String(r.a._id), marks: { homeworkScore: 7 } }])).status).toBe(200);
+  expect((await p.get(`/api/parent/homework-week/${r.a._id}?weekStart=${WEEK}`)).body.data.subjects[0]).toMatchObject({
+    score: 7,
+    absent: false,
+  });
 });
 
 test("where the school has a stage principal, the whole-school admin may look but the principal records", async () => {

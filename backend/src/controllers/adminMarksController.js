@@ -13,6 +13,7 @@ const { SCHEMES, schemeForClassroom } = require("../utils/gradebook");
 const { computeWeekScores, toWeekStart, maxScoresFor } = require("../utils/weekScores");
 const { markedWeeks, termOfDate, hasWeeklyEval } = require("../utils/schoolMonths");
 const { rosterWhere } = require("../utils/secondLanguage");
+const { ABSENT, isAbsentText, isAbsent, OVERRIDE_FLAG } = require("../utils/absentMark");
 
 // رصد الدرجات من الإدارة: a school's admins type in the same marks its
 // teachers record — the week's register and the term's tests — from the web
@@ -106,15 +107,27 @@ const rosterOf = async (classroom, subjectId) =>
     }).select("firstName lastName")
   ).sort(byName);
 
-// A typed mark: a number in the column's range and steps, or null (clear it).
+// A typed mark: a number in the column's range and steps, «غ» (absent — a
+// 0 that reads غ, utils/absentMark.js), or null (clear it).
 const markOf = (value, max, steps) => {
   if (value === null || value === "") return { value: null };
+  if (isAbsentText(value)) return { value: 0, absent: true };
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0 || n > max || !Number.isInteger(Math.round(n * steps * 1e6) / 1e6)) {
     return { error: true };
   }
-  return { value: n };
+  return { value: n, absent: false };
 };
+
+// The update for a mark kept in a document of its own (التقييم الأسبوعي،
+// كراسة الحصة، a term test): the number, and the غ flag set or taken off.
+const markUpdate = (field, mark, owner) => ({
+  $set: { [field]: mark.value, ...owner, ...(mark.absent ? { absent: true } : {}) },
+  ...(mark.absent ? {} : { $unset: { absent: "" } }),
+});
+
+// How the sheet shows a stored mark: the number, or غ.
+const shownMark = (value, absent) => (absent ? ABSENT : value ?? null);
 
 // GET /admin-marks/options — the classes the admin may record for, each
 // with its subjects that carry marks and their teacher; the weeks so far;
@@ -221,7 +234,7 @@ exports.getWeek = async (req, res) => {
           return {
             _id: s._id,
             name: nameOf(s),
-            marks: Object.fromEntries(columns.map((c) => [c.key, score[c.key] ?? null])),
+            marks: Object.fromEntries(columns.map((c) => [c.key, shownMark(score[c.key], score.absent?.[c.key])])),
           };
         }),
       },
@@ -232,8 +245,9 @@ exports.getWeek = async (req, res) => {
 };
 
 // PUT /admin-marks/week — { classroom, subject, weekStart, list: [{ student,
-// marks: { column: value | null } }] }. Only the columns sent are touched;
-// null clears one (الواجب and مواظبة go back to what the register works out).
+// marks: { column: value | "غ" | null } }] }. Only the columns sent are
+// touched; null clears one (الواجب and مواظبة go back to what the register
+// works out).
 exports.saveWeek = async (req, res) => {
   try {
     const weekStart = toWeekStart(req.body.weekStart);
@@ -270,7 +284,7 @@ exports.saveWeek = async (req, res) => {
         if (mark.error) {
           return res.status(400).json({
             success: false,
-            message: `درجة «${column.label}» لازم تكون من 0 لـ ${max[key]}.`,
+            message: `درجة «${column.label}» لازم تكون من 0 لـ ${max[key]}، أو «غ» للغايب.`,
           });
         }
         const at = { student: studentId, subject: sheet.subject._id, weekStart };
@@ -279,18 +293,21 @@ exports.saveWeek = async (req, res) => {
           evaluations.push(
             mark.value === null
               ? { deleteOne: { filter: at } }
-              : { updateOne: { filter: at, update: { $set: { score: mark.value, ...owner } }, upsert: true } },
+              : { updateOne: { filter: at, update: markUpdate("score", mark, owner), upsert: true } },
           );
         } else if (key === "classworkScore") {
           notebooks.push(
             mark.value === null
               ? { deleteOne: { filter: at } }
-              : { updateOne: { filter: at, update: { $set: { score: mark.value, ...owner } }, upsert: true } },
+              : { updateOne: { filter: at, update: markUpdate("score", mark, owner), upsert: true } },
           );
         } else if (mark.value === null) {
           unset[key] = "";
+          unset[OVERRIDE_FLAG[key]] = "";
         } else {
           set[key] = mark.value;
+          if (mark.absent) set[OVERRIDE_FLAG[key]] = true;
+          else unset[OVERRIDE_FLAG[key]] = "";
         }
       }
       if (Object.keys(set).length || Object.keys(unset).length) {
@@ -342,8 +359,8 @@ exports.getTest = async (req, res) => {
       term: which.term,
       testNo: which.testNo,
       student: { $in: students.map((s) => s._id) },
-    }).select("student grade");
-    const gradeOf = new Map(tests.map((t) => [String(t.student), t.grade]));
+    }).select("student grade absent");
+    const gradeOf = new Map(tests.map((t) => [String(t.student), shownMark(t.grade, isAbsent(t.absent, t.grade))]));
 
     return res.status(200).json({
       success: true,
@@ -363,7 +380,7 @@ exports.getTest = async (req, res) => {
 };
 
 // PUT /admin-marks/test — { classroom, subject, term, testNo, list: [{
-// student, marks: { grade: value | null } }] }.
+// student, marks: { grade: value | "غ" | null } }] }.
 exports.saveTest = async (req, res) => {
   try {
     const which = termOfRequest(req.body);
@@ -387,7 +404,10 @@ exports.saveTest = async (req, res) => {
       }
       const mark = markOf(item.marks?.grade, rules.termTestMax, 2);
       if (mark.error) {
-        return res.status(400).json({ success: false, message: `درجة الاختبار لازم تكون من 0 لـ ${rules.termTestMax}.` });
+        return res.status(400).json({
+          success: false,
+          message: `درجة الاختبار لازم تكون من 0 لـ ${rules.termTestMax}، أو «غ» للغايب.`,
+        });
       }
       const at = {
         student: studentId,
@@ -402,14 +422,11 @@ exports.saveTest = async (req, res) => {
           : {
               updateOne: {
                 filter: at,
-                update: {
-                  $set: {
-                    grade: mark.value,
-                    classroom: sheet.classroom._id,
-                    teacher: sheet.teacher,
-                    school: sheet.classroom.school,
-                  },
-                },
+                update: markUpdate("grade", mark, {
+                  classroom: sheet.classroom._id,
+                  teacher: sheet.teacher,
+                  school: sheet.classroom.school,
+                }),
                 upsert: true,
               },
             },

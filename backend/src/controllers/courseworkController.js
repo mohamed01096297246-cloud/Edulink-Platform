@@ -25,6 +25,7 @@ const { worthOf, earnedOn } = require("../utils/homeworkMarks");
 const { averageToHalf } = require("../utils/halfMarks");
 const { rosterWhere } = require("../utils/secondLanguage");
 const { weeksWithoutWeeklyEval } = require("../utils/schoolMonths");
+const { OVERRIDE_FLAG } = require("../utils/absentMark");
 
 const round1 = (n) =>
   n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
@@ -451,11 +452,18 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
       const set = {};
       const unset = {};
 
+      // A column put back to automatic, or given any mark but the 0 it had,
+      // loses its «غ» (utils/absentMark.js).
       ["attendanceScore", "homeworkScore"].forEach((column) => {
         if (!Object.prototype.hasOwnProperty.call(entry, column)) return;
 
-        if (entry[column] === null) unset[column] = "";
-        else set[column] = Number(entry[column]);
+        if (entry[column] === null) {
+          unset[column] = "";
+          unset[OVERRIDE_FLAG[column]] = "";
+        } else {
+          set[column] = Number(entry[column]);
+          if (set[column] !== 0) unset[OVERRIDE_FLAG[column]] = "";
+        }
       });
 
       if (Object.keys(set).length > 0 || Object.keys(unset).length > 0) {
@@ -486,6 +494,7 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
                   teacher: req.user.id,
                   school: req.user.school,
                 },
+                ...(Number(entry.classworkScore) !== 0 ? { $unset: { absent: "" } } : {}),
               },
               upsert: true,
             },

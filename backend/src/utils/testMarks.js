@@ -1,6 +1,7 @@
 const MonthlyGrade = require("../models/MonthlyGrade");
 const TermTest = require("../models/TermTest");
 const { schemeForClassroom } = require("./gradebook");
+const { isAbsent } = require("./absentMark");
 
 // A child's test marks this school year, grouped the way the register lists
 // them: on the classic register each calendar month's monthly test
@@ -38,13 +39,14 @@ const testMarksOf = async (student) => {
   if (scheme === "weekly40") {
     const tests = await TermTest.find({ student: student._id, academicYear: `${first}/${second}` })
       .populate("subject", "name noMarks")
-      .select("subject term testNo grade");
+      .select("subject term testNo grade absent");
     marks = tests.map((t) => ({
       key: `term${t.term}-test${t.testNo}`,
       order: t.term * 10 + t.testNo,
       title: `${TERM_NAMES[t.term]} — ${TEST_NAMES[t.testNo]}`,
       subject: t.subject,
       grade: t.grade,
+      absent: isAbsent(t.absent, t.grade),
     }));
   } else {
     const monthly = await MonthlyGrade.find({
@@ -76,6 +78,8 @@ const testMarksOf = async (student) => {
         grade: m.grade,
         outOf: TEST_OUT_OF,
         percent: Math.round((m.grade / TEST_OUT_OF) * 100),
+        // «غ»: missed the test — a 0, shown as absent (utils/absentMark.js).
+        absent: Boolean(m.absent),
       });
     });
 

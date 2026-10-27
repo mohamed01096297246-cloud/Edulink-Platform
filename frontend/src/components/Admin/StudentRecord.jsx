@@ -193,7 +193,8 @@ const StudentRecord = ({ studentId, onClose }) => {
                               <td className="p-2.5 text-xs font-bold text-slate-500 whitespace-nowrap">{shortDate(w.weekStart)}</td>
                               {columns.map((c) => (
                                 <td key={c} className="p-2.5 font-bold text-slate-700 tabular-nums">
-                                  {n(w[c])}
+                                  {/* «غ»: away that week, counted as 0. */}
+                                  {w.absent?.[c] ? <span className="font-black text-rose-700">غ</span> : n(w[c])}
                                 </td>
                               ))}
                               <td className="p-2.5 font-black text-indigo-700 tabular-nums">{n(w.total)}</td>
@@ -321,7 +322,7 @@ const StudentRecord = ({ studentId, onClose }) => {
                           <span className="font-black text-slate-700">{t.subject}</span>
                           <span className="text-xs font-bold text-slate-400">{t.label}</span>
                           <span className="mr-auto font-black text-indigo-700 tabular-nums">
-                            {n(t.grade)}/{n(t.outOf)}
+                            {t.absent ? <span className="text-rose-700">غ</span> : n(t.grade)}/{n(t.outOf)}
                           </span>
                         </li>
                       ))}

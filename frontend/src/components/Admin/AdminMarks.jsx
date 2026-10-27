@@ -25,6 +25,12 @@ const toLatin = (text) =>
 
 const shownAs = (value) => (value === null || value === undefined ? "" : String(value));
 
+// «غ» — the pupil was away: a 0 in every total, shown to the parent and the
+// student as absent (backend utils/absentMark.js). The word works too.
+const ABSENT = "غ";
+const ABSENT_WORDS = new Set(["غ", "غ.", "غائب", "غايب", "غياب"]);
+const isAbsentText = (text) => ABSENT_WORDS.has(String(text ?? "").trim());
+
 const fmtDay = (iso) => {
   const [, m, d] = String(iso).split("-");
   return `${Number(d)}/${Number(m)}`;
@@ -84,12 +90,13 @@ const AdminMarks = () => {
       for (const column of sheet.columns) {
         const key = `${student._id}:${column.key}`;
         if (!(key in typed)) continue;
-        const text = toLatin(typed[key]);
+        const absent = isAbsentText(typed[key]);
+        const text = absent ? ABSENT : toLatin(typed[key]);
         const before = shownAs(student.marks[column.key]);
         if (text === before) continue;
-        const value = text === "" ? null : Number(text);
+        const value = absent ? ABSENT : text === "" ? null : Number(text);
         const invalid =
-          value !== null && (!Number.isFinite(value) || value < 0 || value > column.max);
+          !absent && value !== null && (!Number.isFinite(value) || value < 0 || value > column.max);
         out.push({ key, student: student._id, column: column.key, value, invalid });
       }
     }
@@ -224,7 +231,13 @@ const AdminMarks = () => {
     let sum = 0;
     let any = false;
     for (const column of sheet.columns) {
-      const text = toLatin(valueOf(student, column));
+      const typedText = valueOf(student, column);
+      // غ adds nothing: it is a 0.
+      if (isAbsentText(typedText)) {
+        any = true;
+        continue;
+      }
+      const text = toLatin(typedText);
       if (text !== "" && Number.isFinite(Number(text))) {
         sum += Number(text);
         any = true;
@@ -268,6 +281,10 @@ const AdminMarks = () => {
           </h1>
           <p className="text-slate-800 font-bold text-base mt-2 leading-relaxed">
             اختار الفصل والمادة والأسبوع، واكتب الدرجات زي الكشف الورقي بالظبط، وبعدين دوس «حفظ الدرجات». الدرجات بتظهر عند المعلم كأنه هو اللي رصدها.
+          </p>
+          <p className="text-slate-900 font-black text-base mt-2">
+            الطالب الغايب اكتب له حرف <span className="inline-block px-2 rounded-lg bg-rose-100 text-rose-800 border-2 border-rose-400">غ</span>{" "}
+            بدل الدرجة: بيتحسب صفر في المجموع، وولي الأمر والطالب بيشوفوه «غ» عشان يعرفوا إنه كان غايب.
           </p>
         </div>
 
@@ -421,6 +438,8 @@ const AdminMarks = () => {
                           {sheet.columns.map((column) => {
                             const key = `${student._id}:${column.key}`;
                             const change = changes.find((c) => c.key === key);
+                            // غ stands out in red, so the absent read at a glance down the column.
+                            const ink = isAbsentText(valueOf(student, column)) ? "text-rose-700" : "text-slate-900";
                             return (
                               <td key={column.key} className="p-2 border border-slate-300 text-center">
                                 <input
@@ -439,10 +458,10 @@ const AdminMarks = () => {
                                     change?.invalid
                                       ? "border-rose-600 bg-rose-50 text-rose-700 focus:ring-rose-100"
                                       : change
-                                        ? "border-amber-500 bg-amber-50 text-slate-900 focus:ring-amber-100"
+                                        ? `border-amber-500 bg-amber-50 ${ink} focus:ring-amber-100`
                                         : canEdit
-                                          ? "border-slate-500 bg-white text-slate-900 focus:border-indigo-700 focus:ring-indigo-100"
-                                          : "border-slate-400 bg-slate-50 text-slate-900 focus:ring-slate-100"
+                                          ? `border-slate-500 bg-white ${ink} focus:border-indigo-700 focus:ring-indigo-100`
+                                          : `border-slate-400 bg-slate-50 ${ink} focus:ring-slate-100`
                                   }`}
                                 />
                               </td>
@@ -478,7 +497,7 @@ const AdminMarks = () => {
             <div className="text-base font-black">
               {invalidCount > 0 ? (
                 <span className="text-rose-700 flex items-center gap-1.5">
-                  <AlertCircle size={20} /> فيه {invalidCount} درجة أكبر من الدرجة النهائية أو مش رقم — صحّح اللي باللون الأحمر.
+                  <AlertCircle size={20} /> فيه {invalidCount} درجة أكبر من الدرجة النهائية أو مش رقم ولا «غ» — صحّح اللي باللون الأحمر.
                 </span>
               ) : saved && changes.length === 0 ? (
                 <span className="text-emerald-700 flex items-center gap-1.5">
@@ -491,7 +510,7 @@ const AdminMarks = () => {
               ) : changes.length > 0 ? (
                 <span className="text-amber-800">اتغيّرت درجات {changedStudents} طالب ولسه ماتحفظتش.</span>
               ) : (
-                <span className="text-slate-800">اكتب الدرجات في الخانات، و«Enter» بينزلك للطالب اللي بعده.</span>
+                <span className="text-slate-800">اكتب الدرجات في الخانات (والغايب «غ»)، و«Enter» بينزلك للطالب اللي بعده.</span>
               )}
             </div>
             <button

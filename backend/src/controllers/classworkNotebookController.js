@@ -110,6 +110,8 @@ exports.saveBulkClassworkNotebook = async (req, res) => {
     });
     if (!subjectId) return undefined;
 
+    // «غ» stays on a 0 saved back unchanged; any other mark takes it off
+    // (utils/absentMark.js).
     const bulkOps = gradesList.map((record) => ({
       updateOne: {
         filter: {
@@ -124,6 +126,7 @@ exports.saveBulkClassworkNotebook = async (req, res) => {
             teacher: req.user.id,
             school: req.user.school,
           },
+          ...(Number(record.score) !== 0 ? { $unset: { absent: "" } } : {}),
         },
         upsert: true,
       },

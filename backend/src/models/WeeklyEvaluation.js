@@ -53,6 +53,8 @@ const weeklyEvaluationSchema = new mongoose.Schema(
         message: "درجة التقييم الأسبوعي لازم تكون رقم صحيح أو نص درجة (زي 7.5).",
       },
     },
+    // «غ»: away that week — a score of 0 shown as غ (utils/absentMark.js).
+    absent: { type: Boolean },
   },
   { timestamps: true },
 );

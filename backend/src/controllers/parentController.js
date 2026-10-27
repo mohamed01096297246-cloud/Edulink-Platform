@@ -14,6 +14,7 @@ const { SCHEMES, DEFAULT_SCHEME, schemeForClassroom } = require("../utils/gradeb
 const { computeWeekScores, toWeekStart, weekEnd } = require("../utils/weekScores");
 const { subjectsTakenBy } = require("../utils/secondLanguage");
 const { hasWeeklyEval, weeksWithoutWeeklyEval } = require("../utils/schoolMonths");
+const { isAbsent } = require("../utils/absentMark");
 
 exports.getParentDashboard = async (req, res) => {
   try {
@@ -176,7 +177,7 @@ exports.getWeekEvaluation = async (req, res) => {
         ? WeeklyEvaluation.find({
             student: student._id,
             weekStart: { $gte: weekStart, $lte: weekEnd(weekStart) },
-          }).select("subject score")
+          }).select("subject score absent")
         : [],
       student.classroom ? Schedule.distinct("subject", { classroom: student.classroom }) : [],
       student.classroom ? schemeForClassroom(student.classroom) : "classic",
@@ -184,6 +185,8 @@ exports.getWeekEvaluation = async (req, res) => {
     const max = (SCHEMES[scheme] || SCHEMES.classic).max.weeklyEvalScore;
 
     const scoreOf = new Map(evaluations.map((e) => [String(e.subject), e.score]));
+    // «غ»: away that week — a 0 in every sum, shown as absent (utils/absentMark.js).
+    const absentIn = new Set(evaluations.filter((e) => isAbsent(e.absent, e.score)).map((e) => String(e.subject)));
     // The class's other second languages aren't this child's subjects.
     const taken = await subjectsTakenBy(student, scheduledSubjects.filter(Boolean).map(String));
     const subjectIds = [...new Set([...taken, ...scoreOf.keys()])];
@@ -199,6 +202,7 @@ exports.getWeekEvaluation = async (req, res) => {
           score,
           max,
           percent: score === null ? null : Math.round((score / max) * 100),
+          absent: absentIn.has(String(s._id)),
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name, "ar"));
@@ -271,8 +275,9 @@ exports.getHomeworkWeek = async (req, res) => {
       await Promise.all(
         subjectDocs.map(async (s) => {
           const scores = await computeWeekScores(student.classroom, s._id, [student._id], weekStart, scheme);
-          const score = scores[String(student._id)]?.homeworkScore ?? null;
-          return { subjectId: s._id, name: s.name, score, max };
+          const mine = scores[String(student._id)];
+          const score = mine?.homeworkScore ?? null;
+          return { subjectId: s._id, name: s.name, score, max, absent: Boolean(mine?.absent?.homeworkScore) };
         }),
       )
     ).sort((a, b) => a.name.localeCompare(b.name, "ar"));

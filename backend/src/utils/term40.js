@@ -4,6 +4,7 @@ const { computeMonthScores, monthAverage } = require("./weekScores");
 const { monthsOfTerm, termSpan } = require("./schoolMonths");
 const { isDailyMode } = require("./dailyAttendance");
 const { averageToHalf } = require("./halfMarks");
+const { isAbsent } = require("./absentMark");
 
 // The weekly40 scheme's month and term arithmetic (utils/gradebook.js),
 // exactly as the paper register does it:
@@ -53,12 +54,18 @@ exports.computeTerm40 = async ({ classroom, subjectId, students, term }) => {
     subject: subjectId,
     academicYear: classroom.academicYear,
     term,
-  }).select("student testNo grade");
+  }).select("student testNo grade absent");
   const testsOf = {};
+  const missedOf = {};
   tests.forEach((t) => {
     const key = t.student.toString();
     if (!testsOf[key]) testsOf[key] = {};
     testsOf[key][t.testNo] = t.grade;
+    // «غ»: missed the test — a 0, printed as غ (utils/absentMark.js).
+    if (isAbsent(t.absent, t.grade)) {
+      if (!missedOf[key]) missedOf[key] = {};
+      missedOf[key][`test${t.testNo}`] = true;
+    }
   });
 
   // Days absent: distinct days with an unexcused absence from this
@@ -97,6 +104,7 @@ exports.computeTerm40 = async ({ classroom, subjectId, students, term }) => {
       weeksAverage,
       test1,
       test2,
+      absent: missedOf[key] || {},
       testsTotal,
       yearWork: sum([weeksAverage, testsTotal]),
       absentDays: absentDays[key] ? absentDays[key].size : 0,

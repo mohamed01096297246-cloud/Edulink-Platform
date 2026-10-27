@@ -10,6 +10,7 @@ const { isDailyMode } = require("./dailyAttendance");
 const { worthOf, earnedOn } = require("./homeworkMarks");
 const { hasWeeklyEval } = require("./schoolMonths");
 const { averageToHalf } = require("./halfMarks");
+const { isAbsent } = require("./absentMark");
 
 // The four "أعمال السنة" columns for a single [weekStart, weekStart+6 days]
 // window. Lives here rather than inside a controller because two different
@@ -106,20 +107,20 @@ const computeWeekScores = async (
           classroom: classroomId,
           subject: subjectId,
           weekStart,
-        }).select("student score")
+        }).select("student score absent")
       : [],
     rules.classwork
       ? ClassworkNotebook.find({
           classroom: classroomId,
           subject: subjectId,
           weekStart,
-        }).select("student score")
+        }).select("student score absent")
       : [],
     CourseworkOverride.find({
       student: { $in: studentIds },
       subject: subjectId,
       weekStart,
-    }).select("student attendanceScore homeworkScore"),
+    }).select("student attendanceScore homeworkScore attendanceAbsent homeworkAbsent"),
   ]);
 
   const attendanceByStudent = new Map();
@@ -165,13 +166,17 @@ const computeWeekScores = async (
   });
 
   const weeklyByStudent = new Map();
+  const weeklyAbsent = new Set();
   weeklyEvaluations.forEach((record) => {
     weeklyByStudent.set(record.student.toString(), record.score);
+    if (isAbsent(record.absent, record.score)) weeklyAbsent.add(record.student.toString());
   });
 
   const classworkByStudent = new Map();
+  const classworkAbsent = new Set();
   classworkEntries.forEach((record) => {
     classworkByStudent.set(record.student.toString(), record.score);
+    if (isAbsent(record.absent, record.score)) classworkAbsent.add(record.student.toString());
   });
 
   const overrideByStudent = new Map();
@@ -241,6 +246,14 @@ const computeWeekScores = async (
       computed: {
         attendanceScore: computedAttendance,
         homeworkScore: computedHomework,
+      },
+      // The columns that read «غ»: a 0, counted as 0 above, shown as absent
+      // (utils/absentMark.js).
+      absent: {
+        attendanceScore: hasAttendanceOverride && isAbsent(override.attendanceAbsent, attendanceScore),
+        homeworkScore: hasHomeworkOverride && isAbsent(override.homeworkAbsent, homeworkScore),
+        weeklyEvalScore: weeklyAbsent.has(key) && weeklyEvalScore !== null,
+        classworkScore: classworkAbsent.has(key) && classworkScore !== null,
       },
       // False in a week with no تقييم أسبوعي (utils/schoolMonths.js).
       weeklyEvalApplies: evalApplies,

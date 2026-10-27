@@ -149,6 +149,8 @@ exports.saveBulkTermTests = async (req, res) => {
             term,
             testNo,
           },
+          // «غ» stays on a 0 saved back unchanged; any other grade takes it
+          // off (utils/absentMark.js).
           update: {
             $set: {
               grade: Number(r.grade),
@@ -156,6 +158,7 @@ exports.saveBulkTermTests = async (req, res) => {
               teacher: req.user.id,
               school: req.user.school,
             },
+            ...(Number(r.grade) !== 0 ? { $unset: { absent: "" } } : {}),
           },
           upsert: true,
         },

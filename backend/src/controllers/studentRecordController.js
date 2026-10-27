@@ -23,6 +23,7 @@ const { SCHEMES, schemeForClassroom } = require("../utils/gradebook");
 const { computeWeekScores } = require("../utils/weekScores");
 const { isDailyMode } = require("../utils/dailyAttendance");
 const { reportPeriod } = require("../utils/reportPeriod");
+const { isAbsent } = require("../utils/absentMark");
 
 // A student's whole record for a week or a month, for the school's admins:
 // every register they were marked on, every mark each teacher recorded
@@ -154,6 +155,8 @@ exports.getStudentRecord = async (req, res) => {
                   attendanceScore: mine.attendanceScore ?? null,
                   classworkScore: rules.classwork ? mine.classworkScore ?? null : undefined,
                   total: mine.total ?? null,
+                  // The columns that read «غ» (utils/absentMark.js).
+                  absent: mine.absent || {},
                 };
               }),
             );
@@ -234,6 +237,7 @@ exports.getStudentRecord = async (req, res) => {
           subject: t.subject?.name || "",
           label: `اختبار ${t.testNo} — الترم ${t.term}`,
           grade: t.grade,
+          absent: isAbsent(t.absent, t.grade),
           outOf: rules.termTestMax || 15,
         })),
         ...exams.map((e) => ({ kind: "exam", subject: e.subject?.name || "", label: e.exam?.title || "امتحان", grade: e.grade, outOf: 100 })),
