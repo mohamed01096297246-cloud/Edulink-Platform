@@ -156,6 +156,12 @@ test("«غ» is a 0 in every total, and reads غ to the parent, the student and 
     (x) => String(x.studentId) === String(r.a._id),
   );
   expect([rowA.homeworkScore, rowA.weeklyEvalScore, rowA.attendanceScore, rowA.total]).toEqual([0, 0, 10, 10]);
+  // …that the teacher's own screens mark غ too.
+  expect(rowA.absent).toMatchObject({ homeworkScore: true, weeklyEvalScore: true, attendanceScore: false });
+  const theirEval = (await t.get(`/api/weekly-evaluation/classroom/${r.c._id}?weekStart=${WEEK}`)).body.data;
+  expect(theirEval.absent).toEqual({ [String(r.a._id)]: true });
+  const theirTest = (await t.get(`/api/term-tests/classroom/${r.c._id}?term=1&testNo=1`)).body.data;
+  expect(theirTest.absent).toEqual({ [String(r.a._id)]: true });
 
   // The parent reads غ, not a poor mark.
   const p = await f.signIn(r.parentA);

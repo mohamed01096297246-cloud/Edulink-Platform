@@ -5,6 +5,7 @@ const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { toWeekStart } = require("../utils/weekScores");
 const { rosterWhere } = require("../utils/secondLanguage");
+const { isAbsent } = require("../utils/absentMark");
 
 exports.getClassroomClassworkNotebook = async (req, res) => {
   try {
@@ -42,13 +43,16 @@ exports.getClassroomClassworkNotebook = async (req, res) => {
     });
 
     const scores = {};
+    // The pupils whose 0 reads «غ» (utils/absentMark.js).
+    const absent = {};
     entries.forEach((entry) => {
       scores[entry.student.toString()] = entry.score;
+      if (isAbsent(entry.absent, entry.score)) absent[entry.student.toString()] = true;
     });
 
     return res.status(200).json({
       success: true,
-      data: { students, scores, weekStart },
+      data: { students, scores, absent, weekStart },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

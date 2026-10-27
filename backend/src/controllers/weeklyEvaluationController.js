@@ -7,6 +7,7 @@ const { toWeekStart } = require("../utils/weekScores");
 const { schemeForClassroom, SCHEMES } = require("../utils/gradebook");
 const { rosterWhere } = require("../utils/secondLanguage");
 const { hasWeeklyEval } = require("../utils/schoolMonths");
+const { isAbsent } = require("../utils/absentMark");
 
 const NO_WEEKLY_EVAL = "الأسبوع ده مالوش تقييم أسبوعي في كل المدارس، فمش محتاج يترصد.";
 
@@ -51,8 +52,11 @@ exports.getClassroomWeeklyEvaluation = async (req, res) => {
       : [];
 
     const scores = {};
+    // The pupils whose 0 reads «غ» (utils/absentMark.js).
+    const absent = {};
     evaluations.forEach((entry) => {
       scores[entry.student.toString()] = entry.score;
+      if (isAbsent(entry.absent, entry.score)) absent[entry.student.toString()] = true;
     });
 
     // What this classroom's weekly evaluation is out of — 10 or 20,
@@ -64,6 +68,7 @@ exports.getClassroomWeeklyEvaluation = async (req, res) => {
       data: {
         students,
         scores,
+        absent,
         weekStart,
         scheme,
         maxScore: SCHEMES[scheme].max.weeklyEvalScore,

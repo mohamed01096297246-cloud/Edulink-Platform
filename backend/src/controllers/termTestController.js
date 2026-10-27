@@ -5,6 +5,7 @@ const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { schemeForClassroom, SCHEMES } = require("../utils/gradebook");
 const { rosterWhere } = require("../utils/secondLanguage");
+const { isAbsent } = require("../utils/absentMark");
 
 // The two tests of a term on the weekly40 scheme — the screen that replaces
 // "اختبار الشهر" for those classrooms. See models/TermTest.js.
@@ -67,16 +68,19 @@ exports.getClassroomTermTests = async (req, res) => {
       academicYear: classroom.academicYear,
       term,
       testNo,
-    }).select("student grade");
+    }).select("student grade absent");
 
     const grades = {};
+    // The pupils whose 0 reads «غ» (utils/absentMark.js).
+    const absent = {};
     tests.forEach((t) => {
       grades[t.student.toString()] = t.grade;
+      if (isAbsent(t.absent, t.grade)) absent[t.student.toString()] = true;
     });
 
     return res.status(200).json({
       success: true,
-      data: { students, grades, term, testNo, maxScore: rules.termTestMax },
+      data: { students, grades, absent, term, testNo, maxScore: rules.termTestMax },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
