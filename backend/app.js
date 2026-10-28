@@ -14,7 +14,15 @@ app.set("trust proxy", 1);
 app.use(helmet());
 app.use(cors());
 app.use(compression());
-app.use(express.json());
+// A JSON body that isn't an object — the panel's API client sends a `null`
+// payload as the text "null" — reads as an empty body instead of failing
+// with a parse error, so a button with nothing to send still reaches its
+// route.
+app.use(express.json({ strict: false }));
+app.use((req, res, next) => {
+  if (req.body === null || (req.body !== undefined && typeof req.body !== "object")) req.body = {};
+  next();
+});
 
 if (process.env.NODE_ENV === "development") {
   app.use((req, res, next) => {

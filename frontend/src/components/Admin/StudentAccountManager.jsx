@@ -138,7 +138,7 @@ const StudentAccountManager = ({ school = null, onClose } = {}) => {
   const reissue = async (student) => {
     setWorking(true);
     try {
-      const res = await API.post(`/student-accounts/${student._id}/reissue`, null, { params: scope });
+      const res = await API.post(`/student-accounts/${student._id}/reissue`, {}, { params: scope });
       setIssued({
         title: "كلمة مرور جديدة",
         gradeName: grades.find((g) => g._id === grade)?.name || "",

@@ -28,4 +28,17 @@ test("the platform owner lists a school's grades, issues student logins and reis
   const again = await owner.post(`/api/student-accounts/${student._id}/reissue${q}`);
   expect(again.status).toBe(200);
   expect(again.body.data.password).toEqual(expect.any(String));
+
+  // The panel's button, exactly as its API client sends it: a JSON body of
+  // "null". It used to fail before the route with «Unexpected token 'n',
+  // "null" is not valid JSON».
+  const fromPanel = await f
+    .request(f.app)
+    .post(`/api/student-accounts/${student._id}/reissue${q}`)
+    .set("Authorization", `Bearer ${owner.token}`)
+    .set("Content-Type", "application/json")
+    .send("null");
+  expect(fromPanel.status).toBe(200);
+  expect(fromPanel.body.data.password).toEqual(expect.any(String));
+  expect(fromPanel.body.data.password).not.toBe(again.body.data.password);
 });
