@@ -77,7 +77,7 @@ test("the admin's week lands in the teacher's own register, under the teacher", 
 
   const save = (list) => a.put("/api/admin-marks/week", { classroom: String(r.c._id), subject: String(r.math._id), weekStart: WEEK, list });
   expect((await save([{ student: String(r.a._id), marks: { weeklyEvalScore: 25 } }])).status).toBe(400);
-  expect((await save([{ student: String(r.a._id), marks: { weeklyEvalScore: 7.3 } }])).status).toBe(400);
+  expect((await save([{ student: String(r.a._id), marks: { weeklyEvalScore: "سبعة" } }])).status).toBe(400);
   const ok = await save([
     { student: String(r.a._id), marks: { homeworkScore: 9, weeklyEvalScore: 17.5, attendanceScore: 10 } },
     { student: String(r.b._id), marks: { weeklyEvalScore: 12 } },
@@ -100,6 +100,32 @@ test("the admin's week lands in the teacher's own register, under the teacher", 
   // Clearing a mark removes it.
   expect((await save([{ student: String(r.b._id), marks: { weeklyEvalScore: null } }])).status).toBe(200);
   expect(await WeeklyEvaluation.countDocuments({ student: r.b._id })).toBe(0);
+});
+
+// Mohamed, 2026-10-28: «خليه يقبل النص عادي ف كل حاجة» — whatever the paper
+// says, in range, typed with Arabic digits or not; and the teacher's own
+// screen saves the class afterwards with those numbers in it.
+test("any mark in range is taken, in Arabic digits too, and the teacher's save still goes through", async () => {
+  const r = await future();
+  const a = await f.signIn(r.admin);
+  const ids = { classroom: String(r.c._id), subject: String(r.math._id) };
+  const save = (list) => a.put("/api/admin-marks/week", { ...ids, weekStart: WEEK, list });
+  const typed = await save([{ student: String(r.a._id), marks: { homeworkScore: 8.3, weeklyEvalScore: "١٧٫٣", attendanceScore: "9,7" } }]);
+  expect(typed.status).toBe(200);
+  const sheet = (await a.get(`/api/admin-marks/week?classroom=${r.c._id}&subject=${r.math._id}&weekStart=${WEEK}`)).body.data;
+  expect(sheet.students.find((s) => String(s._id) === String(r.a._id)).marks).toEqual({ homeworkScore: 8.3, weeklyEvalScore: 17.3, attendanceScore: 9.7 });
+  expect((await save([{ student: String(r.a._id), marks: { attendanceScore: 10.5 } }])).status).toBe(400);
+
+  const test1 = await a.put("/api/admin-marks/test", { ...ids, term: 1, testNo: 1, list: [{ student: String(r.a._id), marks: { grade: 13.3 } }] });
+  expect(test1.status).toBe(200);
+  const tests = (await a.get(`/api/admin-marks/test?classroom=${r.c._id}&subject=${r.math._id}&term=1&testNo=1`)).body.data;
+  expect(tests.students.find((s) => String(s._id) === String(r.a._id)).marks.grade).toBe(13.3);
+
+  const t = await f.signIn(r.teacher);
+  const classroomId = String(r.c._id);
+  expect((await t.post("/api/weekly-evaluation/bulk", { classroomId, weekStart: WEEK, gradesList: [{ studentId: String(r.a._id), score: 17.3 }, { studentId: String(r.b._id), score: 12 }] })).status).toBe(200);
+  expect((await t.post("/api/coursework/week/bulk", { classroomId, weekStart: WEEK, list: [{ studentId: String(r.a._id), homeworkScore: 8.3, attendanceScore: 9.7 }] })).status).toBe(200);
+  expect((await t.post("/api/term-tests/bulk", { classroomId, term: 1, testNo: 1, gradesList: [{ studentId: String(r.a._id), grade: 13.3 }] })).status).toBe(200);
 });
 
 test("the term's tests too, and the teacher reads them back", async () => {

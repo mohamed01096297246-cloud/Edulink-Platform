@@ -40,10 +40,6 @@ const classworkNotebookSchema = new mongoose.Schema(
       required: true,
       min: 0,
       max: 5,
-      validate: {
-        validator: (n) => Number.isInteger(n * 4),
-        message: "درجة كراسة الحصة لازم تكون رقم صحيح أو بربع أو نص درجة (زي 4.5 أو 3.25).",
-      },
     },
     // «غ»: away that week — a score of 0 shown as غ (utils/absentMark.js).
     absent: { type: Boolean },

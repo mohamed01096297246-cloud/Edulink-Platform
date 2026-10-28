@@ -79,7 +79,7 @@ test("a subject with no marks is left out of a teacher's recording, not their ti
   expect(homework.subjects.map((x) => x.name)).toEqual(["انجليزي حكومي"]);
 });
 
-test("conduct, classwork and homework marks take quarters, and a week adds them up exactly", async () => {
+test("conduct, classwork and homework marks take quarters and any mark in range, and a week adds them up exactly", async () => {
   const s = await f.school();
   const g = await f.grade(s);
   const c = await f.classroom(g);
@@ -93,14 +93,14 @@ test("conduct, classwork and homework marks take quarters, and a week adds them 
 
   const coursework = (entry) => t.post("/api/coursework/week/bulk", { classroomId: String(c._id), weekStart: week, list: [{ studentId: id, ...entry }] });
   expect((await coursework({ homeworkScore: 4.25, attendanceScore: 3.5 })).status).toBe(200);
-  const bad = await coursework({ homeworkScore: 4.3 });
-  expect(bad.status).toBe(400);
-  expect(bad.body.message).toContain("بربع أو نص درجة");
+  expect((await coursework({ homeworkScore: 4.3 })).status).toBe(200);
   expect((await coursework({ homeworkScore: 5.25 })).status).toBe(400);
+  expect((await coursework({ homeworkScore: 4.25 })).status).toBe(200);
 
   const notebook = (score) => t.post("/api/classwork-notebook/bulk", { classroomId: String(c._id), weekStart: week, gradesList: [{ studentId: id, score }] });
   expect((await notebook(4.75)).status).toBe(200);
-  expect((await notebook(4.6)).status).toBe(400);
+  expect((await notebook(4.6)).status).toBe(200);
+  expect((await notebook(5.5)).status).toBe(400);
   expect((await notebook(4.5)).status).toBe(200);
 
   expect((await t.post("/api/weekly-evaluation/bulk", { classroomId: String(c._id), weekStart: week, gradesList: [{ studentId: id, score: 10 }] })).status).toBe(200);

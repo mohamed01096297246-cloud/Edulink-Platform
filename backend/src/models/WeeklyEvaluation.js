@@ -47,11 +47,6 @@ const weeklyEvaluationSchema = new mongoose.Schema(
       required: true,
       min: 0,
       max: 20,
-      // Whole or half marks (17.5) — a teacher may type the mark by hand.
-      validate: {
-        validator: (n) => Number.isInteger(n * 2),
-        message: "درجة التقييم الأسبوعي لازم تكون رقم صحيح أو نص درجة (زي 7.5).",
-      },
     },
     // «غ»: away that week — a score of 0 shown as غ (utils/absentMark.js).
     absent: { type: Boolean },

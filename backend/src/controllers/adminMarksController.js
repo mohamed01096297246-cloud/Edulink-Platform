@@ -29,14 +29,13 @@ const idOf = (value) => String(value?._id || value || "");
 const nameOf = (s) => `${s.firstName} ${s.lastName}`.trim();
 const byName = (a, b) => nameOf(a).localeCompare(nameOf(b), "ar");
 
-// The column each mark is typed into, what it is called on the paper
-// register, and the steps it may come in (2 = halves, 4 = quarters) — the
-// same steps the teacher's screens allow.
+// The column each mark is typed into, and what it is called on the paper
+// register.
 const WEEK_COLUMNS = [
-  { key: "homeworkScore", label: "الواجب", steps: 4 },
-  { key: "weeklyEvalScore", label: "التقييم الأسبوعي", steps: 2 },
-  { key: "classworkScore", label: "كراسة الحصة", steps: 4 },
-  { key: "attendanceScore", label: "مواظبة وسلوك", steps: 4 },
+  { key: "homeworkScore", label: "الواجب" },
+  { key: "weeklyEvalScore", label: "التقييم الأسبوعي" },
+  { key: "classworkScore", label: "كراسة الحصة" },
+  { key: "attendanceScore", label: "مواظبة وسلوك" },
 ];
 
 // The week sheet's columns for a class's scheme — without تقييم أسبوعي in
@@ -107,16 +106,27 @@ const rosterOf = async (classroom, subjectId) =>
     }).select("firstName lastName")
   ).sort(byName);
 
-// A typed mark: a number in the column's range and steps, «غ» (absent — a
-// 0 that reads غ, utils/absentMark.js), or null (clear it).
-const markOf = (value, max, steps) => {
-  if (value === null || value === "") return { value: null };
+// Arabic-Indic and Persian digits, and the Arabic decimal comma, to plain ones.
+const toLatin = (value) =>
+  typeof value === "string"
+    ? value
+        .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+        .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+        .replace(/[٫،,]/g, ".")
+        .trim()
+    : value;
+
+// A typed mark: any number from 0 to the column's maximum — whatever the
+// paper says, 8.3 as well as 8.5 (Mohamed, 2026-10-28: «خليه يقبل النص
+// عادي ف كل حاجة») — «غ» (absent — a 0 that reads غ, utils/absentMark.js),
+// or null (clear it).
+const markOf = (value, max) => {
   if (isAbsentText(value)) return { value: 0, absent: true };
-  const n = Number(value);
-  if (!Number.isFinite(n) || n < 0 || n > max || !Number.isInteger(Math.round(n * steps * 1e6) / 1e6)) {
-    return { error: true };
-  }
-  return { value: n, absent: false };
+  const text = toLatin(value);
+  if (text === null || text === undefined || text === "") return { value: null };
+  const n = Number(text);
+  if (!Number.isFinite(n) || n < 0 || n > max) return { error: true };
+  return { value: Math.round(n * 100) / 100, absent: false };
 };
 
 // The update for a mark kept in a document of its own (التقييم الأسبوعي،
@@ -280,11 +290,11 @@ exports.saveWeek = async (req, res) => {
             message: key === "weeklyEvalScore" ? NO_WEEKLY_EVAL : "العمود ده مش في كشف الفصل ده.",
           });
         }
-        const mark = markOf(marks[key], max[key], column.steps);
+        const mark = markOf(marks[key], max[key]);
         if (mark.error) {
           return res.status(400).json({
             success: false,
-            message: `درجة «${column.label}» لازم تكون من 0 لـ ${max[key]}، أو «غ» للغايب.`,
+            message: `درجة «${column.label}» لازم تكون رقم من 0 لـ ${max[key]}، أو «غ» للغايب.`,
           });
         }
         const at = { student: studentId, subject: sheet.subject._id, weekStart };
@@ -402,11 +412,11 @@ exports.saveTest = async (req, res) => {
       if (!onSheet.has(studentId)) {
         return res.status(400).json({ success: false, message: "فيه طالب مش في الفصل ده." });
       }
-      const mark = markOf(item.marks?.grade, rules.termTestMax, 2);
+      const mark = markOf(item.marks?.grade, rules.termTestMax);
       if (mark.error) {
         return res.status(400).json({
           success: false,
-          message: `درجة الاختبار لازم تكون من 0 لـ ${rules.termTestMax}، أو «غ» للغايب.`,
+          message: `درجة الاختبار لازم تكون رقم من 0 لـ ${rules.termTestMax}، أو «غ» للغايب.`,
         });
       }
       const at = {

@@ -424,10 +424,10 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
 
         if (value === null) continue;
 
-        if (!Number.isInteger(Number(value) * 4) || value < 0 || value > max) {
+        if (!Number.isFinite(Number(value)) || value < 0 || value > max) {
           return res.status(400).json({
             success: false,
-            message: `الدرجة لازم تكون بين 0 و${max}، رقم صحيح أو بربع أو نص درجة (زي 4.5 أو 3.25).`,
+            message: `الدرجة لازم تكون رقم بين 0 و${max}.`,
           });
         }
       }

@@ -145,10 +145,10 @@ exports.saveBulkMonthlyGrades = async (req, res) => {
         .json({ success: false, message: "أدخل درجة طالب واحد على الأقل." });
     }
 
-    // Whole marks or halves (14.5).
+    // Any number from 0 to 15.
     const hasInvalidScore = gradesList.some(
       (record) =>
-        !Number.isInteger(Number(record.grade) * 2) ||
+        !Number.isFinite(Number(record.grade)) ||
         record.grade < 0 ||
         record.grade > 15,
     );
@@ -156,7 +156,7 @@ exports.saveBulkMonthlyGrades = async (req, res) => {
     if (hasInvalidScore) {
       return res.status(400).json({
         success: false,
-        message: "الدرجات لازم تكون بين 0 و15، رقم صحيح أو نص درجة (زي 14.5).",
+        message: "الدرجات لازم تكون رقم بين 0 و15.",
       });
     }
 

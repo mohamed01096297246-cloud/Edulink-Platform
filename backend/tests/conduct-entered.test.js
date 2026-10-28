@@ -138,7 +138,7 @@ test("a school still on attendance keeps its worked-out marks unrecorded", async
   expect(other).toMatchObject({ attendanceScore: 5, overridden: { attendanceScore: false } });
 });
 
-test("the teacher's mark is in quarter steps within the column's maximum", async () => {
+test("the teacher's mark is any number within the column's maximum", async () => {
   const { c, teacher, student } = await setUp();
   const t = await f.signIn(teacher);
   const save = (attendanceScore) =>
@@ -147,10 +147,10 @@ test("the teacher's mark is in quarter steps within the column's maximum", async
       weekStart: FROM,
       list: [{ studentId: String(student._id), attendanceScore }],
     });
-  for (const attendanceScore of [3.3, 6, 5.25]) {
+  for (const attendanceScore of [6, 5.25, -1]) {
     expect((await save(attendanceScore)).status).toBe(400);
   }
-  for (const attendanceScore of [3.5, 4.25, 2.75]) {
+  for (const attendanceScore of [3.5, 4.25, 2.75, 3.3]) {
     expect((await save(attendanceScore)).status).toBe(200);
   }
 });

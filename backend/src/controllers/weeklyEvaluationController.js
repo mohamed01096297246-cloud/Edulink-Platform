@@ -123,7 +123,7 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
       (record) =>
         record.score === null ||
         record.score === "" ||
-        !Number.isInteger(Number(record.score) * 2) ||
+        !Number.isFinite(Number(record.score)) ||
         record.score < 0 ||
         record.score > max,
     );
@@ -131,7 +131,7 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
     if (hasInvalidScore) {
       return res.status(400).json({
         success: false,
-        message: `الدرجات لازم تكون بين 0 و${max} (رقم صحيح أو نص درجة زي 7.5).`,
+        message: `الدرجات لازم تكون رقم بين 0 و${max}.`,
       });
     }
 

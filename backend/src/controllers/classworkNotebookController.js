@@ -83,10 +83,10 @@ exports.saveBulkClassworkNotebook = async (req, res) => {
         .json({ success: false, message: "أدخل درجة طالب واحد على الأقل." });
     }
 
-    // Whole marks, or with a quarter, a half or three quarters (4.5, 3.25).
+    // Any number from 0 to 5.
     const hasInvalidScore = gradesList.some(
       (record) =>
-        !Number.isInteger(Number(record.score) * 4) ||
+        !Number.isFinite(Number(record.score)) ||
         record.score < 0 ||
         record.score > 5,
     );
