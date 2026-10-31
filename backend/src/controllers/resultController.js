@@ -7,6 +7,7 @@ const { teacherClassPairs, teacherClassroomIds, teacherMarkClassroomIds } = requ
 const { sameSchool } = require("../utils/tenant");
 const User = require("../models/User");
 const { teacherMayUse } = require("../utils/teacherSubject");
+const { marksBefore, tellMarks } = require("../utils/studentNotices");
 
 exports.getTeacherGrades = async (req, res) => {
   try {
@@ -244,6 +245,19 @@ exports.addBulkGrades = async (req, res) => {
       },
     }));
     await Result.bulkWrite(bulkOps);
+
+    // Each student told a result that is new or different.
+    const exam = await Exam.findById(examId).select("title").lean();
+    await tellMarks({
+      subjectId,
+      when: exam?.title || "امتحان",
+      columns: { grade: { label: "درجتك", max: 100 } },
+      before: marksBefore(existingResults, (d) => ({ grade: d.grade })),
+      after: gradesList.map((record) => ({ studentId: record.studentId, marks: { grade: record.grade } })),
+      createdBy: req.user.id,
+      school: req.user.school,
+    });
+
     if (isAlreadyRecorded) {
       return res.status(200).json({
         success: true,

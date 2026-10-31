@@ -26,6 +26,7 @@ const { averageToHalf } = require("../utils/halfMarks");
 const { rosterWhere } = require("../utils/secondLanguage");
 const { weeksWithoutWeeklyEval } = require("../utils/schoolMonths");
 const { OVERRIDE_FLAG } = require("../utils/absentMark");
+const { weekName, marksBefore, tellMarks } = require("../utils/studentNotices");
 
 const round1 = (n) =>
   n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
@@ -503,8 +504,54 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
       }
     });
 
+    // What each student the teacher saved had, to tell only a mark that is
+    // new or different. The rest of the class given the full مواظبة they
+    // were already shown (`shown`) is told nothing.
+    const ids = list.map((entry) => entry.studentId);
+    const [overridesBefore, classworkBefore] = await Promise.all([
+      CourseworkOverride.find({ subject: subjectId, weekStart, student: { $in: ids } })
+        .select("student attendanceScore homeworkScore")
+        .lean(),
+      classworkOps.length
+        ? ClassworkNotebook.find({ subject: subjectId, weekStart, student: { $in: ids } }).select("student score").lean()
+        : [],
+    ]);
+    const classworkOf = new Map(classworkBefore.map((d) => [String(d.student), d.score]));
+    const before = marksBefore(overridesBefore, (d) => ({
+      attendanceScore: d.attendanceScore,
+      homeworkScore: d.homeworkScore,
+    }));
+    classworkOf.forEach((score, id) => before.set(id, { ...(before.get(id) || {}), classworkScore: score }));
+
     if (overrideOps.length > 0) await CourseworkOverride.bulkWrite(overrideOps);
     if (classworkOps.length > 0) await ClassworkNotebook.bulkWrite(classworkOps);
+
+    const columns = {
+      homeworkScore: { label: "الواجب", max: maxScores.homeworkScore },
+      attendanceScore: {
+        label: scheme === "weekly40" ? "مواظبة وسلوك" : "المواظبة",
+        max: maxScores.attendanceScore,
+      },
+    };
+    if (maxScores.classworkScore !== undefined) {
+      columns.classworkScore = { label: "كراسة الحصة", max: maxScores.classworkScore };
+    }
+    await tellMarks({
+      subjectId,
+      when: weekName(weekStart),
+      columns,
+      before,
+      after: list.map((entry) => ({
+        studentId: entry.studentId,
+        marks: {
+          homeworkScore: entry.homeworkScore,
+          attendanceScore: entry.attendanceScore,
+          classworkScore: entry.classworkScore,
+        },
+      })),
+      createdBy: req.user.id,
+      school: req.user.school,
+    });
 
     return res
       .status(200)

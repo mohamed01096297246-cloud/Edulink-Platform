@@ -6,6 +6,7 @@ const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { schemeForClassroom, SCHEMES } = require("../utils/gradebook");
 const { rosterWhere } = require("../utils/secondLanguage");
 const { isAbsent } = require("../utils/absentMark");
+const { marksBefore, tellMarks } = require("../utils/studentNotices");
 
 // The two tests of a term on the weekly40 scheme — the screen that replaces
 // "اختبار الشهر" for those classrooms. See models/TermTest.js.
@@ -168,7 +169,32 @@ exports.saveBulkTermTests = async (req, res) => {
         },
       }));
 
+    // What each student had, to tell only a mark that is new or different.
+    const saved = gradesList.filter((r) => enrolled.has(String(r.studentId)));
+    const before = marksBefore(
+      await TermTest.find({
+        subject: subjectId,
+        academicYear: classroom.academicYear,
+        term,
+        testNo,
+        student: { $in: saved.map((r) => r.studentId) },
+      })
+        .select("student grade")
+        .lean(),
+      (d) => ({ grade: d.grade }),
+    );
+
     if (ops.length) await TermTest.bulkWrite(ops);
+
+    await tellMarks({
+      subjectId,
+      when: `الترم ${term === 1 ? "الأول" : "الثاني"}`,
+      columns: { grade: { label: `الاختبار ${testNo === 1 ? "الأول" : "الثاني"}`, max } },
+      before,
+      after: saved.map((r) => ({ studentId: r.studentId, marks: { grade: r.grade } })),
+      createdBy: req.user.id,
+      school: req.user.school,
+    });
 
     return res.status(200).json({
       success: true,

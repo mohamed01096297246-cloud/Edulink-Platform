@@ -18,16 +18,31 @@ exports.sendPushNotifications = async (tokens, title, body, data = {}, options =
   const validTokens = [...new Set(tokens)].filter(isExpoPushToken);
   if (validTokens.length === 0) return;
 
-  const messages = validTokens.map((to) => ({
-    to,
-    sound: options.sound || "default",
-    title,
-    body,
-    data,
-    ...(options.channelId ? { channelId: options.channelId } : {}),
-    ...(options.priority ? { priority: options.priority } : {}),
-  }));
+  await sendMessages(
+    validTokens.map((to) => ({
+      to,
+      sound: options.sound || "default",
+      title,
+      body,
+      data,
+      ...(options.channelId ? { channelId: options.channelId } : {}),
+      ...(options.priority ? { priority: options.priority } : {}),
+    })),
+  );
+};
 
+// A different message to each phone — each student told their own mark
+// (utils/notify.notifyStudents). `messages`: [{ to, title, body, data,
+// channelId }]; a message without a valid token is dropped.
+exports.sendPushMessages = async (messages) => {
+  await sendMessages(
+    messages
+      .filter((m) => isExpoPushToken(m.to))
+      .map((m) => ({ sound: "default", ...m })),
+  );
+};
+
+async function sendMessages(messages) {
   for (let i = 0; i < messages.length; i += BATCH_SIZE) {
     const batch = messages.slice(i, i + BATCH_SIZE);
     try {
@@ -46,4 +61,4 @@ exports.sendPushNotifications = async (tokens, title, body, data = {}, options =
       console.error("Expo push request errored:", err.message);
     }
   }
-};
+}

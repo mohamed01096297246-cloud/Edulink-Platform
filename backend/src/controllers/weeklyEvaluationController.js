@@ -8,6 +8,7 @@ const { schemeForClassroom, SCHEMES } = require("../utils/gradebook");
 const { rosterWhere } = require("../utils/secondLanguage");
 const { hasWeeklyEval } = require("../utils/schoolMonths");
 const { isAbsent } = require("../utils/absentMark");
+const { weekName, marksBefore, tellMarks } = require("../utils/studentNotices");
 
 const NO_WEEKLY_EVAL = "الأسبوع ده مالوش تقييم أسبوعي في كل المدارس، فمش محتاج يترصد.";
 
@@ -167,7 +168,29 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
       },
     }));
 
+    // What each student had, to tell only a mark that is new or different.
+    const before = marksBefore(
+      await WeeklyEvaluation.find({
+        subject: subjectId,
+        weekStart,
+        student: { $in: gradesList.map((record) => record.studentId) },
+      })
+        .select("student score")
+        .lean(),
+      (d) => ({ score: d.score }),
+    );
+
     await WeeklyEvaluation.bulkWrite(bulkOps);
+
+    await tellMarks({
+      subjectId,
+      when: weekName(weekStart),
+      columns: { score: { label: "التقييم الأسبوعي", max } },
+      before,
+      after: gradesList.map((record) => ({ studentId: record.studentId, marks: { score: record.score } })),
+      createdBy: req.user.id,
+      school: req.user.school,
+    });
 
     return res.status(200).json({
       success: true,

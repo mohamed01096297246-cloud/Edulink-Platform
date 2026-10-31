@@ -23,6 +23,11 @@ const {
   utcMidnight,
   DAILY_MESSAGES,
 } = require("../utils/dailyAttendance");
+const { tellAbsences } = require("../utils/studentNotices");
+
+// The students a register just recorded absent.
+const absentIn = (records) =>
+  records.filter((record) => record.status === "absent").map((record) => record.student);
 
 // Cached per request path rather than per process: a school's timezone
 // effectively never changes, but reading it fresh keeps a correction taking
@@ -173,6 +178,14 @@ exports.recordBulkAttendance = async (req, res) => {
 
     await Attendance.bulkWrite(bulkOps);
 
+    await tellAbsences({
+      studentIds: absentIn(records),
+      date: pureDate,
+      subjectId: targetSchedule?.subject,
+      createdBy: req.user.id,
+      school: req.user.school,
+    });
+
     return res.status(201).json({
       success: true,
       message: "تم حفظ سجلات الحضور بنجاح.",
@@ -240,6 +253,14 @@ async function recordDaily(req, res, schedule, dateStr, records) {
     })),
   );
 
+  await tellAbsences({
+    studentIds: absentIn(records),
+    date: utcMidnight(dateStr),
+    daily: true,
+    createdBy: req.user.id,
+    school: req.user.school,
+  });
+
   return res.status(201).json({ success: true, message: "تم حفظ غياب اليوم بنجاح." });
 }
 
@@ -280,6 +301,7 @@ exports.addDailyAbsentees = async (req, res) => {
     const recordOf = new Map(state.records.map((r) => [String(r.student?._id || r.student), r]));
     const now = clock.now();
     let added = 0;
+    const addedIds = [];
 
     for (const item of students) {
       const id = String(item.student || item);
@@ -310,7 +332,16 @@ exports.addDailyAbsentees = async (req, res) => {
         });
       }
       added += 1;
+      addedIds.push(id);
     }
+
+    await tellAbsences({
+      studentIds: addedIds,
+      date: utcMidnight(selectedDate),
+      daily: true,
+      createdBy: req.user.id,
+      school: req.user.school,
+    });
 
     return res.status(200).json({
       success: true,
@@ -807,6 +838,20 @@ exports.updateAttendance = async (req, res) => {
       req.body,
       { new: true },
     );
+
+    // Made an absence that wasn't one: the student is told.
+    if (updated?.status === "absent" && record.status !== "absent") {
+      const daily = Boolean(record.schedule) && (await isDailyMode(req.user.school));
+      await tellAbsences({
+        studentIds: [updated.student],
+        date: updated.date,
+        subjectId: updated.subject,
+        daily,
+        createdBy: req.user.id,
+        school: req.user.school,
+      });
+    }
+
     res.json({ message: "تم تحديث الحضور بنجاح", updated });
   } catch (err) {
     res.status(400).json({ message: err.message });

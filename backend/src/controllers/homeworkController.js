@@ -11,6 +11,7 @@ const { marksFromInput } = require("../utils/homeworkMarks");
 const Subject = require("../models/Subject");
 const { scopeFilter, sameSchool } = require("../utils/tenant");
 const { notifyParentsOfStudents } = require("../utils/notify");
+const { tellHomeworkChanged } = require("../utils/studentNotices");
 const { rosterWhere, otherLanguagesFor, electivesByClass } = require("../utils/secondLanguage");
 
 const DAY_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
@@ -357,6 +358,15 @@ exports.updateHomework = async (req, res) => {
         select: "name grade",
         populate: { path: "grade", select: "name academicYear" },
       });
+
+    // The class is told when what it has to do changed, not for a change
+    // they'd never see (the marks it's out of).
+    const changed = ["title", "pageNumber", "dueDate"].some(
+      (field) => String(homework[field] ?? "") !== String(updatedHomework?.[field] ?? ""),
+    );
+    if (updatedHomework && changed) {
+      await tellHomeworkChanged({ homework: updatedHomework, createdBy: req.user.id, school: req.user.school });
+    }
 
     res.status(200).json({
       success: true,

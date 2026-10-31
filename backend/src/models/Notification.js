@@ -79,6 +79,10 @@ const notificationSchema = new mongoose.Schema({
       "homeworkGrade",
       "behavior",
       "boardNote",
+      // To a student alone (utils/studentNotices.js): a mark recorded or
+      // changed, an absence recorded.
+      "grade",
+      "attendance",
     ],
     default: "broadcast"
   },

@@ -1,6 +1,6 @@
 const Notification = require("../models/Notification");
 const User = require("../models/User");
-const { sendPushNotifications } = require("./pushNotifications");
+const { sendPushNotifications, sendPushMessages } = require("./pushNotifications");
 
 // The single place every teacher action that concerns a specific child's
 // parent should go through — persists an in-app Notification (so it shows
@@ -109,6 +109,62 @@ exports.notifyParentsOfStudents = async ({
     });
   } catch (err) {
     console.log("notifyParentsOfStudents error:", err.message);
+  }
+};
+
+// Notices for students alone, each in its own words — a mark of theirs
+// recorded, an absence, a homework changed (utils/studentNotices.js;
+// Mohamed, 2026-10-31: whatever a teacher does reaches the student by
+// notification). `items`: [{ studentId, title, message }]; a student with no
+// account (the younger years) is passed over. The push rides the app's own
+// «default» channel, which pops up and sounds, rather than Android's silent
+// «Miscellaneous» one. Never throws.
+exports.notifyStudents = async ({ items, type, createdBy, school }) => {
+  try {
+    if (!items || !items.length) return;
+    // Only the sender's own school's students, whatever ids a request named.
+    const accounts = new Map(
+      (
+        await User.find({
+          role: "student",
+          active: true,
+          school,
+          studentProfile: { $in: items.map((i) => i.studentId) },
+        }).select("studentProfile pushToken")
+      ).map((a) => [String(a.studentProfile), a]),
+    );
+    if (!accounts.size) return;
+
+    const rows = [];
+    const messages = [];
+    items.forEach((item) => {
+      const account = accounts.get(String(item.studentId));
+      if (!account) return;
+      rows.push({
+        title: item.title,
+        message: item.message,
+        target: "student",
+        user: account._id,
+        student: item.studentId,
+        type,
+        createdBy,
+        school,
+      });
+      if (account.pushToken) {
+        messages.push({
+          to: account.pushToken,
+          title: item.title,
+          body: item.message,
+          data: { type },
+          channelId: "default",
+        });
+      }
+    });
+
+    if (rows.length) await Notification.insertMany(rows);
+    if (messages.length) await sendPushMessages(messages);
+  } catch (err) {
+    console.log("notifyStudents error:", err.message);
   }
 };
 

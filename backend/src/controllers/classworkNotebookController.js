@@ -6,6 +6,7 @@ const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { toWeekStart } = require("../utils/weekScores");
 const { rosterWhere } = require("../utils/secondLanguage");
 const { isAbsent } = require("../utils/absentMark");
+const { weekName, marksBefore, tellMarks } = require("../utils/studentNotices");
 
 exports.getClassroomClassworkNotebook = async (req, res) => {
   try {
@@ -136,7 +137,29 @@ exports.saveBulkClassworkNotebook = async (req, res) => {
       },
     }));
 
+    // What each student had, to tell only a mark that is new or different.
+    const before = marksBefore(
+      await ClassworkNotebook.find({
+        subject: subjectId,
+        weekStart,
+        student: { $in: gradesList.map((record) => record.studentId) },
+      })
+        .select("student score")
+        .lean(),
+      (d) => ({ score: d.score }),
+    );
+
     await ClassworkNotebook.bulkWrite(bulkOps);
+
+    await tellMarks({
+      subjectId,
+      when: weekName(weekStart),
+      columns: { score: { label: "كراسة الحصة", max: 5 } },
+      before,
+      after: gradesList.map((record) => ({ studentId: record.studentId, marks: { score: record.score } })),
+      createdBy: req.user.id,
+      school: req.user.school,
+    });
 
     return res.status(200).json({
       success: true,

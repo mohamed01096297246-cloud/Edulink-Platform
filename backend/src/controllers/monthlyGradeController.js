@@ -6,6 +6,7 @@ const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { teacherClassroomIds, teacherMarkClassroomIds } = require("../utils/teacherClassrooms");
 const { rosterWhere } = require("../utils/secondLanguage");
+const { marksBefore, tellMarks } = require("../utils/studentNotices");
 
 // The school year's real teaching months, in chronological order — Term 1
 // runs September through January, Term 2 runs February through May. A
@@ -196,7 +197,30 @@ exports.saveBulkMonthlyGrades = async (req, res) => {
       },
     }));
 
+    // What each student had, to tell only a mark that is new or different.
+    const before = marksBefore(
+      await MonthlyGrade.find({
+        subject: subjectId,
+        month: Number(month),
+        year,
+        student: { $in: gradesList.map((record) => record.studentId) },
+      })
+        .select("student grade")
+        .lean(),
+      (d) => ({ grade: d.grade }),
+    );
+
     await MonthlyGrade.bulkWrite(bulkOps);
+
+    await tellMarks({
+      subjectId,
+      when: `شهر ${MONTH_NAMES[Number(month)]}`,
+      columns: { grade: { label: "الاختبار الشهري", max: 15 } },
+      before,
+      after: gradesList.map((record) => ({ studentId: record.studentId, marks: { grade: record.grade } })),
+      createdBy: req.user.id,
+      school: req.user.school,
+    });
 
     return res.status(200).json({
       success: true,
