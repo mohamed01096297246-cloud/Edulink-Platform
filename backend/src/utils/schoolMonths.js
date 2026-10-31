@@ -155,6 +155,7 @@ module.exports = {
   monthsBegun,
   schoolMonthStartingIn,
   markedWeeks,
+  weekStartOf,
   hasWeeklyEval,
   weeksWithoutWeeklyEval,
 };

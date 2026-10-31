@@ -27,6 +27,7 @@ const { rosterWhere } = require("../utils/secondLanguage");
 const { weeksWithoutWeeklyEval } = require("../utils/schoolMonths");
 const { OVERRIDE_FLAG } = require("../utils/absentMark");
 const { weekName, marksBefore, tellMarks } = require("../utils/studentNotices");
+const { skippedIn, closedFor, closedMessage, outOf, skipsInWindow, weekTime } = require("../utils/markingSkips");
 
 const round1 = (n) =>
   n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
@@ -143,11 +144,18 @@ exports.getClassroomCoursework = async (req, res) => {
     // ---- التقييم الأسبوعي: متوسط أسابيع الترم اللي اتسجلت (من 10) ----
     // A week with no تقييم أسبوعي (utils/schoolMonths.js) is left out,
     // whatever was filed under it.
-    const weeklyEvaluations = await WeeklyEvaluation.find({
-      classroom: classroomId,
-      subject: subjectId,
-      weekStart: { $gte: dateStart, $lte: dateEnd, $nin: weeksWithoutWeeklyEval() },
-    }).select("student score");
+    // So is a week whose column the school's admin took off for this class
+    // and subject (utils/markingSkips.js) — here and in كراسة الحصة below.
+    const takenOff = (await skipsInWindow([classroom._id], dateStart, dateEnd)).get(`${classroom._id}:${subjectId}`);
+    const isOpen = (column) => (doc) => !takenOff?.get(weekTime(doc.weekStart))?.has(column);
+
+    const weeklyEvaluations = (
+      await WeeklyEvaluation.find({
+        classroom: classroomId,
+        subject: subjectId,
+        weekStart: { $gte: dateStart, $lte: dateEnd, $nin: weeksWithoutWeeklyEval() },
+      }).select("student score weekStart")
+    ).filter(isOpen("weeklyEvalScore"));
 
     const weeklyByStudent = new Map();
     weeklyEvaluations.forEach((record) => {
@@ -157,11 +165,13 @@ exports.getClassroomCoursework = async (req, res) => {
     });
 
     // ---- كراسة الحصة: متوسط أسابيع الترم اللي اتسجلت (من 5) ----
-    const classworkEntries = await ClassworkNotebook.find({
-      classroom: classroomId,
-      subject: subjectId,
-      weekStart: { $gte: dateStart, $lte: dateEnd },
-    }).select("student score");
+    const classworkEntries = (
+      await ClassworkNotebook.find({
+        classroom: classroomId,
+        subject: subjectId,
+        weekStart: { $gte: dateStart, $lte: dateEnd },
+      }).select("student score weekStart")
+    ).filter(isOpen("classworkScore"));
 
     const classworkByStudent = new Map();
     classworkEntries.forEach((record) => {
@@ -285,6 +295,10 @@ exports.getClassroomWeekCoursework = async (req, res) => {
       scheme,
     );
 
+    // The columns taken off this week (utils/markingSkips.js): the app
+    // closes each, with the reason.
+    const skipped = await skippedIn(classroomId, subjectId, weekStart);
+
     return res.status(200).json({
       success: true,
       data: {
@@ -299,6 +313,8 @@ exports.getClassroomWeekCoursework = async (req, res) => {
         // what each is out of, for this classroom's scheme.
         scheme,
         maxScores: maxScoresFor(scheme),
+        closed: closedFor(scheme, skipped, weekStart),
+        outOf: outOf(scheme, skipped),
         // True when this week's مواظبة وسلوك is the teacher's to enter
         // rather than worked out from attendance (School.conductEnteredFrom).
         conductEntered:
@@ -443,11 +459,26 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
     });
     if (!subjectId) return undefined;
 
+    // A column taken off this week (utils/markingSkips.js) takes no mark. A
+    // "back to automatic" for one is harmless and simply dropped.
+    const skipped = await skippedIn(classroom._id, subjectId, weekStart);
+    for (const entry of list) {
+      const closed = EDITABLE_COLUMNS.find(
+        (column) => skipped.has(column) && entry[column] !== null && entry[column] !== undefined,
+      );
+      if (closed) {
+        return res.status(400).json({ success: false, message: closedMessage(closed, weekStart) });
+      }
+    }
+    const entries = list.map((entry) =>
+      Object.fromEntries(Object.entries(entry).filter(([column]) => !skipped.has(column))),
+    );
+
     const overrideOps = [];
     const classworkOps = [];
-    const shown = await conductShownToTheRest({ classroom, subjectId, weekStart, list, scheme });
+    const shown = await conductShownToTheRest({ classroom, subjectId, weekStart, list: entries, scheme });
 
-    [...list, ...shown].forEach((entry) => {
+    [...entries, ...shown].forEach((entry) => {
       const key = { student: entry.studentId, subject: subjectId, weekStart };
 
       const set = {};
@@ -507,7 +538,7 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
     // What each student the teacher saved had, to tell only a mark that is
     // new or different. The rest of the class given the full مواظبة they
     // were already shown (`shown`) is told nothing.
-    const ids = list.map((entry) => entry.studentId);
+    const ids = entries.map((entry) => entry.studentId);
     const [overridesBefore, classworkBefore] = await Promise.all([
       CourseworkOverride.find({ subject: subjectId, weekStart, student: { $in: ids } })
         .select("student attendanceScore homeworkScore")
@@ -541,7 +572,7 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
       when: weekName(weekStart),
       columns,
       before,
-      after: list.map((entry) => ({
+      after: entries.map((entry) => ({
         studentId: entry.studentId,
         marks: {
           homeworkScore: entry.homeworkScore,

@@ -115,6 +115,16 @@ const average = averageToHalf;
 // who was away (utils/absentMark.js) — still a 0 in the total beside it.
 const markCell = (entry, key) => (entry.absent?.[key] ? ABSENT : entry[key]);
 
+// The columns taken off the week for the class (utils/markingSkips.js) —
+// the same for every pupil on the sheet — and what the week is out of.
+const weekShape = (scores, weekTotal) => {
+  const first = Object.values(scores || {})[0] || {};
+  return { skipped: new Set(first.skipped || []), outOf: first.outOf ?? weekTotal };
+};
+
+// A column's heading: its maximum, or that it was taken off that week.
+const partHeader = (label, max, skipped) => (skipped ? `${label} — مترفع` : `${label} (${max})`);
+
 exports.buildWeeklyRegisterWorkbook = ({
   subjectName,
   classroomName,
@@ -125,14 +135,15 @@ exports.buildWeeklyRegisterWorkbook = ({
   const workbook = new ExcelJS.Workbook();
   const sheet = baseSheet(workbook, "سجل الأسبوع");
 
+  const { skipped, outOf } = weekShape(scores, 25);
   const columns = [
     "م",
     "الاسم",
-    "مواظبة وسلوك (5)",
-    "تقييم أسبوعي (10)",
-    "واجب منزلي (5)",
-    "كراسة الحصة (5)",
-    "الإجمالي (25)",
+    partHeader("مواظبة وسلوك", 5, skipped.has("attendanceScore")),
+    partHeader("تقييم أسبوعي", 10, skipped.has("weeklyEvalScore")),
+    partHeader("واجب منزلي", 5, skipped.has("homeworkScore")),
+    partHeader("كراسة الحصة", 5, skipped.has("classworkScore")),
+    `الإجمالي (${outOf})`,
   ];
 
   sheet.columns = columns.map((_, i) => ({
@@ -404,10 +415,13 @@ exports.buildWeek40Workbook = ({ subjectName, classroomName, weekStart, students
   const workbook = new ExcelJS.Workbook();
   const sheet = baseSheet(workbook, "سجل الأسبوع");
 
+  const { skipped, outOf } = weekShape(scores, 40);
   const groups = [
     { label: "م" },
     { label: "الاسم" },
-    ...WEEK40_PARTS.map((p) => ({ label: withMax(p.label, p.max) })),
+    ...WEEK40_PARTS.map((p) => ({
+      label: p.key === "total" ? withMax(p.label, outOf) : partHeader(p.label, p.max, skipped.has(p.key)),
+    })),
   ];
   const totalCols = countColumns(groups);
   sheet.columns = Array.from({ length: totalCols }, (_, i) => ({

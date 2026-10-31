@@ -20,8 +20,9 @@ const { scopeFilter } = require("../utils/tenant");
 const { SCHEMES, schemeFor } = require("../utils/gradebook");
 const { isDailyMode } = require("../utils/dailyAttendance");
 const { reportPeriod, weekKey } = require("../utils/reportPeriod");
-const { termOfDate, hasWeeklyEval } = require("../utils/schoolMonths");
+const { termOfDate } = require("../utils/schoolMonths");
 const { electivesByClass } = require("../utils/secondLanguage");
+const { skipsInWindow, skipsAt, isEverySchoolSkip } = require("../utils/markingSkips");
 
 // "رصد الدرجات" — for a week or a month, which teachers have recorded marks
 // for their classes and which have not. Read only, over the same documents
@@ -276,9 +277,15 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null, kind = "w
     weekly ? null : testEntry({ classrooms, schemeOf, range, onRoster }),
   ]);
 
-  const homeworkResults = homework.length
-    ? await HomeworkResult.find({ homework: { $in: homework.map((h) => h._id) } }).select("homework student updatedAt").lean()
-    : [];
+  const [homeworkResults, takenOff] = await Promise.all([
+    homework.length
+      ? HomeworkResult.find({ homework: { $in: homework.map((h) => h._id) } }).select("homework student updatedAt").lean()
+      : [],
+    // The columns the school took off, class by class and week by week.
+    weekly && range.weeks.length
+      ? skipsInWindow(classIds, range.weeks[0], new Date(range.weeks[range.weeks.length - 1].getTime() + 7 * 24 * 60 * 60 * 1000))
+      : new Map(),
+  ]);
 
   const byPair = (doc) => pairKey(doc.classroom, doc.subject);
   const weeklyTally = tally(evaluations.filter(onRoster), byPair);
@@ -359,10 +366,13 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null, kind = "w
     let lasts;
     if (weekly) {
       columns = columnsFor(scheme, classroom).map((col) => {
-        // A week with no تقييم أسبوعي in any school owes none
-        // (utils/schoolMonths.js): a month counts its other weeks, and a
-        // period with nothing but such weeks doesn't ask for the column.
-        const weeks = col.key === "weekly" ? range.weeks.filter(hasWeeklyEval) : range.weeks;
+        // A week whose column is taken off owes none (utils/markingSkips.js
+        // — تقييم أسبوعي in a week that has none in any school, or what the
+        // school's admin took off for this class and subject): a month
+        // counts its other weeks, and a period with nothing but such weeks
+        // doesn't ask for the column.
+        const isOff = (week) => skipsAt(takenOff, row.classroom, row.subject._id, week).has(col.maxField);
+        const weeks = range.weeks.filter((week) => !isOff(week));
         const applicable = weeks.length > 0 || range.weeks.length === 0;
         return {
           key: col.key,
@@ -370,6 +380,14 @@ const buildGradeEntry = async ({ classFilter, range, teacherId = null, kind = "w
           max: rules.max[col.maxField],
           entered: col.entered && applicable,
           applicable,
+          // Why it isn't asked for: taken off in every school, or here.
+          ...(applicable
+            ? {}
+            : {
+                note: range.weeks.every((week) => isEverySchoolSkip(col.maxField, week))
+                  ? "مالوش تقييم الأسبوع ده"
+                  : "اترفع من الرصد",
+              }),
           ...measure(src[col.key], size, weeks, range.period),
         };
       });

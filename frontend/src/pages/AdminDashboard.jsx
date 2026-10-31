@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   PenLine,
+  CircleMinus,
   LayoutDashboard,
   BookOpen,
   Layers,
@@ -51,6 +52,7 @@ import ClassAssignmentManager from "../components/Admin/ClassAssignmentManager";
 import AttendanceRegister from "../components/Admin/AttendanceRegister";
 import LatestProgress from "../components/Admin/LatestProgress";
 import AdminMarks from "../components/Admin/AdminMarks";
+import MarkingSkips from "../components/Admin/MarkingSkips";
 import API from "../api/axios";
 
 // Grouped the way MySchool and every mature school system organizes its
@@ -88,6 +90,8 @@ const NAV_GROUPS = [
       { name: "آخر التطورات", icon: <ListChecks size={18} />, path: "/admin/latest-progress" },
       // Only where the platform owner turned it on (School.features.adminMarks).
       { name: "رصد الدرجات", icon: <PenLine size={18} />, path: "/admin/marks", featureOn: "adminMarks" },
+      // Every school: a column of a week taken off for a teacher's classes.
+      { name: "رفع بند من الرصد", icon: <CircleMinus size={18} />, path: "/admin/marking-skips" },
       { name: "سجل الحضور", icon: <ClipboardCheck size={18} />, path: "/admin/attendance-register" },
       { name: "إسناد الفصول", icon: <Link2 size={18} />, path: "/admin/class-assignments" },
       { name: "الجدول الدراسي", icon: <Calendar size={18} />, path: "/admin/schedules" },
@@ -298,6 +302,7 @@ const AdminDashboard = ({ onLogout }) => {
             <Route path="attendance-register" element={<AttendanceRegister />} />
             <Route path="latest-progress" element={<LatestProgress />} />
             <Route path="marks" element={<AdminMarks />} />
+            <Route path="marking-skips" element={<MarkingSkips />} />
             <Route path="fees" element={<FeeManager />} />
             <Route path="teachers/*" element={<TeacherManager />} />
             <Route path="staff-attendance" element={<TeacherAttendanceManager />} />

@@ -14,6 +14,7 @@ const { SCHEMES, DEFAULT_SCHEME, schemeForClassroom } = require("../utils/gradeb
 const { computeWeekScores, toWeekStart, weekEnd } = require("../utils/weekScores");
 const { subjectsTakenBy } = require("../utils/secondLanguage");
 const { hasWeeklyEval, weeksWithoutWeeklyEval } = require("../utils/schoolMonths");
+const { skipsInWindow, skipsAt } = require("../utils/markingSkips");
 const { isAbsent } = require("../utils/absentMark");
 
 exports.getParentDashboard = async (req, res) => {
@@ -162,17 +163,25 @@ exports.getWeekEvaluation = async (req, res) => {
     let weekStart = req.query.weekStart ? toWeekStart(req.query.weekStart) : null;
     // Opens on the latest week that had a تقييم أسبوعي (utils/schoolMonths.js);
     // a week without one shows none, whatever was filed under it.
+    // Nor does one whose evaluations the school took off for the child's
+    // class (utils/markingSkips.js).
     if (!weekStart) {
-      const latest = await WeeklyEvaluation.findOne({
+      const recent = await WeeklyEvaluation.find({
         student: student._id,
         weekStart: { $nin: weeksWithoutWeeklyEval() },
       })
         .sort({ weekStart: -1 })
-        .select("weekStart");
+        .limit(60)
+        .select("weekStart subject")
+        .lean();
+      const off = recent.length
+        ? await skipsInWindow([student.classroom], recent[recent.length - 1].weekStart, recent[0].weekStart)
+        : new Map();
+      const latest = recent.find((e) => !skipsAt(off, student.classroom, e.subject, e.weekStart).has("weeklyEvalScore"));
       weekStart = toWeekStart(latest ? latest.weekStart : new Date());
     }
 
-    const [evaluations, scheduledSubjects, scheme] = await Promise.all([
+    const [filed, scheduledSubjects, scheme, takenOff] = await Promise.all([
       hasWeeklyEval(weekStart)
         ? WeeklyEvaluation.find({
             student: student._id,
@@ -181,8 +190,14 @@ exports.getWeekEvaluation = async (req, res) => {
         : [],
       student.classroom ? Schedule.distinct("subject", { classroom: student.classroom }) : [],
       student.classroom ? schemeForClassroom(student.classroom) : "classic",
+      // The subjects whose تقييم أسبوعي the school took off this week for the
+      // child's class (utils/markingSkips.js): none, whatever was filed.
+      student.classroom ? skipsInWindow([student.classroom], weekStart, weekStart) : new Map(),
     ]);
     const max = (SCHEMES[scheme] || SCHEMES.classic).max.weeklyEvalScore;
+    const evalTakenOff = (subjectId) =>
+      skipsAt(takenOff, student.classroom, subjectId, weekStart).has("weeklyEvalScore");
+    const evaluations = filed.filter((e) => !evalTakenOff(e.subject));
 
     const scoreOf = new Map(evaluations.map((e) => [String(e.subject), e.score]));
     // «غ»: away that week — a 0 in every sum, shown as absent (utils/absentMark.js).
@@ -203,6 +218,8 @@ exports.getWeekEvaluation = async (req, res) => {
           max,
           percent: score === null ? null : Math.round((score / max) * 100),
           absent: absentIn.has(String(s._id)),
+          // No تقييم أسبوعي in this subject this week, rather than not yet.
+          skipped: evalTakenOff(s._id),
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name, "ar"));
@@ -277,7 +294,15 @@ exports.getHomeworkWeek = async (req, res) => {
           const scores = await computeWeekScores(student.classroom, s._id, [student._id], weekStart, scheme);
           const mine = scores[String(student._id)];
           const score = mine?.homeworkScore ?? null;
-          return { subjectId: s._id, name: s.name, score, max, absent: Boolean(mine?.absent?.homeworkScore) };
+          return {
+            subjectId: s._id,
+            name: s.name,
+            score,
+            max,
+            absent: Boolean(mine?.absent?.homeworkScore),
+            // الواجب taken off this week (utils/markingSkips.js).
+            skipped: Boolean(mine?.skipped?.includes("homeworkScore")),
+          };
         }),
       )
     ).sort((a, b) => a.name.localeCompare(b.name, "ar"));

@@ -3,9 +3,6 @@ const Subject = require("../models/Subject");
 const Schedule = require("../models/Schedule");
 const ClassAssignment = require("../models/ClassAssignment");
 const Attendance = require("../models/Attendance");
-const WeeklyEvaluation = require("../models/WeeklyEvaluation");
-const ClassworkNotebook = require("../models/ClassworkNotebook");
-const CourseworkOverride = require("../models/CourseworkOverride");
 const Homework = require("../models/Homework");
 const HomeworkResult = require("../models/HomeworkResult");
 const MonthlyGrade = require("../models/MonthlyGrade");
@@ -20,7 +17,7 @@ require("../models/Classroom");
 require("../models/Exam");
 const { sameSchool, inStage, STAGE_DENIED } = require("../utils/tenant");
 const { SCHEMES, schemeForClassroom } = require("../utils/gradebook");
-const { computeWeekScores } = require("../utils/weekScores");
+const { computeWeekScores, recordedWeeks } = require("../utils/weekScores");
 const { isDailyMode } = require("../utils/dailyAttendance");
 const { reportPeriod } = require("../utils/reportPeriod");
 const { isAbsent } = require("../utils/absentMark");
@@ -135,15 +132,7 @@ exports.getStudentRecord = async (req, res) => {
     const marks = classroomId
       ? await Promise.all(
           subjects.map(async (subject) => {
-            const where = { classroom: classroomId, subject: subject._id, weekStart: window };
-            const [a, b, c] = await Promise.all([
-              WeeklyEvaluation.find(where).distinct("weekStart"),
-              CourseworkOverride.find(where).distinct("weekStart"),
-              rules.classwork ? ClassworkNotebook.find(where).distinct("weekStart") : [],
-            ]);
-            const starts = [...new Map([...a, ...b, ...c].map((d) => [new Date(d).getTime(), new Date(d)])).values()].sort(
-              (x, y) => x - y,
-            );
+            const starts = await recordedWeeks(classroomId, subject._id, window, scheme);
             const weeks = await Promise.all(
               starts.map(async (weekStart) => {
                 const scores = await computeWeekScores(classroomId, subject._id, [student._id], weekStart, scheme);
@@ -157,6 +146,10 @@ exports.getStudentRecord = async (req, res) => {
                   total: mine.total ?? null,
                   // The columns that read «غ» (utils/absentMark.js).
                   absent: mine.absent || {},
+                  // The columns taken off that week, and what it is out of
+                  // without them (utils/markingSkips.js).
+                  skipped: mine.skipped || [],
+                  outOf: mine.outOf ?? rules.weekTotal,
                 };
               }),
             );

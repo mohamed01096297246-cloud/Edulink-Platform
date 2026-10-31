@@ -11,8 +11,9 @@ const TermTest = require("../models/TermTest");
 const { scopeFilter, sameSchool } = require("../utils/tenant");
 const { SCHEMES, schemeForClassroom } = require("../utils/gradebook");
 const { computeWeekScores, toWeekStart, maxScoresFor } = require("../utils/weekScores");
-const { markedWeeks, termOfDate, hasWeeklyEval } = require("../utils/schoolMonths");
+const { markedWeeks, termOfDate } = require("../utils/schoolMonths");
 const { rosterWhere } = require("../utils/secondLanguage");
+const { skippedIn, skippedColumns, closedMessage } = require("../utils/markingSkips");
 const { ABSENT, isAbsentText, isAbsent, OVERRIDE_FLAG } = require("../utils/absentMark");
 
 // رصد الدرجات من الإدارة: a school's admins type in the same marks its
@@ -38,16 +39,24 @@ const WEEK_COLUMNS = [
   { key: "attendanceScore", label: "مواظبة وسلوك" },
 ];
 
-// The week sheet's columns for a class's scheme — without تقييم أسبوعي in
-// a week that has none in any school (utils/schoolMonths.js).
-const weekColumnsFor = (scheme, weekStart) => {
+// The week sheet's columns for a class's scheme — without those taken off
+// that week (utils/markingSkips.js: تقييم أسبوعي in a week that has none in
+// any school, or a column the school took off for this class and subject).
+const weekColumnsFor = (scheme, skipped) => {
   const max = maxScoresFor(scheme);
-  return WEEK_COLUMNS.filter(
-    (c) => max[c.key] !== undefined && (c.key !== "weeklyEvalScore" || hasWeeklyEval(weekStart)),
-  ).map((c) => ({ ...c, max: max[c.key] }));
+  return WEEK_COLUMNS.filter((c) => max[c.key] !== undefined && !skipped.has(c.key)).map((c) => ({
+    ...c,
+    max: max[c.key],
+  }));
 };
 
-const NO_WEEKLY_EVAL = "الأسبوع ده مالوش تقييم أسبوعي في كل المدارس، فمش محتاج يترصد.";
+// What the sheet says about the columns taken off, if any.
+const skippedNote = (scheme, skipped, weekStart) => {
+  const off = skippedColumns(scheme, skipped);
+  if (off.length === 0) return null;
+  if (off.length === 1) return closedMessage(off[0].key, weekStart);
+  return `اترفع من رصد الأسبوع ده للفصل ده: ${off.map((c) => `«${c.label}»`).join(" و")}، فمش محتاجين يترصدوا. الأسبوع بيتحسب على باقي البنود.`;
+};
 
 // Who has a subject in a class: the class assignment first, then the
 // timetable — the same order every teacher screen settles it in.
@@ -231,14 +240,15 @@ exports.getWeek = async (req, res) => {
       weekStart,
       sheet.scheme,
     );
-    const columns = weekColumnsFor(sheet.scheme, weekStart).map(({ key, label, max }) => ({ key, label, max }));
+    const skipped = await skippedIn(sheet.classroom._id, sheet.subject._id, weekStart);
+    const columns = weekColumnsFor(sheet.scheme, skipped).map(({ key, label, max }) => ({ key, label, max }));
 
     return res.status(200).json({
       success: true,
       data: {
         columns,
         total: columns.reduce((sum, c) => sum + c.max, 0) || null,
-        note: hasWeeklyEval(weekStart) ? null : NO_WEEKLY_EVAL,
+        note: skippedNote(sheet.scheme, skipped, weekStart),
         students: students.map((s) => {
           const score = scores[String(s._id)] || {};
           return {
@@ -268,7 +278,8 @@ exports.saveWeek = async (req, res) => {
     const sheet = await loadSheet(req, res, req.body);
     if (!sheet) return undefined;
     const max = maxScoresFor(sheet.scheme);
-    const columns = weekColumnsFor(sheet.scheme, weekStart);
+    const skipped = await skippedIn(sheet.classroom._id, sheet.subject._id, weekStart);
+    const columns = weekColumnsFor(sheet.scheme, skipped);
     const onSheet = new Set((await rosterOf(sheet.classroom, sheet.subject._id)).map((s) => String(s._id)));
 
     const overrides = [];
@@ -287,7 +298,7 @@ exports.saveWeek = async (req, res) => {
         if (!column) {
           return res.status(400).json({
             success: false,
-            message: key === "weeklyEvalScore" ? NO_WEEKLY_EVAL : "العمود ده مش في كشف الفصل ده.",
+            message: skipped.has(key) ? closedMessage(key, weekStart) : "العمود ده مش في كشف الفصل ده.",
           });
         }
         const mark = markOf(marks[key], max[key]);

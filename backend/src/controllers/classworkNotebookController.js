@@ -7,6 +7,7 @@ const { toWeekStart } = require("../utils/weekScores");
 const { rosterWhere } = require("../utils/secondLanguage");
 const { isAbsent } = require("../utils/absentMark");
 const { weekName, marksBefore, tellMarks } = require("../utils/studentNotices");
+const { skippedIn, closedMessage } = require("../utils/markingSkips");
 
 exports.getClassroomClassworkNotebook = async (req, res) => {
   try {
@@ -37,11 +38,16 @@ exports.getClassroomClassworkNotebook = async (req, res) => {
       .select("firstName lastName gender")
       .sort({ firstName: 1 });
 
-    const entries = await ClassworkNotebook.find({
-      classroom: classroomId,
-      subject: subjectId,
-      weekStart,
-    });
+    // Taken off this week for this class and subject (utils/markingSkips.js):
+    // shows none, and says why, whatever was filed under it.
+    const closed = (await skippedIn(classroomId, subjectId, weekStart)).has("classworkScore");
+    const entries = closed
+      ? []
+      : await ClassworkNotebook.find({
+          classroom: classroomId,
+          subject: subjectId,
+          weekStart,
+        });
 
     const scores = {};
     // The pupils whose 0 reads «غ» (utils/absentMark.js).
@@ -53,7 +59,13 @@ exports.getClassroomClassworkNotebook = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: { students, scores, absent, weekStart },
+      data: {
+        students,
+        scores,
+        absent,
+        weekStart,
+        ...(closed ? { closed: true, message: closedMessage("classworkScore", weekStart) } : {}),
+      },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -114,6 +126,10 @@ exports.saveBulkClassworkNotebook = async (req, res) => {
       marks: true,
     });
     if (!subjectId) return undefined;
+
+    if ((await skippedIn(classroomId, subjectId, weekStart)).has("classworkScore")) {
+      return res.status(400).json({ success: false, message: closedMessage("classworkScore", weekStart) });
+    }
 
     // «غ» stays on a 0 saved back unchanged; any other mark takes it off
     // (utils/absentMark.js).

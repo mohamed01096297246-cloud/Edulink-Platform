@@ -8,9 +8,9 @@ const { SCHEMES, DEFAULT_SCHEME, conductEnteredFrom, isConductEntered } = requir
 const Classroom = require("../models/Classroom");
 const { isDailyMode } = require("./dailyAttendance");
 const { worthOf, earnedOn } = require("./homeworkMarks");
-const { hasWeeklyEval } = require("./schoolMonths");
 const { averageToHalf } = require("./halfMarks");
 const { isAbsent } = require("./absentMark");
+const { skippedIn, skipsByWeek, everySchoolSkips, skippedColumns, outOf, weekTime } = require("./markingSkips");
 
 // The four "أعمال السنة" columns for a single [weekStart, weekStart+6 days]
 // window. Lives here rather than inside a controller because two different
@@ -71,10 +71,15 @@ const computeWeekScores = async (
   // A school that moved مواظبة وسلوك to the teacher's hand: from that week
   // on, only what the teacher entered counts — attendance no longer does.
   const conductEntered = isConductEntered(await conductEnteredFrom(classroomDoc?.school), weekStart);
-  // A week with no تقييم أسبوعي in any school (utils/schoolMonths.js): the
-  // column is empty whatever was filed under it, and the week's total is
-  // the rest of its columns.
-  const evalApplies = hasWeeklyEval(weekStart);
+  // The columns taken off this week (utils/markingSkips.js) — the week with
+  // no تقييم أسبوعي in any school, or what the school's admin took off for
+  // this class and subject: each is empty whatever was filed under it, and
+  // the week's total is the rest of its columns.
+  const skipped = await skippedIn(classroomId, subjectId, weekStart);
+  const evalApplies = !skipped.has("weeklyEvalScore");
+  const off = (key, value) => (skipped.has(key) ? null : value);
+  const skippedHere = skippedColumns(scheme, skipped).map((c) => c.key);
+  const weekOutOf = outOf(scheme, skipped);
 
   const [
     attendanceRecords,
@@ -109,7 +114,7 @@ const computeWeekScores = async (
           weekStart,
         }).select("student score absent")
       : [],
-    rules.classwork
+    rules.classwork && !skipped.has("classworkScore")
       ? ClassworkNotebook.find({
           classroom: classroomId,
           subject: subjectId,
@@ -194,24 +199,31 @@ const computeWeekScores = async (
     // Classic works مواظبة out from the attendance rate. weekly40 has no
     // formula — the teacher enters مواظبة وسلوك, so there is nothing to
     // compute and the only value is the one they set.
-    const computedAttendance =
+    const computedAttendance = off(
+      "attendanceScore",
       !rules.attendanceComputed || conductEntered || attendanceRate === null
         ? null
-        : round1(attendanceRate * 3 + 2);
+        : round1(attendanceRate * 3 + 2),
+    );
 
     const homeworkEarned = homeworkByStudent.get(key);
-    const computedHomework =
+    const computedHomework = off(
+      "homeworkScore",
       weekHomeworkMax > 0 && homeworkEarned !== undefined
         ? round1((homeworkEarned / weekHomeworkMax) * rules.max.homeworkScore)
-        : null;
+        : null,
+    );
 
     // A teacher's manual correction replaces the computed number outright —
     // that's the whole point of it. `null` on the document (or no document)
-    // means the column was never overridden.
+    // means the column was never overridden. A column taken off this week
+    // has neither.
     const override = overrideByStudent.get(key);
     const hasAttendanceOverride =
+      !skipped.has("attendanceScore") &&
       override && override.attendanceScore !== undefined && override.attendanceScore !== null;
     const hasHomeworkOverride =
+      !skipped.has("homeworkScore") &&
       override && override.homeworkScore !== undefined && override.homeworkScore !== null;
 
     const attendanceScore = hasAttendanceOverride
@@ -255,47 +267,94 @@ const computeWeekScores = async (
         weeklyEvalScore: weeklyAbsent.has(key) && weeklyEvalScore !== null,
         classworkScore: classworkAbsent.has(key) && classworkScore !== null,
       },
-      // False in a week with no تقييم أسبوعي (utils/schoolMonths.js).
+      // False in a week whose تقييم أسبوعي is taken off.
       weeklyEvalApplies: evalApplies,
+      // The columns taken off this week (utils/markingSkips.js), and what
+      // the week is out of without them — 20 rather than 40.
+      skipped: skippedHere,
+      outOf: weekOutOf,
     };
   });
 
   return scores;
 };
 
+const WEEK_COLUMNS = ["attendanceScore", "homeworkScore", "weeklyEvalScore", "classworkScore"];
+
 // One student's month — the average of the totals of their recorded weeks,
-// as a whole mark or a half (utils/halfMarks.js). A week with no تقييم
-// أسبوعي would otherwise pull the month down by the whole column, so there
-// it stands at the average of the month's other evaluations: the month's
-// weekly evaluation is the average of the weeks that had one, and its other
-// columns the average of every week, which is what the paper adds up to.
-// `weeks` are { weekStart, total, weeklyEvalScore } — the student's entries
-// of the weeks recorded in the month. With every week evaluated it is
-// simply the average of the totals.
+// as a whole mark or a half (utils/halfMarks.js). A week with a column taken
+// off (utils/markingSkips.js — the week with no تقييم أسبوعي in any school,
+// or one the school's admin took off) would otherwise pull the month down by
+// the whole column, so there the column stands at the average of the
+// month's other weeks that have it: the month's weekly evaluation is the
+// average of the weeks that had one, and each other column the average of
+// the weeks that had it, which is what the paper adds up to. `weeks` are the
+// student's entries of the weeks recorded in the month — { weekStart, total,
+// skipped, and each column }, as computeWeekScores gives them. With nothing
+// taken off it is simply the average of the totals.
 //
-// While the month has no evaluated week yet (its first is the one without,
-// as الشهر الثاني opens on the sixth), there is nothing to stand in for the
-// evaluation, so such a week counts at its own share of the marks it has —
+// While the month has no other week with that column yet (its first is the
+// one without, as الشهر الثاني opens on the sixth), there is nothing to
+// stand in for it, so the week counts at its own share of the marks it has —
 // 18.5 of 20 is 37 of 40 — rather than 18.5 of 40 (Mohamed, 2026-10-31: a
-// week with no evaluation mustn't take from the total). `scheme` gives the
-// week's total and the evaluation's share; without it, as before.
+// column taken off mustn't take from the total). A week with every column
+// taken off has nothing to count and is left out. `scheme` gives each
+// column's share of the week; without it only تقييم أسبوعي is stood in for,
+// as before.
 const monthAverage = (weeks, scheme = null) => {
   const recorded = weeks.filter((w) => w && w.total !== null && w.total !== undefined);
-  const evaluated = recorded
-    .filter((w) => hasWeeklyEval(w.weekStart))
-    .map((w) => w.weeklyEvalScore)
-    .filter((v) => v !== null && v !== undefined);
-  const evalMean = evaluated.length ? evaluated.reduce((a, b) => a + b, 0) / evaluated.length : null;
   const rules = scheme ? SCHEMES[scheme] : null;
-  const rest = rules ? rules.weekTotal - (rules.max.weeklyEvalScore || 0) : 0;
-  const scale = rules && rest > 0 && rest < rules.weekTotal ? rules.weekTotal / rest : null;
-  return averageToHalf(
-    recorded.map((w) => {
-      if (hasWeeklyEval(w.weekStart)) return w.total;
-      if (evalMean !== null) return w.total + evalMean;
-      return scale ? w.total * scale : w.total;
-    }),
-  );
+  const keys = rules ? WEEK_COLUMNS.filter((k) => rules.max[k] !== undefined) : ["weeklyEvalScore"];
+  const skippedOf = (w) => new Set(Array.isArray(w.skipped) ? w.skipped : everySchoolSkips(w.weekStart));
+
+  const meanOf = {};
+  for (const key of keys) {
+    const values = recorded
+      .filter((w) => !skippedOf(w).has(key))
+      .map((w) => w[key])
+      .filter((v) => v !== null && v !== undefined);
+    meanOf[key] = values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+  }
+
+  const totals = [];
+  for (const w of recorded) {
+    const skipped = skippedOf(w);
+    if (rules && keys.every((key) => skipped.has(key))) continue;
+    let total = w.total;
+    let missing = 0;
+    for (const key of keys) {
+      if (!skipped.has(key)) continue;
+      if (meanOf[key] !== null) total += meanOf[key];
+      else if (rules) missing += rules.max[key];
+    }
+    if (!rules || missing === 0) totals.push(total);
+    else if (missing < rules.weekTotal) totals.push((total * rules.weekTotal) / (rules.weekTotal - missing));
+  }
+  return averageToHalf(totals);
+};
+
+// The weeks a class's subject has something recorded in — the weeks the
+// register lists — among `weekStart` (a list of Sundays, or a range): a mark
+// filed under a column taken off that week (utils/markingSkips.js) doesn't
+// list the week on its own. Oldest first.
+const recordedWeeks = async (classroomId, subjectId, weekStart, scheme = DEFAULT_SCHEME) => {
+  const rules = SCHEMES[scheme] || SCHEMES[DEFAULT_SCHEME];
+  const where = { classroom: classroomId, subject: subjectId, weekStart };
+  const [evaluated, adjusted, notebook] = await Promise.all([
+    WeeklyEvaluation.find(where).distinct("weekStart"),
+    CourseworkOverride.find(where).distinct("weekStart"),
+    rules.classwork ? ClassworkNotebook.find(where).distinct("weekStart") : [],
+  ]);
+  const all = new Map([...evaluated, ...adjusted, ...notebook].map((d) => [new Date(d).getTime(), new Date(d)]));
+  const skips = await skipsByWeek(classroomId, subjectId, [...all.values()]);
+  const open = (d, ...keys) => keys.some((k) => !skips.get(weekTime(d))?.has(k));
+
+  const out = new Map();
+  const add = (d) => out.set(new Date(d).getTime(), new Date(d));
+  evaluated.filter((d) => open(d, "weeklyEvalScore")).forEach(add);
+  adjusted.filter((d) => open(d, "attendanceScore", "homeworkScore")).forEach(add);
+  notebook.filter((d) => open(d, "classworkScore")).forEach(add);
+  return [...out.values()].sort((a, b) => a - b);
 };
 
 // A school month's four weeks (utils/schoolMonths.js), each scored, or with
@@ -303,17 +362,8 @@ const monthAverage = (weeks, scheme = null) => {
 // to come, or one the teacher hasn't reached), so a month's average leaves
 // that week out instead of counting it as zero.
 const computeMonthScores = async (classroomId, subjectId, studentIds, month, scheme = DEFAULT_SCHEME) => {
-  const rules = SCHEMES[scheme] || SCHEMES[DEFAULT_SCHEME];
-  const where = { classroom: classroomId, subject: subjectId, weekStart: { $in: month.weekStarts } };
-  const [evaluated, adjusted, notebook] = await Promise.all([
-    WeeklyEvaluation.find(where).distinct("weekStart"),
-    CourseworkOverride.find(where).distinct("weekStart"),
-    rules.classwork ? ClassworkNotebook.find(where).distinct("weekStart") : [],
-  ]);
-  // An evaluation filed under a week that has none doesn't make the week
-  // recorded on its own (utils/schoolMonths.js).
   const recorded = new Set(
-    [...evaluated.filter(hasWeeklyEval), ...adjusted, ...notebook].map((d) => new Date(d).getTime()),
+    (await recordedWeeks(classroomId, subjectId, { $in: month.weekStarts }, scheme)).map((d) => d.getTime()),
   );
 
   const weeklyScores = [];
@@ -331,6 +381,7 @@ module.exports = {
   computeWeekScores,
   computeMonthScores,
   monthAverage,
+  recordedWeeks,
   normalizeDate,
   toWeekStart,
   weekEnd,

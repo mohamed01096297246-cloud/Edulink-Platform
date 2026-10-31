@@ -38,8 +38,10 @@ const n = (value) => Number(value || 0).toLocaleString("ar-EG");
 // the teacher's to record (no homework set, مواظبة worked out from the
 // attendance register).
 const stateOf = (col, students) => {
+  // Taken off that week, in every school or by the school (backend
+  // utils/markingSkips.js) — the server says which.
+  if (!col.applicable && col.note) return { kind: "na", note: col.note };
   if (col.key === "homework" && !col.applicable) return { kind: "na", note: "مفيش واجب" };
-  // A week with no تقييم أسبوعي in any school (backend utils/schoolMonths.js).
   if (col.key === "weekly" && !col.applicable) return { kind: "na", note: "مالوش تقييم الأسبوع ده" };
   if (col.key === "attendance" && !col.entered) return { kind: "na", note: "من الحضور" };
   if (col.full) return { kind: "done" };

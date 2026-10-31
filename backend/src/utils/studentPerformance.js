@@ -1,9 +1,6 @@
 const Subject = require("../models/Subject");
 const Schedule = require("../models/Schedule");
 const ClassAssignment = require("../models/ClassAssignment");
-const WeeklyEvaluation = require("../models/WeeklyEvaluation");
-const CourseworkOverride = require("../models/CourseworkOverride");
-const ClassworkNotebook = require("../models/ClassworkNotebook");
 const Homework = require("../models/Homework");
 const HomeworkResult = require("../models/HomeworkResult");
 const Attendance = require("../models/Attendance");
@@ -12,9 +9,9 @@ const MonthlyGrade = require("../models/MonthlyGrade");
 const Result = require("../models/Result");
 const Behavior = require("../models/Behavior");
 const { SCHEMES, schemeForClassroom } = require("./gradebook");
-const { computeWeekScores, monthAverage } = require("./weekScores");
+const { computeWeekScores, monthAverage, recordedWeeks } = require("./weekScores");
 const { otherLanguagesFor } = require("./secondLanguage");
-const { monthsOfTerm, termSpan, termOfDate, hasWeeklyEval } = require("./schoolMonths");
+const { monthsOfTerm, termSpan, termOfDate } = require("./schoolMonths");
 const { isDailyMode } = require("./dailyAttendance");
 const { averageToHalf } = require("./halfMarks");
 const { isAbsent } = require("./absentMark");
@@ -51,17 +48,7 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
 
   // The weeks the teacher recorded something for — the weeks the register
   // lists.
-  const [evaluated, adjusted, notebook] = await Promise.all([
-    WeeklyEvaluation.find({ ...where, weekStart: inTerm }).distinct("weekStart"),
-    CourseworkOverride.find({ ...where, weekStart: inTerm }).distinct("weekStart"),
-    rules.classwork ? ClassworkNotebook.find({ ...where, weekStart: inTerm }).distinct("weekStart") : [],
-  ]);
-  const byTime = new Map();
-  // An evaluation filed under a week with none doesn't list the week alone.
-  [...evaluated.filter(hasWeeklyEval), ...adjusted, ...notebook].forEach((d) =>
-    byTime.set(new Date(d).getTime(), new Date(d)),
-  );
-  const weekStarts = [...byTime.values()].sort((a, b) => a - b);
+  const weekStarts = await recordedWeeks(classroom._id, subject._id, inTerm, scheme);
 
   const key = String(student._id);
   const weeks = await Promise.all(
@@ -77,9 +64,12 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
         total: mine.total ?? null,
         // The columns that read «غ» (utils/absentMark.js).
         absent: mine.absent || {},
-        // False in a week with no تقييم أسبوعي (utils/schoolMonths.js): the
-        // week is out of its other columns, not short by the missing one.
-        weeklyEvalApplies: hasWeeklyEval(weekStart),
+        // The columns taken off that week (utils/markingSkips.js) — the week
+        // is out of the rest (`outOf`), not short by them. weeklyEvalApplies
+        // is what an app from before 2026-11 reads.
+        weeklyEvalApplies: mine.weeklyEvalApplies ?? true,
+        skipped: mine.skipped || [],
+        outOf: mine.outOf ?? rules.weekTotal,
       };
     }),
   );

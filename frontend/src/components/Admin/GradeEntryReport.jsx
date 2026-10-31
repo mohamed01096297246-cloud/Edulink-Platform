@@ -276,8 +276,9 @@ const GradeEntryReport = () => {
                                     <span className="text-slate-600 text-sm font-black">—</span>
                                   ) : !cell.applicable ? (
                                     <span className="text-slate-700 text-xs font-black whitespace-nowrap">
-                                      {/* A week with no تقييم أسبوعي in any school (backend utils/schoolMonths.js). */}
-                                      {col.key === "weekly" ? "مالوش تقييم الأسبوع ده" : "مفيش واجب"}
+                                      {/* Taken off that week, in every school or by the school
+                                          (backend utils/markingSkips.js) — the server says which. */}
+                                      {cell.note || (col.key === "weekly" ? "مالوش تقييم الأسبوع ده" : "مفيش واجب")}
                                     </span>
                                   ) : (
                                     <Coverage
