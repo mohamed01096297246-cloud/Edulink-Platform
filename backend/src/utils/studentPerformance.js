@@ -18,6 +18,7 @@ const { monthsOfTerm, termSpan, termOfDate, hasWeeklyEval } = require("./schoolM
 const { isDailyMode } = require("./dailyAttendance");
 const { averageToHalf } = require("./halfMarks");
 const { isAbsent } = require("./absentMark");
+const { isInTotal } = require("./subjectsInTotal");
 
 // "أدائي" — one student's standing in each subject over a term, built from
 // exactly the numbers their teachers record and the register prints: every
@@ -76,6 +77,9 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
         total: mine.total ?? null,
         // The columns that read «غ» (utils/absentMark.js).
         absent: mine.absent || {},
+        // False in a week with no تقييم أسبوعي (utils/schoolMonths.js): the
+        // week is out of its other columns, not short by the missing one.
+        weeklyEvalApplies: hasWeeklyEval(weekStart),
       };
     }),
   );
@@ -92,7 +96,7 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
       month: m.from.getUTCMonth() + 1,
       year: m.from.getUTCFullYear(),
       // A week with no تقييم أسبوعي doesn't pull the month down for it.
-      average: monthAverage(weeks.filter((w) => inMonth.has(new Date(w.weekStart).getTime()))),
+      average: monthAverage(weeks.filter((w) => inMonth.has(new Date(w.weekStart).getTime())), scheme),
     };
   });
   const weeksAverage = average(monthAverages.map((m) => m.average));
@@ -137,6 +141,9 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
   const out = {
     subjectId: subject._id,
     subject: subject.name,
+    // Added up into the pupil's total (utils/subjectsInTotal.js); the app
+    // shows only these on «أدائي».
+    inTotal: isInTotal(subject.name),
     weeks,
     monthAverages,
     weeksAverage,

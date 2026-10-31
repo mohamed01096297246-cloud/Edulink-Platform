@@ -44,7 +44,7 @@ exports.computeTerm40 = async ({ classroom, subjectId, students, term }) => {
       if (!monthAverages[key]) monthAverages[key] = {};
       // A week with no تقييم أسبوعي doesn't pull the month down for it.
       monthAverages[key][month.month] = weeklyScores.length
-        ? monthAverage(weeklyScores.map(({ weekStart, scores }) => ({ weekStart, ...scores[key] })))
+        ? monthAverage(weeklyScores.map(({ weekStart, scores }) => ({ weekStart, ...scores[key] })), "weekly40")
         : null;
     });
   }

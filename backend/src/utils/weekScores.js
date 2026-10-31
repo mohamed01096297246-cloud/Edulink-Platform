@@ -272,15 +272,29 @@ const computeWeekScores = async (
 // `weeks` are { weekStart, total, weeklyEvalScore } — the student's entries
 // of the weeks recorded in the month. With every week evaluated it is
 // simply the average of the totals.
-const monthAverage = (weeks) => {
+//
+// While the month has no evaluated week yet (its first is the one without,
+// as الشهر الثاني opens on the sixth), there is nothing to stand in for the
+// evaluation, so such a week counts at its own share of the marks it has —
+// 18.5 of 20 is 37 of 40 — rather than 18.5 of 40 (Mohamed, 2026-10-31: a
+// week with no evaluation mustn't take from the total). `scheme` gives the
+// week's total and the evaluation's share; without it, as before.
+const monthAverage = (weeks, scheme = null) => {
   const recorded = weeks.filter((w) => w && w.total !== null && w.total !== undefined);
   const evaluated = recorded
     .filter((w) => hasWeeklyEval(w.weekStart))
     .map((w) => w.weeklyEvalScore)
     .filter((v) => v !== null && v !== undefined);
   const evalMean = evaluated.length ? evaluated.reduce((a, b) => a + b, 0) / evaluated.length : null;
+  const rules = scheme ? SCHEMES[scheme] : null;
+  const rest = rules ? rules.weekTotal - (rules.max.weeklyEvalScore || 0) : 0;
+  const scale = rules && rest > 0 && rest < rules.weekTotal ? rules.weekTotal / rest : null;
   return averageToHalf(
-    recorded.map((w) => (!hasWeeklyEval(w.weekStart) && evalMean !== null ? w.total + evalMean : w.total)),
+    recorded.map((w) => {
+      if (hasWeeklyEval(w.weekStart)) return w.total;
+      if (evalMean !== null) return w.total + evalMean;
+      return scale ? w.total * scale : w.total;
+    }),
   );
 };
 

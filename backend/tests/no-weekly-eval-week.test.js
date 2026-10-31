@@ -55,6 +55,24 @@ test("week 6's total leaves the evaluation out, and the month isn't pulled down 
   ).toBe(37.5);
   // A month with every week evaluated is plain average of the totals, as before.
   expect(monthAverage([{ weekStart: at(MONTH2[1]), total: 35 }, { weekStart: at(MONTH2[2]), total: 38 }])).toBe(36.5);
+  // The month's only week so far is week 6: it counts at its own share,
+  // 18.5 of 20 being 37 of 40 — not 18.5 of 40.
+  expect(monthAverage([{ weekStart: at(WEEK6), total: 18.5, weeklyEvalScore: null }], "weekly40")).toBe(37);
+  expect(monthAverage([{ weekStart: at(WEEK6), total: 18.5, weeklyEvalScore: null }])).toBe(18.5);
+});
+
+test("الشهر الثاني with only week 6 recorded isn't pulled down — in the register and on the student's أدائي", async () => {
+  const r = await future();
+  await week(r, WEEK6, { homework: 9.5, conduct: 9 });
+  const account = await f.user("student", r.s, { studentProfile: r.student._id });
+
+  const term = await computeTerm40({ classroom: r.c, subjectId: r.math._id, students: [r.student], term: 1 });
+  expect(JSON.stringify(term)).toContain('"2":37');
+
+  const data = (await (await f.signIn(account)).get("/api/student/performance?term=1")).body.data;
+  const math = data.subjects.find((s) => s.subject === "Math");
+  expect(math.monthAverages.find((m) => m.schoolMonth === 2).average).toBe(37);
+  expect(math.weeks).toEqual([expect.objectContaining({ total: 18.5, weeklyEvalApplies: false })]);
 });
 
 test("the teacher can't record week 6's evaluation, and the screen says why", async () => {

@@ -468,7 +468,7 @@ exports.buildMonth40Workbook = ({
       if (scores) weeks.push({ weekStart, ...entry });
     });
     // A week with no تقييم أسبوعي doesn't pull the month down for it.
-    cells.push(monthAverage(weeks));
+    cells.push(monthAverage(weeks, "weekly40"));
     return cells;
   });
 

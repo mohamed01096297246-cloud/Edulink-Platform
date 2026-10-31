@@ -82,6 +82,30 @@ const lessonShape = (lesson) => ({
 const byPeriod = (a, b) =>
   (a.period || 99) - (b.period || 99) || String(a.startTime).localeCompare(String(b.startTime));
 
+// Attendance by the day, not the lesson (Mohamed, 2026-10-31), as the
+// parent's الحضور reads it: a day with any lesson missed is a day absent.
+// An excused absence isn't held against the student, as in the register's
+// «عدد أيام الغياب» — such a day is neither. Records are dated at midnight
+// UTC, so the date part is the school day itself.
+const attendanceDays = (records) => {
+  const days = new Map();
+  records.forEach((r) => {
+    const date = new Date(r.date);
+    if (Number.isNaN(date.getTime())) return;
+    const key = date.toISOString().slice(0, 10);
+    if (!days.has(key)) days.set(key, []);
+    days.get(key).push(r);
+  });
+  let present = 0;
+  let absent = 0;
+  days.forEach((lessons) => {
+    const missed = lessons.filter((r) => r.status === "absent");
+    if (missed.length === 0) present += 1;
+    else if (missed.some((r) => !r.excused)) absent += 1;
+  });
+  return { present, absent };
+};
+
 // The home screen: today's lessons, what's due, and the two lines that
 // answer "anything I should know?" — absences so far and the school's
 // latest announcement.
@@ -110,7 +134,7 @@ exports.getToday = async (req, res) => {
             .sort({ dueDate: 1 })
             .limit(5)
         : [],
-      Attendance.find({ student: student._id, ...Attendance.GRADED_ONLY }).select("status"),
+      Attendance.find({ student: student._id, ...Attendance.GRADED_ONLY }).select("status excused date"),
       Behavior.find({ student: student._id, type: "positive" })
         .populate("subject", "name")
         .sort({ date: -1 })
@@ -159,9 +183,11 @@ exports.getToday = async (req, res) => {
           status: resultOf.get(String(h._id)) || null,
         })),
         attendance: {
+          // Lessons, for apps from before `days`.
           present: attendance.filter((a) => a.status === "present").length,
           absent: attendance.filter((a) => a.status === "absent").length,
           late: attendance.filter((a) => a.status === "late").length,
+          days: attendanceDays(attendance),
         },
         praise: praise.map((b) => ({
           _id: b._id,
