@@ -196,6 +196,50 @@ test("the student's أدائي shows the week out of what is left", async () => 
   expect(arabic.monthAverages.find((m) => m.schoolMonth === 2).average).toBe(38);
 });
 
+test("week 6: the evaluation put back for one class's subject records and counts there, the rest keep it off, and it closes again", async () => {
+  const WEEK6 = "2026-10-18";
+  const r = await future();
+  const a = await f.signIn(r.admin);
+  const restore = (weekStart) =>
+    a.put("/api/marking-skips/restore", { weekStart, subject: String(r.arabic._id), classrooms: [String(r.c._id)], columns: ["weeklyEvalScore"] });
+  const week6 = async () => (await computeWeekScores(r.c._id, r.arabic._id, [r.student._id], at(WEEK6), "weekly40"))[String(r.student._id)];
+  // Filed before the week lost its evaluation in every school.
+  await filed(r, WEEK6, { homework: 10, conduct: 10, evaluation: 15 });
+  expect(await week6()).toMatchObject({ weeklyEvalScore: null, total: 20, outOf: 20 });
+
+  // Only what is off in every school can come back.
+  expect((await restore(WEEK7)).status).toBe(400);
+  const res = await restore(WEEK6);
+  expect(res.status).toBe(200);
+  expect(res.body.message).toMatch(/رجع «التقييم الأسبوعي» للرصد/);
+  expect((await a.get("/api/marking-skips")).body.data).toEqual([
+    expect.objectContaining({ weekStart: WEEK6, columns: [], restored: [{ key: "weeklyEvalScore", label: "التقييم الأسبوعي" }], outOf: 40 }),
+  ]);
+  // The mark filed before counts.
+  expect(await week6()).toMatchObject({ weeklyEvalScore: 15, total: 35, outOf: 40, skipped: [] });
+
+  // The teacher records it in that class; the other class keeps it closed.
+  const t = await f.signIn(r.teacher);
+  expect((await t.get(`/api/weekly-evaluation/classroom/${r.c._id}?weekStart=${WEEK6}`)).body.data.noWeeklyEval).toBe(false);
+  expect((await t.get(`/api/weekly-evaluation/classroom/${r.c2._id}?weekStart=${WEEK6}`)).body.data.noWeeklyEval).toBe(true);
+  const saved = await t.post("/api/weekly-evaluation/bulk", { classroomId: String(r.c._id), weekStart: WEEK6, gradesList: [{ studentId: String(r.student._id), score: 18 }] });
+  expect(saved.status).toBe(200);
+  expect(await week6()).toMatchObject({ weeklyEvalScore: 18, total: 38 });
+
+  const p = await f.signIn(r.parent);
+  const parentWeek = (await p.get(`/api/parent/week-evaluation/${r.student._id}?weekStart=${WEEK6}`)).body.data;
+  expect(parentWeek.noWeeklyEval).toBe(false);
+  expect(parentWeek.subjects.find((s) => s.name === "لغة عربية")).toMatchObject({ score: 18, skipped: false });
+
+  // Closed again, as in every school: the mark stays, uncounted.
+  const doc = await MarkingSkip.findOne({ classroom: r.c._id });
+  const closed = await a.del(`/api/marking-skips/${doc._id}?column=weeklyEvalScore`);
+  expect(closed.body.message).toMatch(/اتقفل/);
+  expect(await MarkingSkip.countDocuments({ classroom: r.c._id })).toBe(0);
+  expect(await week6()).toMatchObject({ weeklyEvalScore: null, total: 20, outOf: 20 });
+  expect(await WeeklyEvaluation.countDocuments({ student: r.student._id })).toBe(1);
+});
+
 test("only the school's own admins, in their own classes; a teacher can't; a week outside the year is refused", async () => {
   const r = await future();
   const other = await future();

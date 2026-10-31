@@ -20,6 +20,10 @@ const markingSkipSchema = new mongoose.Schema(
     // The Sunday of the week, as every mark files it (utils/weekScores.toWeekStart).
     weekStart: { type: Date, required: true },
     columns: { type: [{ type: String, enum: COLUMNS }], default: [] },
+    // The other way round: columns off in every school that week (the week 6
+    // evaluation, utils/schoolMonths.js) that the admin put back for this
+    // class and subject, so it is recorded and counts here as in any week.
+    restored: { type: [{ type: String, enum: COLUMNS }], default: [] },
     // The admin who last changed it.
     by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },

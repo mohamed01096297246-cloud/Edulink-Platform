@@ -13,7 +13,7 @@ const { testMarksOf } = require("../utils/testMarks");
 const { SCHEMES, DEFAULT_SCHEME, schemeForClassroom } = require("../utils/gradebook");
 const { computeWeekScores, toWeekStart, weekEnd } = require("../utils/weekScores");
 const { subjectsTakenBy } = require("../utils/secondLanguage");
-const { hasWeeklyEval, weeksWithoutWeeklyEval } = require("../utils/schoolMonths");
+const { hasWeeklyEval } = require("../utils/schoolMonths");
 const { skipsInWindow, skipsAt } = require("../utils/markingSkips");
 const { isAbsent } = require("../utils/absentMark");
 
@@ -164,12 +164,9 @@ exports.getWeekEvaluation = async (req, res) => {
     // Opens on the latest week that had a تقييم أسبوعي (utils/schoolMonths.js);
     // a week without one shows none, whatever was filed under it.
     // Nor does one whose evaluations the school took off for the child's
-    // class (utils/markingSkips.js).
+    // class (utils/markingSkips.js) — and one the school put back counts.
     if (!weekStart) {
-      const recent = await WeeklyEvaluation.find({
-        student: student._id,
-        weekStart: { $nin: weeksWithoutWeeklyEval() },
-      })
+      const recent = await WeeklyEvaluation.find({ student: student._id })
         .sort({ weekStart: -1 })
         .limit(60)
         .select("weekStart subject")
@@ -182,12 +179,10 @@ exports.getWeekEvaluation = async (req, res) => {
     }
 
     const [filed, scheduledSubjects, scheme, takenOff] = await Promise.all([
-      hasWeeklyEval(weekStart)
-        ? WeeklyEvaluation.find({
-            student: student._id,
-            weekStart: { $gte: weekStart, $lte: weekEnd(weekStart) },
-          }).select("subject score absent")
-        : [],
+      WeeklyEvaluation.find({
+        student: student._id,
+        weekStart: { $gte: weekStart, $lte: weekEnd(weekStart) },
+      }).select("subject score absent"),
       student.classroom ? Schedule.distinct("subject", { classroom: student.classroom }) : [],
       student.classroom ? schemeForClassroom(student.classroom) : "classic",
       // The subjects whose تقييم أسبوعي the school took off this week for the
@@ -236,7 +231,9 @@ exports.getWeekEvaluation = async (req, res) => {
         max,
         overall,
         subjects,
-        noWeeklyEval: !hasWeeklyEval(weekStart),
+        // A week with no تقييم أسبوعي anywhere, unless the school put it back
+        // in one of the child's subjects.
+        noWeeklyEval: !hasWeeklyEval(weekStart) && subjects.every((s) => s.skipped),
       },
     });
   } catch (err) {

@@ -9,7 +9,7 @@ const { scopeFilter } = require("../utils/tenant");
 const { SCHEMES, schemeForClassroom } = require("../utils/gradebook");
 const { toWeekStart } = require("../utils/weekScores");
 const { markedWeeks, weekStartOf, hasWeeklyEval } = require("../utils/schoolMonths");
-const { columnsOf, LABELS, outOf } = require("../utils/markingSkips");
+const { columnsOf, LABELS, outOf, skipsOf, everySchoolSkips } = require("../utils/markingSkips");
 
 // «رفع بند من الرصد» (Mohamed, 2026-10-31): a teacher tells the school there
 // was no تقييم أسبوعي (or كراسة الحصة, or any column of the week) in their
@@ -126,9 +126,9 @@ exports.getOptions = async (req, res) => {
   }
 };
 
-// GET /marking-skips — every column taken off in the caller's classes,
-// newest week first, with the class, subject, teacher and what the week is
-// out of now.
+// GET /marking-skips — every column taken off (or put back, `restored`) in
+// the caller's classes, newest week first, with the class, subject, teacher
+// and what the week is out of now.
 exports.list = async (req, res) => {
   try {
     const query = classesInScope(req);
@@ -150,7 +150,8 @@ exports.list = async (req, res) => {
       const cls = classById.get(String(d.classroom));
       const scheme = schemes.get(String(d.classroom));
       const shape = columnsOf(scheme);
-      const off = new Set(d.columns);
+      const taken = new Set(d.columns);
+      const back = new Set(d.restored || []);
       const pair = pairs.get(`${d.classroom}:${idOf(d.subject)}`);
       return {
         _id: d._id,
@@ -159,9 +160,10 @@ exports.list = async (req, res) => {
         classroom: { _id: d.classroom, name: cls?.name || "", grade: cls?.grade?.name || "" },
         subject: { _id: idOf(d.subject), name: d.subject?.name || "" },
         teacher: nameOf(pair?.teacher),
-        columns: shape.filter((c) => off.has(c.key)).map(({ key, label }) => ({ key, label })),
+        columns: shape.filter((c) => taken.has(c.key)).map(({ key, label }) => ({ key, label })),
+        restored: shape.filter((c) => back.has(c.key)).map(({ key, label }) => ({ key, label })),
         weekTotal: SCHEMES[scheme].weekTotal,
-        outOf: outOf(scheme, off),
+        outOf: outOf(scheme, skipsOf(d.weekStart, d)),
         by: nameOf(d.by),
         updatedAt: d.updatedAt,
       };
@@ -237,9 +239,79 @@ exports.takeOff = async (req, res) => {
   }
 };
 
-// DELETE /marking-skips/:id[?column=key] — puts a column back (or every
-// column of that class, subject and week): the week counts it again,
-// marks already filed under it included.
+// PUT /marking-skips/restore — { weekStart, subject, classrooms, columns }:
+// the other way round. A column off in every school that week (the week 6
+// evaluation) is put back for those classes in that subject (Mohamed,
+// 2026-10-31: «انا عايز ارجع تقيم الاسبوع لبعض الفصول وبعض المواد»): the
+// teacher records it, and the week counts it as in any other week, marks
+// already filed under it included. The other classes and subjects keep it off.
+exports.restore = async (req, res) => {
+  try {
+    const weekStart = toWeekStart(req.body.weekStart);
+    if (!weekStart || !weeksOffered().some((w) => w.weekStart === isoDay(weekStart))) {
+      return res.status(400).json({ success: false, message: "اختار الأسبوع." });
+    }
+    const subjectId = idOf(req.body.subject);
+    if (!mongoose.Types.ObjectId.isValid(subjectId)) {
+      return res.status(400).json({ success: false, message: "اختار المادة." });
+    }
+    const offEverywhere = everySchoolSkips(weekStart);
+    const asked = Array.isArray(req.body.columns) ? req.body.columns.filter((c) => offEverywhere.includes(c)) : [];
+    if (asked.length === 0) {
+      return res.status(400).json({ success: false, message: "البند ده مش مترفع في كل المدارس الأسبوع ده." });
+    }
+    const ids = (Array.isArray(req.body.classrooms) ? req.body.classrooms : []).map(idOf).filter((id) => mongoose.Types.ObjectId.isValid(id));
+    if (ids.length === 0) {
+      return res.status(400).json({ success: false, message: "اختار فصل واحد على الأقل." });
+    }
+
+    const query = classesInScope(req, { _id: { $in: ids } });
+    if (!query) return res.status(400).json({ success: false, message: "Please specify a school (?school=id)." });
+    const classrooms = await query;
+    if (classrooms.length !== new Set(ids).size) {
+      return res.status(404).json({ success: false, message: "فيه فصل مش موجود أو مش من مدرستك." });
+    }
+    const subject = await Subject.findOne({ _id: subjectId, school: classrooms[0].school }).select("name noMarks").lean();
+    if (!subject || subject.noMarks) {
+      return res.status(400).json({ success: false, message: "المادة دي مالهاش درجات." });
+    }
+
+    const schemes = await schemesOf(classrooms);
+    const ops = [];
+    for (const c of classrooms) {
+      const columns = asked.filter((key) => SCHEMES[schemes.get(String(c._id))].max[key] !== undefined);
+      if (columns.length === 0) continue;
+      ops.push({
+        updateOne: {
+          filter: { classroom: c._id, subject: subject._id, weekStart },
+          update: {
+            $addToSet: { restored: { $each: columns } },
+            // Back means back: not also taken off by the admin.
+            $pull: { columns: { $in: columns } },
+            $set: { school: c.school, by: req.user._id },
+          },
+          upsert: true,
+        },
+      });
+    }
+    if (ops.length === 0) {
+      return res.status(400).json({ success: false, message: "البند ده مش موجود في كشف الفصول دي." });
+    }
+    await MarkingSkip.bulkWrite(ops);
+
+    const what = asked.map((key) => `«${LABELS[key]}»`).join(" و");
+    const n = ops.length;
+    const where = n === 1 ? "فصل واحد" : n === 2 ? "فصلين" : n <= 10 ? `${n} فصول` : `${n} فصل`;
+    return res.status(200).json({ success: true, message: `رجع ${what} للرصد في ${subject.name} في ${where}.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// DELETE /marking-skips/:id[?column=key] — undoes the admin's change to a
+// column (or to every column of that class, subject and week). One taken
+// off is back: the week counts it again, marks already filed under it
+// included. One put back is off again, as in every other school.
 exports.putBack = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(String(req.params.id || ""))) {
@@ -250,20 +322,27 @@ exports.putBack = async (req, res) => {
     if (!doc || !inScope) return res.status(404).json({ success: false, message: "مش موجود." });
 
     const column = req.query.column;
-    if (column && !doc.columns.includes(column)) {
+    const wasRestored = Boolean(column) && (doc.restored || []).includes(column);
+    if (column && !doc.columns.includes(column) && !wasRestored) {
       return res.status(400).json({ success: false, message: "البند ده مش مترفع." });
     }
-    const left = column ? doc.columns.filter((c) => c !== column) : [];
-    if (left.length === 0) await doc.deleteOne();
+    const columns = column ? doc.columns.filter((c) => c !== column) : [];
+    const restored = column ? (doc.restored || []).filter((c) => c !== column) : [];
+    if (columns.length === 0 && restored.length === 0) await doc.deleteOne();
     else {
-      doc.columns = left;
+      doc.columns = columns;
+      doc.restored = restored;
       doc.by = req.user._id;
       await doc.save();
     }
 
     return res.status(200).json({
       success: true,
-      message: column ? `رجع «${LABELS[column]}» للرصد.` : "رجعت البنود للرصد.",
+      message: wasRestored
+        ? `«${LABELS[column]}» اتقفل تاني في الفصل ده، زي باقي المدارس.`
+        : column
+          ? `رجع «${LABELS[column]}» للرصد.`
+          : "رجعت البنود زي ما كانت.",
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

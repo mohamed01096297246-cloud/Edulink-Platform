@@ -24,10 +24,9 @@ const { isDailyMode } = require("../utils/dailyAttendance");
 const { worthOf, earnedOn } = require("../utils/homeworkMarks");
 const { averageToHalf } = require("../utils/halfMarks");
 const { rosterWhere } = require("../utils/secondLanguage");
-const { weeksWithoutWeeklyEval } = require("../utils/schoolMonths");
 const { OVERRIDE_FLAG } = require("../utils/absentMark");
 const { weekName, marksBefore, tellMarks } = require("../utils/studentNotices");
-const { skippedIn, closedFor, closedMessage, outOf, skipsInWindow, weekTime } = require("../utils/markingSkips");
+const { skippedIn, closedFor, closedMessage, outOf, skipsInWindow, skipsAt } = require("../utils/markingSkips");
 
 const round1 = (n) =>
   n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
@@ -146,14 +145,15 @@ exports.getClassroomCoursework = async (req, res) => {
     // whatever was filed under it.
     // So is a week whose column the school's admin took off for this class
     // and subject (utils/markingSkips.js) — here and in كراسة الحصة below.
-    const takenOff = (await skipsInWindow([classroom._id], dateStart, dateEnd)).get(`${classroom._id}:${subjectId}`);
-    const isOpen = (column) => (doc) => !takenOff?.get(weekTime(doc.weekStart))?.has(column);
+    // A week 6 evaluation the admin put back for this class counts.
+    const takenOff = await skipsInWindow([classroom._id], dateStart, dateEnd);
+    const isOpen = (column) => (doc) => !skipsAt(takenOff, classroom._id, subjectId, doc.weekStart).has(column);
 
     const weeklyEvaluations = (
       await WeeklyEvaluation.find({
         classroom: classroomId,
         subject: subjectId,
-        weekStart: { $gte: dateStart, $lte: dateEnd, $nin: weeksWithoutWeeklyEval() },
+        weekStart: { $gte: dateStart, $lte: dateEnd },
       }).select("student score weekStart")
     ).filter(isOpen("weeklyEvalScore"));
 

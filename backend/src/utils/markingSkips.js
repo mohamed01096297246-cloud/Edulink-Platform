@@ -50,22 +50,29 @@ const timeOf = (date) => sundayOf(date).getTime();
 const everySchoolSkips = (weekStart) => (hasWeeklyEval(weekStart) ? [] : ["weeklyEvalScore"]);
 const isEverySchoolSkip = (key, weekStart) => key === "weeklyEvalScore" && !hasWeeklyEval(weekStart);
 
+// A class and subject's week: what every school has off, less what the
+// admin put back for them (MarkingSkip.restored — Mohamed, 2026-10-31, the
+// week 6 evaluation for some classes and subjects), plus what the admin took
+// off (MarkingSkip.columns).
+const skipsOf = (weekStart, doc) => {
+  const set = new Set(everySchoolSkips(weekStart));
+  (doc?.restored || []).forEach((c) => set.delete(c));
+  (doc?.columns || []).forEach((c) => set.add(c));
+  return set;
+};
+
 // One class and subject, several weeks: week (as its time) → Set of columns.
 const skipsByWeek = async (classroomId, subjectId, weekStarts) => {
-  const out = new Map(weekStarts.map((w) => [timeOf(w), new Set(everySchoolSkips(w))]));
+  const out = new Map(weekStarts.map((w) => [timeOf(w), skipsOf(w)]));
   if (!classroomId || !subjectId || weekStarts.length === 0) return out;
   const docs = await MarkingSkip.find({
     classroom: classroomId,
     subject: subjectId,
     weekStart: { $in: weekStarts.map(sundayOf) },
   })
-    .select("weekStart columns")
+    .select("weekStart columns restored")
     .lean();
-  for (const doc of docs) {
-    const set = out.get(timeOf(doc.weekStart)) || new Set(everySchoolSkips(doc.weekStart));
-    doc.columns.forEach((c) => set.add(c));
-    out.set(timeOf(doc.weekStart), set);
-  }
+  for (const doc of docs) out.set(timeOf(doc.weekStart), skipsOf(doc.weekStart, doc));
   return out;
 };
 
@@ -73,28 +80,25 @@ const skippedIn = async (classroomId, subjectId, weekStart) =>
   (await skipsByWeek(classroomId, subjectId, [weekStart])).get(timeOf(weekStart));
 
 // Every class and subject of a set of classes over a window, for a report:
-// `${classroom}:${subject}` → week time → Set — the admin's only; add
-// everySchoolSkips for the rest (skipsAt).
+// `${classroom}:${subject}` → week time → the admin's document. Read a week
+// through skipsAt, which adds what every school has off.
 const skipsInWindow = async (classIds, start, end) => {
   const docs = classIds.length
     ? await MarkingSkip.find({ classroom: { $in: classIds }, weekStart: { $gte: start, $lte: end } })
-        .select("classroom subject weekStart columns")
+        .select("classroom subject weekStart columns restored")
         .lean()
     : [];
   const out = new Map();
   for (const doc of docs) {
     const pair = `${doc.classroom}:${doc.subject}`;
     if (!out.has(pair)) out.set(pair, new Map());
-    out.get(pair).set(timeOf(doc.weekStart), new Set(doc.columns));
+    out.get(pair).set(timeOf(doc.weekStart), doc);
   }
   return out;
 };
 
 const skipsAt = (window, classroomId, subjectId, weekStart) =>
-  new Set([
-    ...everySchoolSkips(weekStart),
-    ...(window.get(`${classroomId}:${subjectId}`)?.get(timeOf(weekStart)) || []),
-  ]);
+  skipsOf(weekStart, window.get(`${classroomId}:${subjectId}`)?.get(timeOf(weekStart)));
 
 // The scheme's columns among those taken off, in the register's order.
 const skippedColumns = (scheme, skipped) => columnsOf(scheme).filter((c) => skipped.has(c.key));
@@ -120,6 +124,7 @@ module.exports = {
   columnsOf,
   everySchoolSkips,
   isEverySchoolSkip,
+  skipsOf,
   skipsByWeek,
   skippedIn,
   skipsInWindow,

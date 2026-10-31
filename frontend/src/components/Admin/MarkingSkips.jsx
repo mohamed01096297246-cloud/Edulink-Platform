@@ -10,6 +10,10 @@ import { CircleMinus, Loader2, AlertCircle, CheckCircle2, Undo2, Check } from "l
 // Nothing is deleted: marks already recorded under it count again when it is
 // put back from the list below.
 //
+// The other way round, from the same steps: a column off in every school
+// that week (the week 6 evaluation) is put back for the classes and subject
+// chosen — picking it switches the page to «رجّع للرصد».
+//
 // For staff who don't use computers much, as «رصد الدرجات» is: the steps in
 // the order the teacher's request comes in, everything chosen by tapping,
 // and what the week will be out of said before anything is saved.
@@ -83,8 +87,9 @@ const MarkingSkips = () => {
 
   // تقييم أسبوعي is off in every school in such a week already.
   const offEverywhere = (key) => key === "weeklyEvalScore" && week?.noWeeklyEval;
-  // Already taken off this week in every class chosen.
-  const offAlready = (key) =>
+  // In every class chosen, the admin's change this week has the column in
+  // `list` («columns» taken off, «restored» put back).
+  const inEveryClass = (list, key) =>
     chosenClasses.length > 0 &&
     chosenClasses.every((c) =>
       (items || []).some(
@@ -92,9 +97,15 @@ const MarkingSkips = () => {
           i.weekStart === weekStart &&
           String(i.subject._id) === subjectId &&
           String(i.classroom._id) === String(c._id) &&
-          i.columns.some((col) => col.key === key),
+          (i[list] || []).some((col) => col.key === key),
       ),
     );
+  const offAlready = (key) => inEveryClass("columns", key);
+  const backAlready = (key) => inEveryClass("restored", key);
+  // Off in the chosen classes as things stand.
+  const offNow = (key) => (offEverywhere(key) && !backAlready(key)) || offAlready(key);
+  // Picking a column off in every school puts it back instead.
+  const restoring = columns.some(offEverywhere);
 
   const pickTeacher = (id) => {
     setTeacherId(id);
@@ -122,14 +133,21 @@ const MarkingSkips = () => {
     setError("");
   };
 
-  // What the week comes to in the chosen classes once the columns go.
+  // Taking off and putting back are separate saves: a column off in every
+  // school is picked on its own, and picking another clears it.
+  const pickColumn = (key) => {
+    const other = offEverywhere(key) !== restoring;
+    toggle(other ? [] : columns, setColumns, key);
+  };
+
+  // What the week comes to in the chosen classes, now and once saved.
   const outcome = schemesHere.map((scheme) => {
     const shape = options.schemes[scheme];
-    const off = shape.columns.filter((c) => columns.includes(c.key) || offEverywhere(c.key) || offAlready(c.key));
+    const total = (keep) => shape.weekTotal - shape.columns.filter(keep).reduce((sum, c) => sum + c.max, 0);
     return {
       scheme,
-      weekTotal: shape.weekTotal,
-      outOf: shape.weekTotal - off.reduce((sum, c) => sum + c.max, 0),
+      before: total((c) => offNow(c.key)),
+      outOf: total((c) => (restoring ? offNow(c.key) && !columns.includes(c.key) : offNow(c.key) || columns.includes(c.key))),
       classes: chosenClasses.filter((c) => c.scheme === scheme).length,
     };
   });
@@ -143,20 +161,23 @@ const MarkingSkips = () => {
     if (!ready) return;
     const what = labelsOf(columns);
     const where = classesWord(chosenClasses.length);
-    if (!window.confirm(`هترفع ${what} من ${subject.name} في ${where} — ${week.label}.\nالأسبوع هيتحسب على باقي البنود بس. متأكد؟`)) {
+    const question = restoring
+      ? `هترجّع ${what} للرصد في ${subject.name} في ${where} — ${week.label}.\nالمعلم هيقدر يرصده، والأسبوع هيتحسب بيه، وأي درجات اترصدت فيه قبل كده هتتحسب. باقي الفصول والمواد هيفضل مترفع عندهم. متأكد؟`
+      : `هترفع ${what} من ${subject.name} في ${where} — ${week.label}.\nالأسبوع هيتحسب على باقي البنود بس. متأكد؟`;
+    if (!window.confirm(question)) {
       return;
     }
     setSaving(true);
     setError("");
     setDone("");
     try {
-      const res = await API.put("/marking-skips", {
+      const res = await API.put(restoring ? "/marking-skips/restore" : "/marking-skips", {
         weekStart,
         subject: subjectId,
         classrooms: classIds,
         columns,
       });
-      setDone(`${res.data?.message || "اترفع من الرصد."} (${week.label})`);
+      setDone(`${res.data?.message || (restoring ? "رجع للرصد." : "اترفع من الرصد.")} (${week.label})`);
       setColumns([]);
       await loadList();
     } catch (err) {
@@ -166,13 +187,13 @@ const MarkingSkips = () => {
     }
   };
 
-  const putBack = async (item, column) => {
+  const putBack = async (item, column, wasRestored = false) => {
     const name = column ? `«${column.label}»` : "البنود";
-    if (
-      !window.confirm(
-        `هترجّع ${name} للرصد في ${item.subject.name} — ${item.classroom.grade} ${item.classroom.name} — ${item.week || fmtDay(item.weekStart)}.\nأي درجات اترصدت قبل كده في البند ده هترجع تتحسب. متأكد؟`,
-      )
-    ) {
+    const where = `${item.subject.name} — ${item.classroom.grade} ${item.classroom.name} — ${item.week || fmtDay(item.weekStart)}`;
+    const question = wasRestored
+      ? `هتقفل ${name} تاني في ${where}، زي باقي المدارس.\nالدرجات اللي اترصدت فيه مش هتتحسب (ومش هتتمسح). متأكد؟`
+      : `هترجّع ${name} للرصد في ${where}.\nأي درجات اترصدت قبل كده في البند ده هترجع تتحسب. متأكد؟`;
+    if (!window.confirm(question)) {
       return;
     }
     setBusyRow(`${item._id}:${column?.key || ""}`);
@@ -219,6 +240,10 @@ const MarkingSkips = () => {
           </p>
           <p className="text-slate-900 font-black text-base mt-2">
             الدرجات اللي اترصدت قبل كده في البند ده مش بتتمسح — ولو رجّعته من الجدول اللي تحت بترجع تتحسب.
+          </p>
+          <p className="text-slate-900 font-black text-base mt-2">
+            ولو بند مترفع في كل المدارس (زي تقييم الأسبوع السادس) وعايز ترجّعه لمادة في فصول معينة: اختار الأسبوع والمعلم
+            والمادة والفصول، ودوس على البند.
           </p>
         </div>
 
@@ -336,30 +361,42 @@ const MarkingSkips = () => {
                   <div className="space-y-3">
                     <span className="flex items-center gap-2 text-base font-black text-slate-900">
                       <span className={stepBadge}>5</span>
-                      البند اللي هيترفع
+                      البند اللي هيترفع أو يرجع
                     </span>
                     <div className="flex flex-wrap gap-3">
                       {columnChoices.map((c) => {
                         const everywhere = offEverywhere(c.key);
+                        const back = everywhere && backAlready(c.key);
                         const already = !everywhere && offAlready(c.key);
                         const on = columns.includes(c.key);
+                        // A column off in every school is put back: green, so
+                        // it reads as the opposite of taking off.
+                        const style = everywhere && !back
+                          ? `inline-flex items-center gap-2 px-4 py-3 rounded-2xl border-2 text-base font-black ${
+                              on
+                                ? "bg-emerald-700 border-emerald-700 text-white"
+                                : "bg-amber-50 border-amber-600 text-slate-900 hover:border-emerald-700"
+                            }`
+                          : chip(on);
                         return (
                           <button
                             key={c.key}
                             type="button"
                             aria-pressed={on}
-                            disabled={everywhere || already}
-                            onClick={() => toggle(columns, setColumns, c.key)}
-                            className={`${chip(on)} disabled:bg-slate-100 disabled:border-slate-400 disabled:text-slate-800 disabled:cursor-not-allowed`}
+                            disabled={back || already}
+                            onClick={() => pickColumn(c.key)}
+                            className={`${style} disabled:bg-slate-100 disabled:border-slate-400 disabled:text-slate-800 disabled:cursor-not-allowed`}
                           >
                             {on && <Check size={18} />}
                             {c.label}
                             <span className={`text-sm font-bold ${on ? "text-white" : "text-slate-800"}`}>
-                              {everywhere
-                                ? "(مترفع في كل المدارس الأسبوع ده)"
-                                : already
-                                  ? "(مترفع بالفعل)"
-                                  : `(من ${[...c.maxes].join(" / ")})`}
+                              {back
+                                ? "(اترجع بالفعل للفصول دي)"
+                                : everywhere
+                                  ? "(مترفع في كل المدارس — دوس عشان ترجّعه)"
+                                  : already
+                                    ? "(مترفع بالفعل)"
+                                    : `(من ${[...c.maxes].join(" / ")})`}
                             </span>
                           </button>
                         );
@@ -368,15 +405,25 @@ const MarkingSkips = () => {
                   </div>
 
                   {ready && (
-                    <div className="p-4 rounded-2xl border-2 border-indigo-400 bg-indigo-50 text-indigo-950 font-black text-lg leading-relaxed">
+                    <div
+                      className={`p-4 rounded-2xl border-2 font-black text-lg leading-relaxed ${
+                        restoring ? "border-emerald-600 bg-emerald-50 text-emerald-950" : "border-indigo-400 bg-indigo-50 text-indigo-950"
+                      }`}
+                    >
                       {outcome.map((o) => (
                         <div key={o.scheme}>
                           {subject.name} في{" "}
                           {o.classes === 1 ? "الفصل ده" : o.classes === 2 ? "الفصلين دول" : `الـ ${classesWord(o.classes)} دول`} —{" "}
                           {week.label}:
-                          الأسبوع هيتحسب من <span className="text-indigo-800 text-2xl">{o.outOf}</span> بدل {o.weekTotal}.
+                          {restoring ? ` ${labelsOf(columns)} هيرجع يترصد، و` : " "}
+                          الأسبوع هيتحسب من{" "}
+                          <span className={`text-2xl ${restoring ? "text-emerald-800" : "text-indigo-800"}`}>{o.outOf}</span> بدل{" "}
+                          {o.before}.
                         </div>
                       ))}
+                      {restoring && (
+                        <div className="text-base mt-1">باقي الفصول والمواد هيفضل مترفع عندهم زي ما هو.</div>
+                      )}
                     </div>
                   )}
 
@@ -392,7 +439,7 @@ const MarkingSkips = () => {
                         </span>
                       ) : !ready ? (
                         <span className="text-slate-800">
-                          {chosenClasses.length === 0 ? "اختار فصل واحد على الأقل." : "اختار البند اللي هيترفع."}
+                          {chosenClasses.length === 0 ? "اختار فصل واحد على الأقل." : "اختار البند."}
                         </span>
                       ) : null}
                     </div>
@@ -400,10 +447,18 @@ const MarkingSkips = () => {
                       type="button"
                       onClick={takeOff}
                       disabled={!ready || saving}
-                      className="px-10 py-4 rounded-2xl font-black text-lg flex items-center gap-2 bg-indigo-700 hover:bg-indigo-800 text-white disabled:bg-slate-300 disabled:text-slate-800 disabled:cursor-not-allowed"
+                      className={`px-10 py-4 rounded-2xl font-black text-lg flex items-center gap-2 text-white disabled:bg-slate-300 disabled:text-slate-800 disabled:cursor-not-allowed ${
+                        restoring ? "bg-emerald-700 hover:bg-emerald-800" : "bg-indigo-700 hover:bg-indigo-800"
+                      }`}
                     >
-                      {saving ? <Loader2 className="animate-spin" size={20} /> : <CircleMinus size={20} />}
-                      ارفع من الرصد
+                      {saving ? (
+                        <Loader2 className="animate-spin" size={20} />
+                      ) : restoring ? (
+                        <Undo2 size={20} />
+                      ) : (
+                        <CircleMinus size={20} />
+                      )}
+                      {restoring ? "رجّعه للرصد" : "ارفع من الرصد"}
                     </button>
                   </div>
                 </>
@@ -414,7 +469,7 @@ const MarkingSkips = () => {
 
         <div className="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b-2 border-slate-300 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-xl font-black text-slate-900">البنود المرفوعة</h2>
+            <h2 className="text-xl font-black text-slate-900">البنود المرفوعة والمرجّعة</h2>
             {items && <span className="text-base font-black text-slate-800">{items.length} فصل</span>}
           </div>
           {!items ? (
@@ -422,7 +477,7 @@ const MarkingSkips = () => {
               <Loader2 className="animate-spin text-indigo-700" size={32} />
             </div>
           ) : items.length === 0 ? (
-            <p className="p-10 text-center text-slate-800 text-lg font-black">مفيش بنود مرفوعة لحد دلوقتي.</p>
+            <p className="p-10 text-center text-slate-800 text-lg font-black">مفيش بنود مرفوعة أو مرجّعة لحد دلوقتي.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse min-w-[760px]">
@@ -431,7 +486,7 @@ const MarkingSkips = () => {
                     <th className="p-3 text-right text-base font-black border border-slate-600">الأسبوع</th>
                     <th className="p-3 text-right text-base font-black border border-slate-600">الفصل</th>
                     <th className="p-3 text-right text-base font-black border border-slate-600">المادة والمعلم</th>
-                    <th className="p-3 text-right text-base font-black border border-slate-600">البنود المرفوعة</th>
+                    <th className="p-3 text-right text-base font-black border border-slate-600">البنود</th>
                     <th className="p-3 text-base font-black border border-slate-600 w-32">الأسبوع بقى من</th>
                   </tr>
                 </thead>
@@ -475,8 +530,32 @@ const MarkingSkips = () => {
                               )}
                             </span>
                           ))}
+                          {(item.restored || []).map((c) => (
+                            <span
+                              key={`back-${c.key}`}
+                              className="inline-flex items-center gap-2 pr-3 pl-1.5 py-1.5 rounded-xl border-2 border-emerald-600 bg-emerald-50 text-emerald-950 text-base font-black"
+                            >
+                              {c.label} — اترجع للرصد
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => putBack(item, c, true)}
+                                  disabled={busyRow === `${item._id}:${c.key}`}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border-2 border-slate-500 text-slate-900 text-sm font-black hover:border-rose-700 disabled:opacity-70"
+                                  title="يقفل البند ده تاني في الفصل ده، زي باقي المدارس"
+                                >
+                                  {busyRow === `${item._id}:${c.key}` ? (
+                                    <Loader2 className="animate-spin" size={14} />
+                                  ) : (
+                                    <CircleMinus size={14} />
+                                  )}
+                                  اقفله تاني
+                                </button>
+                              )}
+                            </span>
+                          ))}
                         </div>
-                        {item.by && <div className="mt-2 text-sm font-bold text-slate-800">رفعه: {item.by}</div>}
+                        {item.by && <div className="mt-2 text-sm font-bold text-slate-800">آخر تعديل: {item.by}</div>}
                       </td>
                       <td className="p-3 border border-slate-300 text-center text-2xl font-black text-indigo-800">
                         {item.outOf}
