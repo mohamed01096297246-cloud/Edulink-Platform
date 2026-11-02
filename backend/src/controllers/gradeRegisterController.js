@@ -19,6 +19,25 @@ const { schoolMonth, schoolMonthStartingIn, monthsBegun } = require("../utils/sc
 // screen is literally the same number that lands in the printed register.
 const { computeWeekScores, computeMonthScores, toWeekStart } = require("../utils/weekScores");
 const { rosterWhere } = require("../utils/secondLanguage");
+const { signLink, downloadName } = require("../utils/downloadLink");
+
+// The Android app downloads the register through the phone's browser, which
+// can't send the sign-in header: it asks here for a link to the very request
+// it would have made — ?path=/week/<classroom> plus that request's query.
+exports.registerDownloadLink = (req, res) => {
+  const { path, ...query } = req.query;
+  const valid =
+    /^\/(week|month|term)\/[0-9a-fA-F]{24}$/.test(path || "") &&
+    Object.values(query).every((value) => typeof value === "string");
+
+  if (!valid) {
+    return res.status(400).json({ success: false, message: "طلب تنزيل غير صحيح." });
+  }
+
+  const dl = signLink(req.user._id, path, query);
+  const search = new URLSearchParams({ ...query, dl }).toString();
+  return res.json({ success: true, url: `/grade-register${path}?${search}` });
+};
 
 // The register goes out as the workbook, or — with ?format=pdf — as a PDF
 // drawn from that same workbook (utils/sheetPdf), which any phone opens
@@ -26,8 +45,15 @@ const { rosterWhere } = require("../utils/secondLanguage");
 // version from before the PDF keeps getting what it asks for.
 const sendRegister = async (req, res, workbook, kind) => {
   if (req.query.format === "pdf") {
+    // ?name= is the Arabic name the phone saves it under; the plain one
+    // stays for anything that can't read filename*.
+    const name = downloadName(req.query.name, ".pdf");
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="grade-register-${kind}.pdf"`);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="grade-register-${kind}.pdf"` +
+        (name ? `; filename*=UTF-8''${encodeURIComponent(name)}` : ""),
+    );
     await new Promise((resolve, reject) => {
       res.on("finish", resolve);
       res.on("error", reject);

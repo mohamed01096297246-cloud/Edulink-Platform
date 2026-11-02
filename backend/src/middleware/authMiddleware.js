@@ -29,16 +29,20 @@ exports.protect = async (req, res, next) => {
       token = req.headers.authorization.split(" ")[1];
     }
 
-    if (!token) {
+    // A download link the browser opened (utils/downloadLink.js) has
+    // already named its user.
+    if (!token && !req.linkUserId) {
       return res.status(401).json({
         message: "Not authorized, no token"
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = token
+      ? jwt.verify(token, process.env.JWT_SECRET).userId
+      : req.linkUserId;
 
 
-    let user = await User.findById(decoded.userId).select("-password");
+    let user = await User.findById(userId).select("-password");
 
     // A phone still signed in to a parent account that has since been merged
     // into the family's account carries on as that account.
