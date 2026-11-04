@@ -12,7 +12,8 @@ const app = express();
 app.set("trust proxy", 1);
 
 app.use(helmet());
-app.use(cors());
+// The renewed sign-in (utils/session.js) must be readable by the web app too.
+app.use(cors({ exposedHeaders: ["X-Session-Token"] }));
 app.use(compression());
 // A JSON body that isn't an object — the panel's API client sends a `null`
 // payload as the text "null" — reads as an empty body instead of failing

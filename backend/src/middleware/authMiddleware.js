@@ -1,5 +1,11 @@
-const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const {
+  readSession,
+  isTokenError,
+  signSession,
+  RENEW_AFTER_SECONDS,
+  HEADER: SESSION_HEADER,
+} = require("../utils/session");
 const School = require("../models/School");
 const {
   resolveStageScope,
@@ -37,10 +43,20 @@ exports.protect = async (req, res, next) => {
       });
     }
 
-    const userId = token
-      ? jwt.verify(token, process.env.JWT_SECRET).userId
-      : req.linkUserId;
-
+    // Only a token that isn't ours, or has outlived its year, is a 401 —
+    // the app signs the phone out on a 401, so nothing else may answer one.
+    let session = null;
+    if (token) {
+      try {
+        session = readSession(token);
+      } catch (err) {
+        if (isTokenError(err)) {
+          return res.status(401).json({ message: "Invalid or expired token" });
+        }
+        throw err;
+      }
+    }
+    const userId = session ? session.userId : req.linkUserId;
 
     let user = await User.findById(userId).select("-password");
 
@@ -79,6 +95,12 @@ exports.protect = async (req, res, next) => {
 
     req.user = user;
 
+    // Keeps a phone in use signed in: a token over a day old is answered
+    // with a fresh one, which the app stores (utils/session.js).
+    if (session && session.age > RENEW_AFTER_SECONDS) {
+      res.setHeader(SESSION_HEADER, signSession(user));
+    }
+
     // A principal over part of the school reaches only the grades of their
     // own stages. Resolved here, once, rather than per query — and here
     // rather than in each controller, so an endpoint can't be written that
@@ -111,8 +133,12 @@ exports.protect = async (req, res, next) => {
     next();
 
   } catch (err) {
-    return res.status(401).json({
-      message: "Invalid or expired token"
+    // The database or the server failing (a deploy, a dropped connection)
+    // says nothing about the sign-in. It used to come back as a 401 here,
+    // and every phone that hit it was signed out.
+    console.error("protect:", err.message);
+    return res.status(503).json({
+      message: "تعذر الاتصال بالخادم مؤقتًا. حاول تاني بعد شوية."
     });
   }
 };

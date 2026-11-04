@@ -1,7 +1,7 @@
 const User = require("../models/User");
 const School = require("../models/School");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
+const { signSession } = require("../utils/session");
 const { hasStagePrincipals } = require("../utils/tenant");
 const { schemeForTeacher, conductEnteredFrom } = require("../utils/gradebook");
 const { toLatinDigits, canonicalMobile } = require("../utils/phone");
@@ -106,11 +106,7 @@ exports.login = async (req, res) => {
       (user.managedStages || []).length === 0 &&
       schoolHasStages;
 
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "30d" },
-    );
+    const token = signSession(user);
 
     res.status(200).json({
       message: "Login successful",

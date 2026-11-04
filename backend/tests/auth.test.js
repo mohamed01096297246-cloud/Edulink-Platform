@@ -46,6 +46,58 @@ describe("login", () => {
   });
 });
 
+describe("staying signed in", () => {
+  const jwt = require("jsonwebtoken");
+  const User = require("../src/models/User");
+  const DAY = 24 * 60 * 60;
+  // A token as the server signed it some days ago, with the expiry it had.
+  const tokenFrom = (user, daysAgo, expiresInDays) => {
+    const iat = Math.floor(Date.now() / 1000) - daysAgo * DAY;
+    return jwt.sign({ userId: user._id, role: user.role, iat, exp: iat + expiresInDays * DAY }, process.env.JWT_SECRET);
+  };
+  const me = (token) => f.request(f.app).get("/api/auth/me").set("Authorization", `Bearer ${token}`);
+
+  test("a 30-day token from 40 days ago still works, and is answered with a fresh one that works", async () => {
+    const s = await f.school();
+    const teacher = await f.user("teacher", s);
+    const old = await me(tokenFrom(teacher, 40, 30));
+    expect(old.status).toBe(200);
+    const renewed = old.headers["x-session-token"];
+    expect(renewed).toBeTruthy();
+    expect(jwt.decode(renewed).exp - jwt.decode(renewed).iat).toBe(365 * DAY);
+    const again = await me(renewed);
+    expect(again.status).toBe(200);
+    // Fresh, so not renewed again on every request.
+    expect(again.headers["x-session-token"]).toBeUndefined();
+  });
+
+  test("a sign-in lasts a year; past that, or forged, it is refused", async () => {
+    const s = await f.school();
+    const teacher = await f.user("teacher", s);
+    const login = await f.request(f.app).post("/api/auth/login").send({ username: teacher.username, password: f.PASSWORD });
+    const { iat, exp } = jwt.decode(login.body.token);
+    expect(exp - iat).toBe(365 * DAY);
+
+    expect((await me(tokenFrom(teacher, 366, 365))).status).toBe(401);
+    const forged = jwt.sign({ userId: teacher._id, role: "teacher" }, "not-our-secret");
+    expect((await me(forged)).status).toBe(401);
+    expect((await me("garbage")).status).toBe(401);
+  });
+
+  test("the database failing is not a sign-out: it answers 503, never 401", async () => {
+    const s = await f.school();
+    const teacher = await f.user("teacher", s);
+    const { token } = await f.signIn(teacher);
+    const spy = jest.spyOn(User, "findById").mockImplementationOnce(() => {
+      throw new Error("Operation `users.findOne()` buffering timed out after 10000ms");
+    });
+    const res = await me(token);
+    spy.mockRestore();
+    expect(res.status).toBe(503);
+    expect((await me(token)).status).toBe(200);
+  });
+});
+
 describe("health", () => {
   test("/api/health reports the database connection", async () => {
     const res = await f.request(f.app).get("/api/health");

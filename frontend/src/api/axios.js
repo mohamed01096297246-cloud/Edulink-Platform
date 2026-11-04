@@ -28,8 +28,16 @@ API.interceptors.request.use((config) => {
 
 // An expired/invalid token gets the same "you're signed out" experience
 // everywhere instead of each page separately guessing what a 401 means.
+// A sign-in in use is renewed by the server once a day (X-Session-Token);
+// keeping the new one is what stops it running out.
 API.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const renewed = response.headers?.["x-session-token"];
+    if (renewed && localStorage.getItem("token")) {
+      localStorage.setItem("token", renewed);
+    }
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
