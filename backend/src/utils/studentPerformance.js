@@ -14,7 +14,7 @@ const { otherLanguagesFor } = require("./secondLanguage");
 const { monthsOfTerm, termSpan, termOfDate } = require("./schoolMonths");
 const { isDailyMode } = require("./dailyAttendance");
 const { averageToHalf } = require("./halfMarks");
-const { isAbsent } = require("./absentMark");
+const { isAbsent, isWithdrawn } = require("./absentMark");
 const { isInTotal } = require("./subjectsInTotal");
 
 // "أدائي" — one student's standing in each subject over a term, built from
@@ -62,8 +62,11 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
         attendanceScore: mine.attendanceScore ?? null,
         classworkScore: rules.classwork ? mine.classworkScore ?? null : undefined,
         total: mine.total ?? null,
-        // The columns that read «غ» (utils/absentMark.js).
+        // The columns that read «غ», and those that read «م» — no mark — and
+        // whether the whole week is م, with no total (utils/absentMark.js).
         absent: mine.absent || {},
+        withdrawn: mine.withdrawn || {},
+        withdrawnWeek: Boolean(mine.withdrawnWeek),
         // The columns taken off that week (utils/markingSkips.js) — the week
         // is out of the rest (`outOf`), not short by them. weeklyEvalApplies
         // is what an app from before 2026-11 reads.
@@ -76,6 +79,8 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
 
   const monthAverages = months.map((m) => {
     const inMonth = new Set(m.weekStarts.map((d) => d.getTime()));
+    const monthWeeks = weeks.filter((w) => inMonth.has(new Date(w.weekStart).getTime()));
+    const monthAvg = monthAverage(monthWeeks, scheme);
     return {
       schoolMonth: m.month,
       label: m.label,
@@ -86,7 +91,9 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
       month: m.from.getUTCMonth() + 1,
       year: m.from.getUTCFullYear(),
       // A week with no تقييم أسبوعي doesn't pull the month down for it.
-      average: monthAverage(weeks.filter((w) => inMonth.has(new Date(w.weekStart).getTime())), scheme),
+      average: monthAvg,
+      // Every week the pupil has in it is «م»: no average, reads م.
+      withdrawn: monthAvg === null && monthWeeks.some((w) => w.withdrawnWeek),
     };
   });
   const weeksAverage = average(monthAverages.map((m) => m.average));
@@ -103,7 +110,7 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
     Behavior.countDocuments({ student: student._id, subject: subject._id, type: "positive", date: inTerm }),
     scheme === "weekly40"
       ? TermTest.find({ student: student._id, subject: subject._id, academicYear: classroom.academicYear, term })
-          .select("testNo grade absent")
+          .select("testNo grade absent withdrawn")
       : [],
     scheme === "weekly40"
       ? []
@@ -111,7 +118,7 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
           student: student._id,
           subject: subject._id,
           $or: TEST_MONTHS[term].map((month) => ({ month, year: yearForMonth(month, classroom.academicYear) })),
-        }).select("month year grade"),
+        }).select("month year grade absent withdrawn"),
     Result.find({ student: student._id, subject: subject._id })
       .populate("exam", "title")
       .select("exam grade"),
@@ -153,17 +160,32 @@ const subjectPerformance = async ({ student, classroom, subject, scheme, term, d
   };
 
   if (scheme === "weekly40") {
-    const test = (n) => tests.find((t) => t.testNo === n)?.grade ?? null;
+    // A test that is «م» has no mark: nothing to add up (utils/absentMark.js).
+    const left = (n) => tests.some((t) => t.testNo === n && isWithdrawn(t.withdrawn, t.grade));
+    const test = (n) => (left(n) ? null : tests.find((t) => t.testNo === n)?.grade ?? null);
     const test1 = test(1);
     const test2 = test(2);
     const testsTotal = test1 === null && test2 === null ? null : (test1 || 0) + (test2 || 0);
     const missed = (n) => tests.some((t) => t.testNo === n && isAbsent(t.absent, t.grade));
-    out.tests = { test1, test2, total: testsTotal, absent: { test1: missed(1), test2: missed(2) } };
+    out.tests = {
+      test1,
+      test2,
+      total: testsTotal,
+      absent: { test1: missed(1), test2: missed(2) },
+      withdrawn: { test1: left(1), test2: left(2) },
+    };
     out.yearWork =
       weeksAverage === null && testsTotal === null ? null : round1((weeksAverage || 0) + (testsTotal || 0));
   } else {
     out.monthlyTests = monthly
-      .map((m) => ({ month: m.month, year: m.year, grade: m.grade, outOf: 15 }))
+      .map((m) => ({
+        month: m.month,
+        year: m.year,
+        grade: m.grade,
+        outOf: 15,
+        absent: isAbsent(m.absent, m.grade),
+        withdrawn: isWithdrawn(m.withdrawn, m.grade),
+      }))
       .sort((a, b) => a.year - b.year || a.month - b.month);
   }
 

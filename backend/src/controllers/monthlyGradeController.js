@@ -6,7 +6,8 @@ const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { teacherClassroomIds, teacherMarkClassroomIds } = require("../utils/teacherClassrooms");
 const { rosterWhere } = require("../utils/secondLanguage");
-const { marksBefore, tellMarks } = require("../utils/studentNotices");
+const { marksBefore, tellMarks, noticeValue } = require("../utils/studentNotices");
+const { isAbsent, isWithdrawn, readMark, markUpdate } = require("../utils/absentMark");
 
 // The school year's real teaching months, in chronological order — Term 1
 // runs September through January, Term 2 runs February through May. A
@@ -110,13 +111,19 @@ exports.getClassroomMonthlyGrades = async (req, res) => {
     });
 
     const gradesMap = {};
+    // The pupils whose 0 reads «غ», and those whose 0 reads «م»
+    // (utils/absentMark.js).
+    const absent = {};
+    const withdrawn = {};
     grades.forEach((g) => {
       gradesMap[g.student.toString()] = g.grade;
+      if (isAbsent(g.absent, g.grade)) absent[g.student.toString()] = true;
+      if (isWithdrawn(g.withdrawn, g.grade)) withdrawn[g.student.toString()] = true;
     });
 
     return res.status(200).json({
       success: true,
-      data: { students, grades: gradesMap, month: Number(month), year },
+      data: { students, grades: gradesMap, absent, withdrawn, month: Number(month), year },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -140,25 +147,27 @@ exports.saveBulkMonthlyGrades = async (req, res) => {
       });
     }
 
-    if (!gradesList || gradesList.length === 0) {
+    if (!Array.isArray(gradesList) || gradesList.length === 0) {
       return res
         .status(400)
         .json({ success: false, message: "أدخل درجة طالب واحد على الأقل." });
     }
 
-    // Any number from 0 to 15.
-    const hasInvalidScore = gradesList.some(
-      (record) =>
-        !Number.isFinite(Number(record.grade)) ||
-        record.grade < 0 ||
-        record.grade > 15,
-    );
+    // Any number from 0 to 15, or «غ» / «م» (utils/absentMark.js). A pupil
+    // sent with no mark is left as they are.
+    const read = gradesList.map((record) => ({ record, mark: readMark(record.grade, 15) }));
 
-    if (hasInvalidScore) {
+    if (read.some(({ mark }) => mark.error)) {
       return res.status(400).json({
         success: false,
-        message: "الدرجات لازم تكون رقم بين 0 و15.",
+        message: "الدرجات لازم تكون رقم بين 0 و15، أو «غ» للغايب، أو «م» للمنقطع.",
       });
+    }
+    const marked = read.filter(({ mark }) => mark.value !== null);
+    if (marked.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "أدخل درجة طالب واحد على الأقل." });
     }
 
     const classroom = await Classroom.findById(classroomId);
@@ -177,7 +186,10 @@ exports.saveBulkMonthlyGrades = async (req, res) => {
 
     const year = yearForMonth(Number(month), classroom.academicYear);
 
-    const bulkOps = gradesList.map((record) => ({
+    // «غ» and «م» set their flag; a number takes them off, but a 0 from an
+    // app that can't send a letter keeps it (utils/absentMark.js).
+    const letters = Boolean(req.body.letters);
+    const bulkOps = marked.map(({ record, mark }) => ({
       updateOne: {
         filter: {
           student: record.studentId,
@@ -185,14 +197,12 @@ exports.saveBulkMonthlyGrades = async (req, res) => {
           month: Number(month),
           year,
         },
-        update: {
-          $set: {
-            grade: record.grade,
-            classroom: classroomId,
-            teacher: req.user.id,
-            school: req.user.school,
-          },
-        },
+        update: markUpdate(
+          "grade",
+          mark,
+          { classroom: classroomId, teacher: req.user.id, school: req.user.school },
+          letters,
+        ),
         upsert: true,
       },
     }));
@@ -203,7 +213,7 @@ exports.saveBulkMonthlyGrades = async (req, res) => {
         subject: subjectId,
         month: Number(month),
         year,
-        student: { $in: gradesList.map((record) => record.studentId) },
+        student: { $in: marked.map(({ record }) => record.studentId) },
       })
         .select("student grade")
         .lean(),
@@ -217,7 +227,7 @@ exports.saveBulkMonthlyGrades = async (req, res) => {
       when: `شهر ${MONTH_NAMES[Number(month)]}`,
       columns: { grade: { label: "الاختبار الشهري", max: 15 } },
       before,
-      after: gradesList.map((record) => ({ studentId: record.studentId, marks: { grade: record.grade } })),
+      after: marked.map(({ record, mark }) => ({ studentId: record.studentId, marks: { grade: noticeValue(mark) } })),
       createdBy: req.user.id,
       school: req.user.school,
     });

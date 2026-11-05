@@ -1,7 +1,7 @@
 const ExcelJS = require("exceljs");
 const { averageToHalf } = require("./halfMarks");
 const { monthAverage } = require("./weekScores");
-const { ABSENT } = require("./absentMark");
+const { ABSENT, WITHDRAWN } = require("./absentMark");
 
 // Mirrors the paper "سجل رصد درجات فصل" register the school already uses on
 // paper — weeks (or a month's worth of weeks) as column groups, students as
@@ -111,9 +111,19 @@ const styleDataCell = (cell, { bold = false } = {}) => {
 // Averages print as a whole mark or a half (utils/halfMarks).
 const average = averageToHalf;
 
-// A week's mark as the register prints it: the number, or «غ» for a pupil
-// who was away (utils/absentMark.js) — still a 0 in the total beside it.
-const markCell = (entry, key) => (entry.absent?.[key] ? ABSENT : entry[key]);
+// A week's mark as the register prints it: the number, «غ» for a pupil who
+// was away (utils/absentMark.js) — still a 0 in the total beside it — or «م»
+// for one منقطع, which the total leaves out. A week all م has no total: م.
+const markCell = (entry, key) => {
+  if (key === "total") return entry.withdrawnWeek ? WITHDRAWN : entry.total;
+  if (entry.withdrawn?.[key]) return WITHDRAWN;
+  return entry.absent?.[key] ? ABSENT : entry[key];
+};
+
+// A pupil's average over weeks: the number, or «م» when every week they have
+// is م (utils/weekScores.js monthAverage leaves those out).
+const averageCell = (value, entries) =>
+  value === null && entries.some((e) => e?.withdrawnWeek) ? WITHDRAWN : value;
 
 // The columns taken off the week for the class (utils/markingSkips.js) —
 // the same for every pupil on the sheet — and what the week is out of.
@@ -173,7 +183,7 @@ exports.buildWeeklyRegisterWorkbook = ({
       markCell(entry, "weeklyEvalScore") ?? "-",
       markCell(entry, "homeworkScore") ?? "-",
       markCell(entry, "classworkScore") ?? "-",
-      entry.total ?? "-",
+      markCell(entry, "total") ?? "-",
     ];
 
     values.forEach((value, i) => {
@@ -289,6 +299,7 @@ exports.buildMonthlyRegisterWorkbook = ({
     const weeklyEvalValues = [];
     const homeworkValues = [];
     const classworkValues = [];
+    const weekEntries = [];
 
     weeklyScores.forEach(({ scores }) => {
       const entry = (scores && scores[key]) || {};
@@ -298,7 +309,7 @@ exports.buildMonthlyRegisterWorkbook = ({
         markCell(entry, "weeklyEvalScore"),
         markCell(entry, "homeworkScore"),
         markCell(entry, "classworkScore"),
-        entry.total,
+        markCell(entry, "total"),
       ].forEach((value) => {
         const cell = row.getCell(c++);
         cell.value = value ?? "-";
@@ -306,17 +317,20 @@ exports.buildMonthlyRegisterWorkbook = ({
       });
 
       if (!scores) return;
-      attendanceValues.push(entry.attendanceScore);
-      weeklyEvalValues.push(entry.weeklyEvalScore);
-      homeworkValues.push(entry.homeworkScore);
-      classworkValues.push(entry.classworkScore);
+      // A «م» is no mark: it stays out of the column's average.
+      const counted = (column) => (entry.withdrawn?.[column] ? null : entry[column]);
+      attendanceValues.push(counted("attendanceScore"));
+      weeklyEvalValues.push(counted("weeklyEvalScore"));
+      homeworkValues.push(counted("homeworkScore"));
+      classworkValues.push(counted("classworkScore"));
+      weekEntries.push(entry);
     });
 
     // Each column's average as a whole mark or a half, and the total the sum
     // of those — so the row adds up as it prints (9.5 + 4.5 … = the total).
     const averages = [attendanceValues, weeklyEvalValues, homeworkValues, classworkValues].map(average);
     const present = averages.filter((value) => value !== null);
-    const avgTotal = present.length ? present.reduce((a, b) => a + b, 0) : null;
+    const avgTotal = averageCell(present.length ? present.reduce((a, b) => a + b, 0) : null, weekEntries);
 
     [...averages, avgTotal].forEach((value) => {
       const cell = row.getCell(c++);
@@ -482,7 +496,7 @@ exports.buildMonth40Workbook = ({
       if (scores) weeks.push({ weekStart, ...entry });
     });
     // A week with no تقييم أسبوعي doesn't pull the month down for it.
-    cells.push(monthAverage(weeks, "weekly40"));
+    cells.push(averageCell(monthAverage(weeks, "weekly40"), weeks));
     return cells;
   });
 
@@ -533,13 +547,16 @@ exports.buildTerm40Workbook = ({
 
   writeStudentRows(sheet, firstDataRow, students, (key) => {
     const r = rows[key] || {};
+    // «م» where the pupil, منقطع, has no mark (utils/term40.js).
+    const w = r.withdrawn || {};
+    const test = (n) => (w[`test${n}`] ? WITHDRAWN : r.absent?.[`test${n}`] ? ABSENT : r[`test${n}`]);
     return [
-      ...months.map((m) => r.monthAverages?.[m.month] ?? null),
-      r.weeksAverage,
-      r.absent?.test1 ? ABSENT : r.test1,
-      r.absent?.test2 ? ABSENT : r.test2,
-      r.testsTotal,
-      r.yearWork,
+      ...months.map((m) => (w[`month${m.month}`] ? WITHDRAWN : r.monthAverages?.[m.month] ?? null)),
+      w.weeksAverage ? WITHDRAWN : r.weeksAverage,
+      test(1),
+      test(2),
+      w.testsTotal ? WITHDRAWN : r.testsTotal,
+      w.yearWork ? WITHDRAWN : r.yearWork,
       r.absentDays,
     ];
   });

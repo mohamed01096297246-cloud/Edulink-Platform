@@ -31,6 +31,15 @@ const ABSENT = "غ";
 const ABSENT_WORDS = new Set(["غ", "غ.", "غائب", "غايب", "غياب"]);
 const isAbsentText = (text) => ABSENT_WORDS.has(String(text ?? "").trim());
 
+// «م» — منقطع: the pupil has stopped coming. No mark at all: it adds nothing
+// and is left out of every average (backend utils/absentMark.js).
+const WITHDRAWN = "م";
+const WITHDRAWN_WORDS = new Set(["م", "م.", "منقطع", "منقطعة"]);
+const isWithdrawnText = (text) => WITHDRAWN_WORDS.has(String(text ?? "").trim());
+
+// غ or م as typed, or null for anything else.
+const letterOf = (text) => (isAbsentText(text) ? ABSENT : isWithdrawnText(text) ? WITHDRAWN : null);
+
 const fmtDay = (iso) => {
   const [, m, d] = String(iso).split("-");
   return `${Number(d)}/${Number(m)}`;
@@ -90,13 +99,13 @@ const AdminMarks = () => {
       for (const column of sheet.columns) {
         const key = `${student._id}:${column.key}`;
         if (!(key in typed)) continue;
-        const absent = isAbsentText(typed[key]);
-        const text = absent ? ABSENT : toLatin(typed[key]);
+        const letter = letterOf(typed[key]);
+        const text = letter || toLatin(typed[key]);
         const before = shownAs(student.marks[column.key]);
         if (text === before) continue;
-        const value = absent ? ABSENT : text === "" ? null : Number(text);
+        const value = letter || (text === "" ? null : Number(text));
         const invalid =
-          !absent && value !== null && (!Number.isFinite(value) || value < 0 || value > column.max);
+          !letter && value !== null && (!Number.isFinite(value) || value < 0 || value > column.max);
         out.push({ key, student: student._id, column: column.key, value, invalid });
       }
     }
@@ -230,11 +239,17 @@ const AdminMarks = () => {
   const rowTotal = (student) => {
     let sum = 0;
     let any = false;
+    let withdrawn = false;
     for (const column of sheet.columns) {
       const typedText = valueOf(student, column);
       // غ adds nothing: it is a 0.
       if (isAbsentText(typedText)) {
         any = true;
+        continue;
+      }
+      // م is no mark at all.
+      if (isWithdrawnText(typedText)) {
+        withdrawn = true;
         continue;
       }
       const text = toLatin(typedText);
@@ -243,7 +258,9 @@ const AdminMarks = () => {
         any = true;
       }
     }
-    return any ? Math.round(sum * 100) / 100 : "";
+    // A week whose every mark is م has no total.
+    if (!any) return withdrawn ? WITHDRAWN : "";
+    return Math.round(sum * 100) / 100;
   };
 
   const sheetLabel = (() => {
@@ -285,6 +302,10 @@ const AdminMarks = () => {
           <p className="text-slate-900 font-black text-base mt-2">
             الطالب الغايب اكتب له حرف <span className="inline-block px-2 rounded-lg bg-rose-100 text-rose-800 border-2 border-rose-400">غ</span>{" "}
             بدل الدرجة: بيتحسب صفر في المجموع، وولي الأمر والطالب بيشوفوه «غ» عشان يعرفوا إنه كان غايب.
+          </p>
+          <p className="text-slate-900 font-black text-base mt-2">
+            الطالب المنقطع اكتب له حرف <span className="inline-block px-2 rounded-lg bg-amber-100 text-amber-900 border-2 border-amber-500">م</span>{" "}
+            بدل الدرجة: مالوش درجة خالص، ومش بيدخل في المجموع ولا في المتوسط.
           </p>
         </div>
 
@@ -438,8 +459,13 @@ const AdminMarks = () => {
                           {sheet.columns.map((column) => {
                             const key = `${student._id}:${column.key}`;
                             const change = changes.find((c) => c.key === key);
-                            // غ stands out in red, so the absent read at a glance down the column.
-                            const ink = isAbsentText(valueOf(student, column)) ? "text-rose-700" : "text-slate-900";
+                            // غ stands out in red and م in amber, so they read at a glance down the column.
+                            const shown = valueOf(student, column);
+                            const ink = isAbsentText(shown)
+                              ? "text-rose-700"
+                              : isWithdrawnText(shown)
+                                ? "text-amber-800"
+                                : "text-slate-900";
                             return (
                               <td key={column.key} className="p-2 border border-slate-300 text-center">
                                 <input
@@ -497,7 +523,7 @@ const AdminMarks = () => {
             <div className="text-base font-black">
               {invalidCount > 0 ? (
                 <span className="text-rose-700 flex items-center gap-1.5">
-                  <AlertCircle size={20} /> فيه {invalidCount} درجة أكبر من الدرجة النهائية أو مش رقم ولا «غ» — صحّح اللي باللون الأحمر.
+                  <AlertCircle size={20} /> فيه {invalidCount} درجة أكبر من الدرجة النهائية أو مش رقم ولا «غ» ولا «م» — صحّح اللي باللون الأحمر.
                 </span>
               ) : saved && changes.length === 0 ? (
                 <span className="text-emerald-700 flex items-center gap-1.5">
@@ -510,7 +536,7 @@ const AdminMarks = () => {
               ) : changes.length > 0 ? (
                 <span className="text-amber-800">اتغيّرت درجات {changedStudents} طالب ولسه ماتحفظتش.</span>
               ) : (
-                <span className="text-slate-800">اكتب الدرجات في الخانات (والغايب «غ»)، و«Enter» بينزلك للطالب اللي بعده.</span>
+                <span className="text-slate-800">اكتب الدرجات في الخانات (والغايب «غ»، والمنقطع «م»)، و«Enter» بينزلك للطالب اللي بعده.</span>
               )}
             </div>
             <button

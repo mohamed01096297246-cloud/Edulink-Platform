@@ -24,8 +24,15 @@ const { isDailyMode } = require("../utils/dailyAttendance");
 const { worthOf, earnedOn } = require("../utils/homeworkMarks");
 const { averageToHalf } = require("../utils/halfMarks");
 const { rosterWhere } = require("../utils/secondLanguage");
-const { OVERRIDE_FLAG } = require("../utils/absentMark");
-const { weekName, marksBefore, tellMarks } = require("../utils/studentNotices");
+const {
+  OVERRIDE_FLAG,
+  OVERRIDE_WITHDRAWN,
+  readMark,
+  markFlags,
+  markUpdate,
+  isWithdrawn,
+} = require("../utils/absentMark");
+const { weekName, marksBefore, tellMarks, noticeValue } = require("../utils/studentNotices");
 const { skippedIn, closedFor, closedMessage, outOf, skipsInWindow, skipsAt } = require("../utils/markingSkips");
 
 const round1 = (n) =>
@@ -131,10 +138,13 @@ exports.getClassroomCoursework = async (req, res) => {
       classroom: classroomId,
       subject: subjectId,
       $or: monthYearPairs,
-    }).select("student grade");
+    }).select("student grade withdrawn");
+
+    // «م» is no mark: it stays out of every average here (utils/absentMark.js).
+    const counted = (record, field = "score") => !isWithdrawn(record.withdrawn, record[field]);
 
     const monthlyByStudent = new Map();
-    monthlyGrades.forEach((record) => {
+    monthlyGrades.filter((record) => counted(record, "grade")).forEach((record) => {
       const key = record.student.toString();
       if (!monthlyByStudent.has(key)) monthlyByStudent.set(key, []);
       monthlyByStudent.get(key).push(record.grade);
@@ -154,8 +164,8 @@ exports.getClassroomCoursework = async (req, res) => {
         classroom: classroomId,
         subject: subjectId,
         weekStart: { $gte: dateStart, $lte: dateEnd },
-      }).select("student score weekStart")
-    ).filter(isOpen("weeklyEvalScore"));
+      }).select("student score weekStart withdrawn")
+    ).filter((record) => isOpen("weeklyEvalScore")(record) && counted(record));
 
     const weeklyByStudent = new Map();
     weeklyEvaluations.forEach((record) => {
@@ -170,8 +180,8 @@ exports.getClassroomCoursework = async (req, res) => {
         classroom: classroomId,
         subject: subjectId,
         weekStart: { $gte: dateStart, $lte: dateEnd },
-      }).select("student score weekStart")
-    ).filter(isOpen("classworkScore"));
+      }).select("student score weekStart withdrawn")
+    ).filter((record) => isOpen("classworkScore")(record) && counted(record));
 
     const classworkByStudent = new Map();
     classworkEntries.forEach((record) => {
@@ -441,14 +451,19 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
 
         if (value === null) continue;
 
-        if (!Number.isFinite(Number(value)) || value < 0 || value > max) {
+        // A number, or «غ» / «م» (utils/absentMark.js).
+        const mark = readMark(value, max);
+        if (mark.error || mark.value === null) {
           return res.status(400).json({
             success: false,
-            message: `الدرجة لازم تكون رقم بين 0 و${max}.`,
+            message: `الدرجة لازم تكون رقم بين 0 و${max}، أو «غ» للغايب، أو «م» للمنقطع.`,
           });
         }
       }
     }
+    // A 0 from an app that can't send a letter is a غ or م pupil's 0 saved
+    // back unchanged, and keeps its flag.
+    const letters = Boolean(req.body.letters);
 
     const teacher = await User.findById(req.user.id);
     const subjectId = await requireTeacherSubject(res, {
@@ -484,17 +499,25 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
       const set = {};
       const unset = {};
 
-      // A column put back to automatic, or given any mark but the 0 it had,
-      // loses its «غ» (utils/absentMark.js).
+      // A column put back to automatic loses its «غ» or «م»; a mark sets or
+      // takes them off (utils/absentMark.js).
       ["attendanceScore", "homeworkScore"].forEach((column) => {
         if (!Object.prototype.hasOwnProperty.call(entry, column)) return;
 
         if (entry[column] === null) {
           unset[column] = "";
           unset[OVERRIDE_FLAG[column]] = "";
+          unset[OVERRIDE_WITHDRAWN[column]] = "";
         } else {
-          set[column] = Number(entry[column]);
-          if (set[column] !== 0) unset[OVERRIDE_FLAG[column]] = "";
+          const mark = readMark(entry[column], maxScores[column]);
+          set[column] = mark.value;
+          const flags = markFlags(mark, {
+            letters,
+            absent: OVERRIDE_FLAG[column],
+            withdrawn: OVERRIDE_WITHDRAWN[column],
+          });
+          Object.assign(set, flags.set);
+          Object.assign(unset, flags.unset);
         }
       });
 
@@ -519,15 +542,12 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
           classworkOps.push({
             updateOne: {
               filter: key,
-              update: {
-                $set: {
-                  score: Number(entry.classworkScore),
-                  classroom: classroomId,
-                  teacher: req.user.id,
-                  school: req.user.school,
-                },
-                ...(Number(entry.classworkScore) !== 0 ? { $unset: { absent: "" } } : {}),
-              },
+              update: markUpdate(
+                "score",
+                readMark(entry.classworkScore, maxScores.classworkScore),
+                { classroom: classroomId, teacher: req.user.id, school: req.user.school },
+                letters,
+              ),
               upsert: true,
             },
           });
@@ -572,14 +592,20 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
       when: weekName(weekStart),
       columns,
       before,
-      after: entries.map((entry) => ({
-        studentId: entry.studentId,
-        marks: {
-          homeworkScore: entry.homeworkScore,
-          attendanceScore: entry.attendanceScore,
-          classworkScore: entry.classworkScore,
-        },
-      })),
+      after: entries.map((entry) => {
+        const told = (column) =>
+          entry[column] === null || entry[column] === undefined
+            ? entry[column]
+            : noticeValue(readMark(entry[column], maxScores[column]));
+        return {
+          studentId: entry.studentId,
+          marks: {
+            homeworkScore: told("homeworkScore"),
+            attendanceScore: told("attendanceScore"),
+            classworkScore: told("classworkScore"),
+          },
+        };
+      }),
       createdBy: req.user.id,
       school: req.user.school,
     });

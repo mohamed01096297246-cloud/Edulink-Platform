@@ -4,7 +4,7 @@ const { computeMonthScores, monthAverage } = require("./weekScores");
 const { monthsOfTerm, termSpan } = require("./schoolMonths");
 const { isDailyMode } = require("./dailyAttendance");
 const { averageToHalf } = require("./halfMarks");
-const { isAbsent } = require("./absentMark");
+const { isAbsent, isWithdrawn } = require("./absentMark");
 
 // The weekly40 scheme's month and term arithmetic (utils/gradebook.js),
 // exactly as the paper register does it:
@@ -34,6 +34,10 @@ exports.computeTerm40 = async ({ classroom, subjectId, students, term }) => {
 
   // Each month's average per student, over the weeks recorded in it.
   const monthAverages = {};
+  // What reads «م» on a pupil's row (utils/absentMark.js): month1…, test1,
+  // test2, and — when nothing else on it is a mark — weeksAverage and the
+  // totals.
+  const withdrawnOf = {};
   for (const month of months) {
     // eslint-disable-next-line no-await-in-loop -- four months of four weeks.
     const weeklyScores = (
@@ -46,6 +50,14 @@ exports.computeTerm40 = async ({ classroom, subjectId, students, term }) => {
       monthAverages[key][month.month] = weeklyScores.length
         ? monthAverage(weeklyScores.map(({ weekStart, scores }) => ({ weekStart, ...scores[key] })), "weekly40")
         : null;
+      // «م» every week of the month: no average, and the month reads م.
+      if (
+        monthAverages[key][month.month] === null &&
+        weeklyScores.some(({ scores }) => scores[key]?.withdrawnWeek)
+      ) {
+        if (!withdrawnOf[key]) withdrawnOf[key] = {};
+        withdrawnOf[key][`month${month.month}`] = true;
+      }
     });
   }
 
@@ -54,12 +66,19 @@ exports.computeTerm40 = async ({ classroom, subjectId, students, term }) => {
     subject: subjectId,
     academicYear: classroom.academicYear,
     term,
-  }).select("student testNo grade absent");
+  }).select("student testNo grade absent withdrawn");
   const testsOf = {};
   const missedOf = {};
   tests.forEach((t) => {
     const key = t.student.toString();
     if (!testsOf[key]) testsOf[key] = {};
+    // «م»: منقطع — no mark, so nothing to add up; printed as م.
+    if (isWithdrawn(t.withdrawn, t.grade)) {
+      testsOf[key][t.testNo] = null;
+      if (!withdrawnOf[key]) withdrawnOf[key] = {};
+      withdrawnOf[key][`test${t.testNo}`] = true;
+      return;
+    }
     testsOf[key][t.testNo] = t.grade;
     // «غ»: missed the test — a 0, printed as غ (utils/absentMark.js).
     if (isAbsent(t.absent, t.grade)) {
@@ -99,14 +118,24 @@ exports.computeTerm40 = async ({ classroom, subjectId, students, term }) => {
     const test1 = testsOf[key]?.[1] ?? null;
     const test2 = testsOf[key]?.[2] ?? null;
     const testsTotal = sum([test1, test2]);
+    const yearWork = sum([weeksAverage, testsTotal]);
+    const withdrawn = { ...(withdrawnOf[key] || {}) };
+    // A total with nothing in it but م reads م too.
+    const anyWithdrawn = Object.keys(withdrawn).length > 0;
+    if (anyWithdrawn && weeksAverage === null && Object.keys(withdrawn).some((k) => k.startsWith("month"))) {
+      withdrawn.weeksAverage = true;
+    }
+    if (anyWithdrawn && testsTotal === null && (withdrawn.test1 || withdrawn.test2)) withdrawn.testsTotal = true;
+    if (anyWithdrawn && yearWork === null) withdrawn.yearWork = true;
     rows[key] = {
       monthAverages: monthly,
       weeksAverage,
       test1,
       test2,
       absent: missedOf[key] || {},
+      withdrawn,
       testsTotal,
-      yearWork: sum([weeksAverage, testsTotal]),
+      yearWork,
       absentDays: absentDays[key] ? absentDays[key].size : 0,
     };
   });

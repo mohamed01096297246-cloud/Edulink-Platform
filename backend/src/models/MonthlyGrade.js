@@ -49,6 +49,10 @@ const monthlyGradeSchema = new mongoose.Schema(
       min: 0,
       max: 15,
     },
+    // «غ»: missed the test — a 0 shown as غ; «م»: منقطع — a 0 that counts
+    // nowhere, shown as م (utils/absentMark.js).
+    absent: { type: Boolean },
+    withdrawn: { type: Boolean },
   },
   { timestamps: true },
 );

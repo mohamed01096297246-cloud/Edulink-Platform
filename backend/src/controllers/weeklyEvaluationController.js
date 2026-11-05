@@ -6,8 +6,8 @@ const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { toWeekStart } = require("../utils/weekScores");
 const { schemeForClassroom, SCHEMES } = require("../utils/gradebook");
 const { rosterWhere } = require("../utils/secondLanguage");
-const { isAbsent } = require("../utils/absentMark");
-const { weekName, marksBefore, tellMarks } = require("../utils/studentNotices");
+const { isAbsent, isWithdrawn, readMark, markUpdate } = require("../utils/absentMark");
+const { weekName, marksBefore, tellMarks, noticeValue } = require("../utils/studentNotices");
 const { skippedIn, closedMessage } = require("../utils/markingSkips");
 
 exports.getClassroomWeeklyEvaluation = async (req, res) => {
@@ -52,11 +52,14 @@ exports.getClassroomWeeklyEvaluation = async (req, res) => {
       : [];
 
     const scores = {};
-    // The pupils whose 0 reads «غ» (utils/absentMark.js).
+    // The pupils whose 0 reads «غ», and those whose 0 reads «م»
+    // (utils/absentMark.js).
     const absent = {};
+    const withdrawn = {};
     evaluations.forEach((entry) => {
       scores[entry.student.toString()] = entry.score;
       if (isAbsent(entry.absent, entry.score)) absent[entry.student.toString()] = true;
+      if (isWithdrawn(entry.withdrawn, entry.score)) withdrawn[entry.student.toString()] = true;
     });
 
     // What this classroom's weekly evaluation is out of — 10 or 20,
@@ -69,6 +72,7 @@ exports.getClassroomWeeklyEvaluation = async (req, res) => {
         students,
         scores,
         absent,
+        withdrawn,
         weekStart,
         scheme,
         maxScore: SCHEMES[scheme].max.weeklyEvalScore,
@@ -115,19 +119,13 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
     // Out of 10 or 20 depending on the classroom's scheme — checked here,
     // since the model has to allow the larger of the two.
     const max = SCHEMES[await schemeForClassroom(classroom)].max.weeklyEvalScore;
-    const hasInvalidScore = gradesList.some(
-      (record) =>
-        record.score === null ||
-        record.score === "" ||
-        !Number.isFinite(Number(record.score)) ||
-        record.score < 0 ||
-        record.score > max,
-    );
+    // A number, or «غ» / «م» (utils/absentMark.js).
+    const marks = gradesList.map((record) => readMark(record.score, max));
 
-    if (hasInvalidScore) {
+    if (marks.some((mark) => mark.error || mark.value === null)) {
       return res.status(400).json({
         success: false,
-        message: `الدرجات لازم تكون رقم بين 0 و${max}.`,
+        message: `الدرجات لازم تكون رقم بين 0 و${max}، أو «غ» للغايب، أو «م» للمنقطع.`,
       });
     }
 
@@ -145,25 +143,23 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
       return res.status(400).json({ success: false, message: closedMessage("weeklyEvalScore", weekStart) });
     }
 
-    // A pupil the admin marked «غ» (utils/absentMark.js) keeps it while the
-    // teacher's screen saves their 0 back unchanged; any other mark is a real
-    // one and takes it off.
-    const bulkOps = gradesList.map((record) => ({
+    // «غ» and «م» set their flag; a number takes them off — but a 0 from an
+    // app that can't send a letter (no `letters`) is a غ or م pupil's 0
+    // saved back unchanged, and keeps it (utils/absentMark.js).
+    const letters = Boolean(req.body.letters);
+    const bulkOps = gradesList.map((record, i) => ({
       updateOne: {
         filter: {
           student: record.studentId,
           subject: subjectId,
           weekStart,
         },
-        update: {
-          $set: {
-            score: record.score,
-            classroom: classroomId,
-            teacher: req.user.id,
-            school: req.user.school,
-          },
-          ...(Number(record.score) !== 0 ? { $unset: { absent: "" } } : {}),
-        },
+        update: markUpdate(
+          "score",
+          marks[i],
+          { classroom: classroomId, teacher: req.user.id, school: req.user.school },
+          letters,
+        ),
         upsert: true,
       },
     }));
@@ -187,7 +183,7 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
       when: weekName(weekStart),
       columns: { score: { label: "التقييم الأسبوعي", max } },
       before,
-      after: gradesList.map((record) => ({ studentId: record.studentId, marks: { score: record.score } })),
+      after: gradesList.map((record, i) => ({ studentId: record.studentId, marks: { score: noticeValue(marks[i]) } })),
       createdBy: req.user.id,
       school: req.user.school,
     });

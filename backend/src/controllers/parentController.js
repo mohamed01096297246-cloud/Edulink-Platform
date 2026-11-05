@@ -15,7 +15,7 @@ const { computeWeekScores, toWeekStart, weekEnd } = require("../utils/weekScores
 const { subjectsTakenBy } = require("../utils/secondLanguage");
 const { hasWeeklyEval } = require("../utils/schoolMonths");
 const { skipsInWindow, skipsAt } = require("../utils/markingSkips");
-const { isAbsent } = require("../utils/absentMark");
+const { isAbsent, isWithdrawn } = require("../utils/absentMark");
 
 exports.getParentDashboard = async (req, res) => {
   try {
@@ -182,7 +182,7 @@ exports.getWeekEvaluation = async (req, res) => {
       WeeklyEvaluation.find({
         student: student._id,
         weekStart: { $gte: weekStart, $lte: weekEnd(weekStart) },
-      }).select("subject score absent"),
+      }).select("subject score absent withdrawn"),
       student.classroom ? Schedule.distinct("subject", { classroom: student.classroom }) : [],
       student.classroom ? schemeForClassroom(student.classroom) : "classic",
       // The subjects whose تقييم أسبوعي the school took off this week for the
@@ -197,6 +197,10 @@ exports.getWeekEvaluation = async (req, res) => {
     const scoreOf = new Map(evaluations.map((e) => [String(e.subject), e.score]));
     // «غ»: away that week — a 0 in every sum, shown as absent (utils/absentMark.js).
     const absentIn = new Set(evaluations.filter((e) => isAbsent(e.absent, e.score)).map((e) => String(e.subject)));
+    // «م»: منقطع — no mark, left out of the overall figure.
+    const withdrawnIn = new Set(
+      evaluations.filter((e) => isWithdrawn(e.withdrawn, e.score)).map((e) => String(e.subject)),
+    );
     // The class's other second languages aren't this child's subjects.
     const taken = await subjectsTakenBy(student, scheduledSubjects.filter(Boolean).map(String));
     const subjectIds = [...new Set([...taken, ...scoreOf.keys()])];
@@ -213,13 +217,14 @@ exports.getWeekEvaluation = async (req, res) => {
           max,
           percent: score === null ? null : Math.round((score / max) * 100),
           absent: absentIn.has(String(s._id)),
+          withdrawn: withdrawnIn.has(String(s._id)),
           // No تقييم أسبوعي in this subject this week, rather than not yet.
           skipped: evalTakenOff(s._id),
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name, "ar"));
 
-    const marked = subjects.filter((s) => s.score !== null);
+    const marked = subjects.filter((s) => s.score !== null && !s.withdrawn);
     const overall = marked.length
       ? Math.round((marked.reduce((sum, s) => sum + s.score, 0) / (marked.length * max)) * 100)
       : null;
@@ -297,6 +302,7 @@ exports.getHomeworkWeek = async (req, res) => {
             score,
             max,
             absent: Boolean(mine?.absent?.homeworkScore),
+            withdrawn: Boolean(mine?.withdrawn?.homeworkScore),
             // الواجب taken off this week (utils/markingSkips.js).
             skipped: Boolean(mine?.skipped?.includes("homeworkScore")),
           };

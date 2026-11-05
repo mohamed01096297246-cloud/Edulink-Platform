@@ -2,6 +2,7 @@ const Subject = require("../models/Subject");
 const Student = require("../models/Student");
 const { notifyStudents } = require("./notify");
 const { rosterWhere } = require("./secondLanguage");
+const { ABSENT } = require("./absentMark");
 
 // What a teacher does reaches the student as a notification (Mohamed,
 // 2026-10-31): a mark of theirs recorded or changed, an absence recorded, a
@@ -37,6 +38,10 @@ const subjectName = async (subjectId) =>
 // read just before it, `pick` the columns of one record.
 const marksBefore = (docs, pick) => new Map(docs.map((d) => [String(d.student), pick(d)]));
 
+// What a saved mark (utils/absentMark.js readMark) tells the student: the
+// number, «غ», or — for «م», a pupil who has stopped coming — nothing.
+const noticeValue = (mark) => (!mark || mark.withdrawn ? null : mark.absent ? ABSENT : mark.value);
+
 // A save of marks: `columns` { key: { label, max } }; `before` from
 // marksBefore; `after` [{ studentId, marks: { key: value } }]. A mark saved
 // back as it was, or put back to automatic (null), says nothing; one new or
@@ -51,12 +56,16 @@ const tellMarks = async ({ subjectId, when, columns, before, after, createdBy, s
       let changed = false;
       Object.entries(marks || {}).forEach(([key, value]) => {
         if (!columns[key] || value === null || value === undefined || value === "") return;
-        if (!Number.isFinite(Number(value))) return;
+        // «غ» says so; anything else that isn't a number says nothing.
+        const absent = value === ABSENT;
+        if (!absent && !Number.isFinite(Number(value))) return;
         const previous = had[key];
         const hadOne = previous !== null && previous !== undefined;
-        if (hadOne && Number(previous) === Number(value)) return;
+        if (hadOne && Number(previous) === (absent ? 0 : Number(value))) return;
         if (hadOne) changed = true;
-        parts.push(`${columns[key].label}: ${fmt(value)} من ${columns[key].max}`);
+        parts.push(
+          absent ? `${columns[key].label}: غ (غياب)` : `${columns[key].label}: ${fmt(value)} من ${columns[key].max}`,
+        );
       });
       if (parts.length) items.push({ studentId, changed, parts });
     });
@@ -125,4 +134,4 @@ const tellHomeworkChanged = async ({ homework, createdBy, school }) => {
   }
 };
 
-module.exports = { weekName, marksBefore, tellMarks, tellAbsences, tellHomeworkChanged };
+module.exports = { weekName, marksBefore, noticeValue, tellMarks, tellAbsences, tellHomeworkChanged };

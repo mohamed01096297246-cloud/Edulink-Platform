@@ -9,7 +9,7 @@ const Classroom = require("../models/Classroom");
 const { isDailyMode } = require("./dailyAttendance");
 const { worthOf, earnedOn } = require("./homeworkMarks");
 const { averageToHalf } = require("./halfMarks");
-const { isAbsent } = require("./absentMark");
+const { isAbsent, isWithdrawn } = require("./absentMark");
 const { skippedIn, skipsByWeek, everySchoolSkips, skippedColumns, outOf, weekTime } = require("./markingSkips");
 
 // The four "أعمال السنة" columns for a single [weekStart, weekStart+6 days]
@@ -112,20 +112,22 @@ const computeWeekScores = async (
           classroom: classroomId,
           subject: subjectId,
           weekStart,
-        }).select("student score absent")
+        }).select("student score absent withdrawn")
       : [],
     rules.classwork && !skipped.has("classworkScore")
       ? ClassworkNotebook.find({
           classroom: classroomId,
           subject: subjectId,
           weekStart,
-        }).select("student score absent")
+        }).select("student score absent withdrawn")
       : [],
     CourseworkOverride.find({
       student: { $in: studentIds },
       subject: subjectId,
       weekStart,
-    }).select("student attendanceScore homeworkScore attendanceAbsent homeworkAbsent"),
+    }).select(
+      "student attendanceScore homeworkScore attendanceAbsent homeworkAbsent attendanceWithdrawn homeworkWithdrawn",
+    ),
   ]);
 
   const attendanceByStudent = new Map();
@@ -172,16 +174,20 @@ const computeWeekScores = async (
 
   const weeklyByStudent = new Map();
   const weeklyAbsent = new Set();
+  const weeklyWithdrawn = new Set();
   weeklyEvaluations.forEach((record) => {
     weeklyByStudent.set(record.student.toString(), record.score);
     if (isAbsent(record.absent, record.score)) weeklyAbsent.add(record.student.toString());
+    if (isWithdrawn(record.withdrawn, record.score)) weeklyWithdrawn.add(record.student.toString());
   });
 
   const classworkByStudent = new Map();
   const classworkAbsent = new Set();
+  const classworkWithdrawn = new Set();
   classworkEntries.forEach((record) => {
     classworkByStudent.set(record.student.toString(), record.score);
     if (isAbsent(record.absent, record.score)) classworkAbsent.add(record.student.toString());
+    if (isWithdrawn(record.withdrawn, record.score)) classworkWithdrawn.add(record.student.toString());
   });
 
   const overrideByStudent = new Map();
@@ -241,6 +247,19 @@ const computeWeekScores = async (
       .filter((v) => v !== null && !Number.isNaN(v))
       .reduce((a, b) => a + b, 0);
 
+    // The columns that read «م» (utils/absentMark.js): each a 0, which the
+    // total above takes as nothing, and which the month leaves out.
+    const withdrawn = {
+      attendanceScore: Boolean(hasAttendanceOverride && isWithdrawn(override.attendanceWithdrawn, attendanceScore)),
+      homeworkScore: Boolean(hasHomeworkOverride && isWithdrawn(override.homeworkWithdrawn, homeworkScore)),
+      weeklyEvalScore: weeklyWithdrawn.has(key) && weeklyEvalScore !== null,
+      classworkScore: classworkWithdrawn.has(key) && classworkScore !== null,
+    };
+    const values = { attendanceScore, homeworkScore, weeklyEvalScore, classworkScore };
+    const marked = Object.keys(values).filter((k) => values[k] !== null && values[k] !== undefined);
+    // Every mark the pupil has this week is م: the week has no total at all.
+    const withdrawnWeek = marked.length > 0 && marked.every((k) => withdrawn[k]);
+
     scores[key] = {
       attendanceScore,
       homeworkScore,
@@ -267,6 +286,8 @@ const computeWeekScores = async (
         weeklyEvalScore: weeklyAbsent.has(key) && weeklyEvalScore !== null,
         classworkScore: classworkAbsent.has(key) && classworkScore !== null,
       },
+      withdrawn,
+      withdrawnWeek,
       // False in a week whose تقييم أسبوعي is taken off.
       weeklyEvalApplies: evalApplies,
       // The columns taken off this week (utils/markingSkips.js), and what
@@ -301,11 +322,19 @@ const WEEK_COLUMNS = ["attendanceScore", "homeworkScore", "weeklyEvalScore", "cl
 // taken off has nothing to count and is left out. `scheme` gives each
 // column's share of the week; without it only تقييم أسبوعي is stood in for,
 // as before.
+//
+// «م» (منقطع, utils/absentMark.js) is no mark at all: a week whose every mark
+// is م is left out like a week not recorded, and a column that is م in one
+// week stands as that pupil's column taken off there.
 const monthAverage = (weeks, scheme = null) => {
-  const recorded = weeks.filter((w) => w && w.total !== null && w.total !== undefined);
+  const recorded = weeks.filter((w) => w && w.total !== null && w.total !== undefined && !w.withdrawnWeek);
   const rules = scheme ? SCHEMES[scheme] : null;
   const keys = rules ? WEEK_COLUMNS.filter((k) => rules.max[k] !== undefined) : ["weeklyEvalScore"];
-  const skippedOf = (w) => new Set(Array.isArray(w.skipped) ? w.skipped : everySchoolSkips(w.weekStart));
+  const skippedOf = (w) =>
+    new Set([
+      ...(Array.isArray(w.skipped) ? w.skipped : everySchoolSkips(w.weekStart)),
+      ...Object.keys(w.withdrawn || {}).filter((k) => w.withdrawn[k]),
+    ]);
 
   const meanOf = {};
   for (const key of keys) {

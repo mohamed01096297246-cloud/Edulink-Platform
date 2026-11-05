@@ -197,6 +197,9 @@ const StudentRecord = ({ studentId, onClose }) => {
                                       that week (backend utils/markingSkips.js) isn't counted. */}
                                   {w.skipped?.includes(c) ? (
                                     <span className="text-xs font-black text-slate-700 whitespace-nowrap">مترفع</span>
+                                  ) : w.withdrawn?.[c] ? (
+                                    // «م»: منقطع — no mark at all.
+                                    <span className="font-black text-amber-800">م</span>
                                   ) : w.absent?.[c] ? (
                                     <span className="font-black text-rose-700">غ</span>
                                   ) : (
@@ -205,8 +208,8 @@ const StudentRecord = ({ studentId, onClose }) => {
                                 </td>
                               ))}
                               <td className="p-2.5 font-black text-indigo-700 tabular-nums whitespace-nowrap">
-                                {n(w.total)}
-                                {w.outOf != null && w.outOf !== data.weekTotal && (
+                                {w.withdrawnWeek ? <span className="text-amber-800">م</span> : n(w.total)}
+                                {!w.withdrawnWeek && w.outOf != null && w.outOf !== data.weekTotal && (
                                   <span className="text-xs font-black text-slate-700"> من {n(w.outOf)}</span>
                                 )}
                               </td>
@@ -334,7 +337,14 @@ const StudentRecord = ({ studentId, onClose }) => {
                           <span className="font-black text-slate-700">{t.subject}</span>
                           <span className="text-xs font-bold text-slate-400">{t.label}</span>
                           <span className="mr-auto font-black text-indigo-700 tabular-nums">
-                            {t.absent ? <span className="text-rose-700">غ</span> : n(t.grade)}/{n(t.outOf)}
+                            {t.withdrawn ? (
+                              <span className="text-amber-800">م</span>
+                            ) : t.absent ? (
+                              <span className="text-rose-700">غ</span>
+                            ) : (
+                              n(t.grade)
+                            )}
+                            /{n(t.outOf)}
                           </span>
                         </li>
                       ))}

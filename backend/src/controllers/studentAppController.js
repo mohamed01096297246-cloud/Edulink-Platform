@@ -349,6 +349,9 @@ exports.getGrades = async (req, res) => {
           year: m.year,
           grade: m.grade,
           outOf: 15,
+          // «غ» / «م» (utils/absentMark.js).
+          absent: Boolean(m.absent) && Number(m.grade) === 0,
+          withdrawn: Boolean(m.withdrawn) && Number(m.grade) === 0,
         })),
         tests,
       },

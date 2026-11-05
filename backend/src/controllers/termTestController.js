@@ -5,8 +5,8 @@ const User = require("../models/User");
 const { requireTeacherSubject } = require("../utils/teacherSubject");
 const { schemeForClassroom, SCHEMES } = require("../utils/gradebook");
 const { rosterWhere } = require("../utils/secondLanguage");
-const { isAbsent } = require("../utils/absentMark");
-const { marksBefore, tellMarks } = require("../utils/studentNotices");
+const { isAbsent, isWithdrawn, readMark, markUpdate } = require("../utils/absentMark");
+const { marksBefore, tellMarks, noticeValue } = require("../utils/studentNotices");
 
 // The two tests of a term on the weekly40 scheme — the screen that replaces
 // "اختبار الشهر" for those classrooms. See models/TermTest.js.
@@ -69,19 +69,22 @@ exports.getClassroomTermTests = async (req, res) => {
       academicYear: classroom.academicYear,
       term,
       testNo,
-    }).select("student grade absent");
+    }).select("student grade absent withdrawn");
 
     const grades = {};
-    // The pupils whose 0 reads «غ» (utils/absentMark.js).
+    // The pupils whose 0 reads «غ», and those whose 0 reads «م»
+    // (utils/absentMark.js).
     const absent = {};
+    const withdrawn = {};
     tests.forEach((t) => {
       grades[t.student.toString()] = t.grade;
       if (isAbsent(t.absent, t.grade)) absent[t.student.toString()] = true;
+      if (isWithdrawn(t.withdrawn, t.grade)) withdrawn[t.student.toString()] = true;
     });
 
     return res.status(200).json({
       success: true,
-      data: { students, grades, absent, term, testNo, maxScore: rules.termTestMax },
+      data: { students, grades, absent, withdrawn, term, testNo, maxScore: rules.termTestMax },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -112,21 +115,19 @@ exports.saveBulkTermTests = async (req, res) => {
     const rules = await requireWeekly40(res, classroom);
     if (!rules) return undefined;
 
-    // Any number in range — whole, a half (14.5) or whatever the paper says.
+    // Any number in range — whole, a half (14.5) or whatever the paper says —
+    // or «غ» / «م» (utils/absentMark.js).
     const max = rules.termTestMax;
-    const invalid = gradesList.some(
-      (r) =>
-        !r.studentId ||
-        !Number.isFinite(Number(r.grade)) ||
-        Number(r.grade) < 0 ||
-        Number(r.grade) > max,
-    );
+    const marks = gradesList.map((r) => readMark(r.grade, max));
+    const invalid = gradesList.some((r, i) => !r.studentId || marks[i].error || marks[i].value === null);
     if (invalid) {
       return res.status(400).json({
         success: false,
-        message: `درجة الاختبار لازم تكون رقم بين 0 و${max}.`,
+        message: `درجة الاختبار لازم تكون رقم بين 0 و${max}، أو «غ» للغايب، أو «م» للمنقطع.`,
       });
     }
+    const markOf = new Map(gradesList.map((r, i) => [String(r.studentId), marks[i]]));
+    const letters = Boolean(req.body.letters);
 
     const teacher = await User.findById(req.user.id);
     const subjectId = await requireTeacherSubject(res, {
@@ -154,17 +155,14 @@ exports.saveBulkTermTests = async (req, res) => {
             term,
             testNo,
           },
-          // «غ» stays on a 0 saved back unchanged; any other grade takes it
-          // off (utils/absentMark.js).
-          update: {
-            $set: {
-              grade: Number(r.grade),
-              classroom: classroomId,
-              teacher: req.user.id,
-              school: req.user.school,
-            },
-            ...(Number(r.grade) !== 0 ? { $unset: { absent: "" } } : {}),
-          },
+          // «غ» and «م» set their flag; a number takes them off, but a 0
+          // from an app that can't send a letter keeps it (utils/absentMark.js).
+          update: markUpdate(
+            "grade",
+            markOf.get(String(r.studentId)),
+            { classroom: classroomId, teacher: req.user.id, school: req.user.school },
+            letters,
+          ),
           upsert: true,
         },
       }));
@@ -191,7 +189,7 @@ exports.saveBulkTermTests = async (req, res) => {
       when: `الترم ${term === 1 ? "الأول" : "الثاني"}`,
       columns: { grade: { label: `الاختبار ${testNo === 1 ? "الأول" : "الثاني"}`, max } },
       before,
-      after: saved.map((r) => ({ studentId: r.studentId, marks: { grade: r.grade } })),
+      after: saved.map((r) => ({ studentId: r.studentId, marks: { grade: noticeValue(markOf.get(String(r.studentId))) } })),
       createdBy: req.user.id,
       school: req.user.school,
     });

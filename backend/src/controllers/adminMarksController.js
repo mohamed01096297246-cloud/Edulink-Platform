@@ -14,7 +14,16 @@ const { computeWeekScores, toWeekStart, maxScoresFor } = require("../utils/weekS
 const { markedWeeks, termOfDate } = require("../utils/schoolMonths");
 const { rosterWhere } = require("../utils/secondLanguage");
 const { skippedIn, skippedColumns, closedMessage } = require("../utils/markingSkips");
-const { ABSENT, isAbsentText, isAbsent, OVERRIDE_FLAG } = require("../utils/absentMark");
+const {
+  isAbsent,
+  isWithdrawn,
+  OVERRIDE_FLAG,
+  OVERRIDE_WITHDRAWN,
+  readMark,
+  markFlags,
+  markUpdate,
+  shownMark,
+} = require("../utils/absentMark");
 
 // رصد الدرجات من الإدارة: a school's admins type in the same marks its
 // teachers record — the week's register and the term's tests — from the web
@@ -115,38 +124,11 @@ const rosterOf = async (classroom, subjectId) =>
     }).select("firstName lastName")
   ).sort(byName);
 
-// Arabic-Indic and Persian digits, and the Arabic decimal comma, to plain ones.
-const toLatin = (value) =>
-  typeof value === "string"
-    ? value
-        .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
-        .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
-        .replace(/[٫،,]/g, ".")
-        .trim()
-    : value;
-
 // A typed mark: any number from 0 to the column's maximum — whatever the
 // paper says, 8.3 as well as 8.5 (Mohamed, 2026-10-28: «خليه يقبل النص
-// عادي ف كل حاجة») — «غ» (absent — a 0 that reads غ, utils/absentMark.js),
-// or null (clear it).
-const markOf = (value, max) => {
-  if (isAbsentText(value)) return { value: 0, absent: true };
-  const text = toLatin(value);
-  if (text === null || text === undefined || text === "") return { value: null };
-  const n = Number(text);
-  if (!Number.isFinite(n) || n < 0 || n > max) return { error: true };
-  return { value: Math.round(n * 100) / 100, absent: false };
-};
-
-// The update for a mark kept in a document of its own (التقييم الأسبوعي،
-// كراسة الحصة، a term test): the number, and the غ flag set or taken off.
-const markUpdate = (field, mark, owner) => ({
-  $set: { [field]: mark.value, ...owner, ...(mark.absent ? { absent: true } : {}) },
-  ...(mark.absent ? {} : { $unset: { absent: "" } }),
-});
-
-// How the sheet shows a stored mark: the number, or غ.
-const shownMark = (value, absent) => (absent ? ABSENT : value ?? null);
+// عادي ف كل حاجة») — «غ» (absent — a 0 that reads غ), «م» (منقطع — no mark),
+// or null (clear it). See utils/absentMark.js.
+const markOf = readMark;
 
 // GET /admin-marks/options — the classes the admin may record for, each
 // with its subjects that carry marks and their teacher; the weeks so far;
@@ -254,7 +236,9 @@ exports.getWeek = async (req, res) => {
           return {
             _id: s._id,
             name: nameOf(s),
-            marks: Object.fromEntries(columns.map((c) => [c.key, shownMark(score[c.key], score.absent?.[c.key])])),
+            marks: Object.fromEntries(
+              columns.map((c) => [c.key, shownMark(score[c.key], score.absent?.[c.key], score.withdrawn?.[c.key])]),
+            ),
           };
         }),
       },
@@ -305,7 +289,7 @@ exports.saveWeek = async (req, res) => {
         if (mark.error) {
           return res.status(400).json({
             success: false,
-            message: `درجة «${column.label}» لازم تكون رقم من 0 لـ ${max[key]}، أو «غ» للغايب.`,
+            message: `درجة «${column.label}» لازم تكون رقم من 0 لـ ${max[key]}، أو «غ» للغايب، أو «م» للمنقطع.`,
           });
         }
         const at = { student: studentId, subject: sheet.subject._id, weekStart };
@@ -325,10 +309,12 @@ exports.saveWeek = async (req, res) => {
         } else if (mark.value === null) {
           unset[key] = "";
           unset[OVERRIDE_FLAG[key]] = "";
+          unset[OVERRIDE_WITHDRAWN[key]] = "";
         } else {
           set[key] = mark.value;
-          if (mark.absent) set[OVERRIDE_FLAG[key]] = true;
-          else unset[OVERRIDE_FLAG[key]] = "";
+          const flags = markFlags(mark, { absent: OVERRIDE_FLAG[key], withdrawn: OVERRIDE_WITHDRAWN[key] });
+          Object.assign(set, flags.set);
+          Object.assign(unset, flags.unset);
         }
       }
       if (Object.keys(set).length || Object.keys(unset).length) {
@@ -380,8 +366,13 @@ exports.getTest = async (req, res) => {
       term: which.term,
       testNo: which.testNo,
       student: { $in: students.map((s) => s._id) },
-    }).select("student grade absent");
-    const gradeOf = new Map(tests.map((t) => [String(t.student), shownMark(t.grade, isAbsent(t.absent, t.grade))]));
+    }).select("student grade absent withdrawn");
+    const gradeOf = new Map(
+      tests.map((t) => [
+        String(t.student),
+        shownMark(t.grade, isAbsent(t.absent, t.grade), isWithdrawn(t.withdrawn, t.grade)),
+      ]),
+    );
 
     return res.status(200).json({
       success: true,
@@ -427,7 +418,7 @@ exports.saveTest = async (req, res) => {
       if (mark.error) {
         return res.status(400).json({
           success: false,
-          message: `درجة الاختبار لازم تكون رقم من 0 لـ ${rules.termTestMax}، أو «غ» للغايب.`,
+          message: `درجة الاختبار لازم تكون رقم من 0 لـ ${rules.termTestMax}، أو «غ» للغايب، أو «م» للمنقطع.`,
         });
       }
       const at = {

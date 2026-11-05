@@ -70,6 +70,9 @@ const courseworkOverrideSchema = new mongoose.Schema(
     // (utils/absentMark.js).
     attendanceAbsent: { type: Boolean },
     homeworkAbsent: { type: Boolean },
+    // «م» in either column: منقطع — a 0 that counts nowhere, shown as م.
+    attendanceWithdrawn: { type: Boolean },
+    homeworkWithdrawn: { type: Boolean },
   },
   { timestamps: true },
 );

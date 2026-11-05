@@ -50,6 +50,8 @@ const weeklyEvaluationSchema = new mongoose.Schema(
     },
     // «غ»: away that week — a score of 0 shown as غ (utils/absentMark.js).
     absent: { type: Boolean },
+    // «م»: منقطع — a 0 that counts nowhere, shown as م (utils/absentMark.js).
+    withdrawn: { type: Boolean },
   },
   { timestamps: true },
 );
