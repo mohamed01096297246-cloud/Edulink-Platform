@@ -261,4 +261,4 @@ const writeSheetPdf = (sheet, stream) => {
   doc.end();
 };
 
-module.exports = { writeSheetPdf, visualRuns };
+module.exports = { writeSheetPdf, visualRuns, runsWidth, drawRuns, FONTS };

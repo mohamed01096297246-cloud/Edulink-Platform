@@ -44,7 +44,7 @@ const acceptLink = (req, res, next) => {
     return next();
   } catch {
     return res.status(401).json({
-      message: "رابط التنزيل ده انتهى. ارجع للتطبيق ودوس «نزّل السجل» تاني.",
+      message: "رابط التنزيل ده انتهى. ارجع للتطبيق ونزّل الملف تاني.",
     });
   }
 };

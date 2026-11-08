@@ -11,9 +11,13 @@ const School = require("../models/School");
 const { studentPerformance } = require("../utils/studentPerformance");
 const { testMarksOf } = require("../utils/testMarks");
 const { asTakenBy, otherLanguagesFor } = require("../utils/secondLanguage");
+const { monthsBegun, schoolMonth } = require("../utils/schoolMonths");
+const { buildMonthlyReport } = require("../utils/monthlyReport");
+const { writeMonthlyReportPdf } = require("../utils/monthlyReportPdf");
+const { signLink, downloadName } = require("../utils/downloadLink");
 
-// Everything a student may read about themselves. Four screens, no more:
-// what's on today, the week's timetable, their homework, their marks. The
+// Everything a student may read about themselves: what's on today, the
+// week's timetable, their homework, their marks, and «تقريري الشهري». The
 // parent's analytics report, the fees, and every other child's data are
 // deliberately out of reach — a student account answers "what do I have to
 // do, and how am I doing", nothing else.
@@ -416,6 +420,89 @@ exports.getNotifications = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// «تقريري الشهري» (utils/monthlyReport.js): the school months a report can
+// be had for — every month begun, newest first, a month still running
+// marked as such.
+exports.getMonthlyReports = async (req, res) => {
+  try {
+    const student = await myStudent(req);
+    if (!student) return notFound(res);
+    const { startOfDay } = schoolToday(await schoolTimezone(student.school));
+    const months = monthsBegun(startOfDay)
+      .map((m) => ({
+        month: m.month,
+        label: m.label,
+        from: m.from.toISOString().slice(0, 10),
+        to: m.to.toISOString().slice(0, 10),
+        complete: startOfDay > m.to,
+      }))
+      .reverse();
+    res.status(200).json({ success: true, data: { months } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const reportMonth = (value, today) => {
+  const month = schoolMonth(Number(value));
+  return month && month.from <= today ? month : null;
+};
+
+// A link the phone's browser downloads the report from (utils/downloadLink),
+// signed for this student and this month only.
+exports.monthlyReportLink = async (req, res) => {
+  try {
+    const student = await myStudent(req);
+    if (!student) return notFound(res);
+    const { startOfDay } = schoolToday(await schoolTimezone(student.school));
+    if (!reportMonth(req.query.month, startOfDay)) {
+      return res.status(400).json({ success: false, message: "اختار الشهر." });
+    }
+    const query = { month: String(req.query.month), name: String(req.query.name || "") };
+    const dl = signLink(req.user._id, "/monthly-report", query);
+    res.json({ success: true, url: `/student/monthly-report?${new URLSearchParams({ ...query, dl })}` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// The report itself, as a PDF: ?month=n (a school month), ?name= the file
+// name the phone saves it under.
+exports.getMonthlyReport = async (req, res) => {
+  try {
+    const student = await myStudent(req);
+    if (!student) return notFound(res);
+    const { startOfDay } = schoolToday(await schoolTimezone(student.school));
+    const month = reportMonth(req.query.month, startOfDay);
+    if (!month) return res.status(400).json({ success: false, message: "اختار الشهر." });
+
+    const report = await buildMonthlyReport({ studentId: student._id, monthNumber: month.month });
+    if (!report || !report.subjects.length) {
+      return res.status(404).json({
+        success: false,
+        message: `لسه مفيش درجات متسجّلة في ${month.label}، فمفيش تقرير له.`,
+      });
+    }
+
+    const name = downloadName(req.query.name, ".pdf");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="monthly-report-${month.month}.pdf"` +
+        (name ? `; filename*=UTF-8''${encodeURIComponent(name)}` : ""),
+    );
+    await new Promise((resolve, reject) => {
+      res.on("finish", resolve);
+      res.on("error", reject);
+      writeMonthlyReportPdf(report, res);
+    });
+    return undefined;
+  } catch (err) {
+    if (res.headersSent) return res.end();
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 
