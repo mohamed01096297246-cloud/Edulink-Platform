@@ -209,9 +209,19 @@ const StudentRecord = ({ studentId, onClose }) => {
                               ))}
                               <td className="p-2.5 font-black text-indigo-700 tabular-nums whitespace-nowrap">
                                 {w.withdrawnWeek ? <span className="text-amber-800">م</span> : n(w.total)}
-                                {!w.withdrawnWeek && w.outOf != null && w.outOf !== data.weekTotal && (
-                                  <span className="text-xs font-black text-slate-700"> من {n(w.outOf)}</span>
-                                )}
+                                {/* Out of the columns left: less those taken off, and less those that are م. */}
+                                {(() => {
+                                  const outOf =
+                                    w.outOf == null
+                                      ? null
+                                      : w.outOf -
+                                        columns
+                                          .filter((c) => w.withdrawn?.[c] && !w.skipped?.includes(c))
+                                          .reduce((sum, c) => sum + (data.max?.[c] || 0), 0);
+                                  return !w.withdrawnWeek && outOf != null && outOf !== data.weekTotal ? (
+                                    <span className="text-xs font-black text-slate-700"> من {n(outOf)}</span>
+                                  ) : null;
+                                })()}
                               </td>
                             </tr>
                           )),
