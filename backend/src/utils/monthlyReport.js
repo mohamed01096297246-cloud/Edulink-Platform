@@ -74,14 +74,40 @@ const testOf = (tests, key) => {
   return { grade: t.grade, absent: isAbsent(t.absent, t.grade), withdrawn: false };
 };
 
+// The month's test: weekly40's term test of that month, or the classic
+// monthly test of the calendar month the school month starts in. A month
+// weekly40 has no test for gives { tests: [], testMax: null }.
+const monthTests = async ({ classroom, subject, scheme, month, roster }) => {
+  if (scheme === "weekly40") {
+    const testNo = TERM_TEST_OF_MONTH[month.month];
+    if (!testNo) return { tests: [], testMax: null };
+    const tests = await TermTest.find({
+      classroom: classroom._id,
+      subject: subject._id,
+      academicYear: classroom.academicYear,
+      term: month.term,
+      testNo,
+    }).select("student grade absent withdrawn");
+    return { tests, testMax: SCHEMES[scheme].termTestMax };
+  }
+  const tests = await MonthlyGrade.find({
+    student: { $in: roster },
+    subject: subject._id,
+    month: month.from.getUTCMonth() + 1,
+    year: month.from.getUTCFullYear(),
+  }).select("student grade absent withdrawn");
+  return { tests, testMax: 15 };
+};
+
 const subjectMonth = async ({ student, classroom, subject, scheme, month, previous, roster }) => {
   const rules = SCHEMES[scheme];
   const key = String(student._id);
   const columns = Object.keys(rules.max).filter((k) => COLUMN_LABELS[k]);
 
-  const [weeks, before] = await Promise.all([
+  const [weeks, before, { tests, testMax }] = await Promise.all([
     computeMonthScores(classroom._id, subject._id, roster, month, scheme),
     previous ? computeMonthScores(classroom._id, subject._id, [student._id], previous, scheme) : null,
+    monthTests({ classroom, subject, scheme, month, roster }),
   ]);
 
   const mine = entriesOf(weeks, key);
@@ -93,31 +119,6 @@ const subjectMonth = async ({ student, classroom, subject, scheme, month, previo
     .map((id) => monthAverage(entriesOf(weeks, String(id)), scheme))
     .filter((v) => v !== null);
 
-  // The month's test: weekly40's term test of that month, or the classic
-  // monthly test of the calendar month the school month starts in.
-  let tests = [];
-  let testMax = null;
-  if (scheme === "weekly40") {
-    const testNo = TERM_TEST_OF_MONTH[month.month];
-    if (testNo) {
-      testMax = rules.termTestMax;
-      tests = await TermTest.find({
-        classroom: classroom._id,
-        subject: subject._id,
-        academicYear: classroom.academicYear,
-        term: month.term,
-        testNo,
-      }).select("student grade absent withdrawn");
-    }
-  } else {
-    testMax = 15;
-    tests = await MonthlyGrade.find({
-      student: { $in: roster },
-      subject: subject._id,
-      month: month.from.getUTCMonth() + 1,
-      year: month.from.getUTCFullYear(),
-    }).select("student grade absent withdrawn");
-  }
   const test = testMax ? testOf(tests, key) : null;
   const classTests = testMax
     ? roster.map((id) => testOf(tests, String(id))).filter((t) => t && t.grade !== null).map((t) => t.grade)
@@ -219,20 +220,15 @@ const overallOf = (subjects, markOf, testOf_) => {
   return possible ? { earned: toHalf(earned), possible, percent: Math.round((earned / possible) * 100) } : null;
 };
 
-// `studentId`, and the school month (1–8). The student's own record only —
-// the caller decides whose that is.
-const buildMonthlyReport = async ({ studentId, monthNumber, now = new Date() }) => {
-  const month = schoolMonth(Number(monthNumber));
-  if (!month) throw new Error("شهر غير معروف");
-  const previous = month.month > 1 && schoolMonth(month.month - 1).term === month.term ? schoolMonth(month.month - 1) : null;
-
+// The student, their class and its scheme, the subjects a report covers and
+// the class's pupils.
+const reportContext = async (studentId) => {
   const student = await Student.findById(studentId)
     .populate("classroom", "name grade school academicYear")
     .populate("grade", "name stage");
   if (!student || !student.classroom) return null;
   const classroom = student.classroom;
   const scheme = await schemeForClassroom(classroom);
-  const school = await School.findById(student.school).select("name");
 
   const otherLanguages = await otherLanguagesFor(student);
   const taught = await Subject.find({
@@ -248,6 +244,45 @@ const buildMonthlyReport = async ({ studentId, monthNumber, now = new Date() }) 
 
   const roster = (await Student.find({ classroom: classroom._id, active: true }).select("_id")).map((s) => s._id);
   if (!roster.some((id) => String(id) === String(student._id))) roster.push(student._id);
+  return { student, classroom, scheme, subjects, roster };
+};
+
+// The subjects whose test of the month the class has nothing entered for
+// yet, among those the report would show (marks this month). The report of a
+// month with a test opens only once this is empty: printed before, it reads
+// as the month's result with the test missing.
+const testsWaiting = async ({ studentId, monthNumber }) => {
+  const month = schoolMonth(Number(monthNumber));
+  const ctx = month && (await reportContext(studentId));
+  if (!ctx) return [];
+  const waiting = await Promise.all(
+    ctx.subjects.map(async (subject) => {
+      const { tests, testMax } = await monthTests({ ...ctx, subject, month });
+      if (!testMax) return null;
+      const entered = ctx.roster.some((id) => {
+        const t = testOf(tests, String(id));
+        return t && (t.grade !== null || t.withdrawn);
+      });
+      if (entered) return null;
+      // No test yet: it holds the report up only if the subject is in it.
+      const weeks = await computeMonthScores(ctx.classroom._id, subject._id, ctx.roster, month, ctx.scheme);
+      return weeks.some((w) => w.scores) ? subject.name : null;
+    }),
+  );
+  return waiting.filter(Boolean);
+};
+
+// `studentId`, and the school month (1–8). The student's own record only —
+// the caller decides whose that is.
+const buildMonthlyReport = async ({ studentId, monthNumber, now = new Date() }) => {
+  const month = schoolMonth(Number(monthNumber));
+  if (!month) throw new Error("شهر غير معروف");
+  const previous = month.month > 1 && schoolMonth(month.month - 1).term === month.term ? schoolMonth(month.month - 1) : null;
+
+  const ctx = await reportContext(studentId);
+  if (!ctx) return null;
+  const { student, classroom, scheme, subjects, roster } = ctx;
+  const school = await School.findById(student.school).select("name");
 
   const perSubject = (
     await Promise.all(
@@ -328,4 +363,4 @@ const buildMonthlyReport = async ({ studentId, monthNumber, now = new Date() }) 
   return report;
 };
 
-module.exports = { buildMonthlyReport };
+module.exports = { buildMonthlyReport, testsWaiting };

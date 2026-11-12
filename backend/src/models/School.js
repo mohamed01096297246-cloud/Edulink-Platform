@@ -61,6 +61,10 @@ const schoolSchema = new mongoose.Schema(
       // the teachers (controllers/adminMarksController.js). Off unless the
       // platform owner turns it on for the school.
       adminMarks: { type: Boolean, default: false },
+      // «تقريري الشهري» of a month opens only once its test is entered in
+      // every subject (controllers/studentAppController.js). Off unless
+      // turned on for the school: Future on, Al-Rahma off.
+      reportAfterTest: { type: Boolean, default: false },
     },
 
     // The school's own shared inbox for parents' login credentials. Most

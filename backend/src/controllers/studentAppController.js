@@ -12,7 +12,7 @@ const { studentPerformance } = require("../utils/studentPerformance");
 const { testMarksOf } = require("../utils/testMarks");
 const { asTakenBy, otherLanguagesFor } = require("../utils/secondLanguage");
 const { monthsBegun, schoolMonth } = require("../utils/schoolMonths");
-const { buildMonthlyReport } = require("../utils/monthlyReport");
+const { buildMonthlyReport, testsWaiting } = require("../utils/monthlyReport");
 const { writeMonthlyReportPdf } = require("../utils/monthlyReportPdf");
 const { signLink, downloadName } = require("../utils/downloadLink");
 
@@ -423,24 +423,36 @@ exports.getNotifications = async (req, res) => {
   }
 };
 
-// «تقريري الشهري» (utils/monthlyReport.js): the school months a report can
-// be had for — every month begun, newest first, a month still running
-// marked as such.
+// «تقريري الشهري» (utils/monthlyReport.js): the school months begun, newest
+// first, `complete` once over (the app marks the others «لسه ماخلصش»). In a
+// school with School.features.reportAfterTest a month's report opens only
+// once the month is over and its test is entered in every subject
+// (testsWaiting) — printed before, it passed for the month's result with the
+// test missing; `waiting` names the subjects whose test isn't in.
+const reportAfterTest = async (student) =>
+  Boolean((await School.findById(student.school).select("features").lean())?.features?.reportAfterTest);
+
 exports.getMonthlyReports = async (req, res) => {
   try {
     const student = await myStudent(req);
     if (!student) return notFound(res);
     const { startOfDay } = schoolToday(await schoolTimezone(student.school));
-    const months = monthsBegun(startOfDay)
-      .map((m) => ({
-        month: m.month,
-        label: m.label,
-        from: m.from.toISOString().slice(0, 10),
-        to: m.to.toISOString().slice(0, 10),
-        complete: startOfDay > m.to,
-      }))
-      .reverse();
-    res.status(200).json({ success: true, data: { months } });
+    const gated = await reportAfterTest(student);
+    const months = await Promise.all(
+      monthsBegun(startOfDay).map(async (m) => {
+        const over = startOfDay > m.to;
+        const waiting = over && gated ? await testsWaiting({ studentId: student._id, monthNumber: m.month }) : [];
+        return {
+          month: m.month,
+          label: m.label,
+          from: m.from.toISOString().slice(0, 10),
+          to: m.to.toISOString().slice(0, 10),
+          complete: over && !waiting.length,
+          waiting,
+        };
+      }),
+    );
+    res.status(200).json({ success: true, data: { months: months.reverse() } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -451,6 +463,16 @@ const reportMonth = (value, today) => {
   return month && month.from <= today ? month : null;
 };
 
+// Why a begun month's report isn't open yet, or null when it is — always
+// open where the school doesn't hold reports for the test.
+const notOpenYet = async (student, month, today) => {
+  if (!(await reportAfterTest(student))) return null;
+  if (today <= month.to) return `تقرير ${month.label} هيفتح لما الشهر يخلص ويترصد اختباره.`;
+  const waiting = await testsWaiting({ studentId: student._id, monthNumber: month.month });
+  if (!waiting.length) return null;
+  return `تقرير ${month.label} هيفتح لما اختبار الشهر يترصد في: ${waiting.join("، ")}.`;
+};
+
 // A link the phone's browser downloads the report from (utils/downloadLink),
 // signed for this student and this month only.
 exports.monthlyReportLink = async (req, res) => {
@@ -458,9 +480,10 @@ exports.monthlyReportLink = async (req, res) => {
     const student = await myStudent(req);
     if (!student) return notFound(res);
     const { startOfDay } = schoolToday(await schoolTimezone(student.school));
-    if (!reportMonth(req.query.month, startOfDay)) {
-      return res.status(400).json({ success: false, message: "اختار الشهر." });
-    }
+    const month = reportMonth(req.query.month, startOfDay);
+    if (!month) return res.status(400).json({ success: false, message: "اختار الشهر." });
+    const why = await notOpenYet(student, month, startOfDay);
+    if (why) return res.status(409).json({ success: false, message: why });
     const query = { month: String(req.query.month), name: String(req.query.name || "") };
     const dl = signLink(req.user._id, "/monthly-report", query);
     res.json({ success: true, url: `/student/monthly-report?${new URLSearchParams({ ...query, dl })}` });
@@ -478,6 +501,8 @@ exports.getMonthlyReport = async (req, res) => {
     const { startOfDay } = schoolToday(await schoolTimezone(student.school));
     const month = reportMonth(req.query.month, startOfDay);
     if (!month) return res.status(400).json({ success: false, message: "اختار الشهر." });
+    const why = await notOpenYet(student, month, startOfDay);
+    if (why) return res.status(409).json({ success: false, message: why });
 
     const report = await buildMonthlyReport({ studentId: student._id, monthNumber: month.month });
     if (!report || !report.subjects.length) {

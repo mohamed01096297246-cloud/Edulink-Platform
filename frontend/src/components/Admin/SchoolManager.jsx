@@ -53,15 +53,16 @@ const SchoolManager = () => {
   const [createdCredentials, setCreatedCredentials] = useState(null);
 
   const [editSchool, setEditSchool] = useState(null);
-  // adminMarks is the one that starts off: a school's admins recording
-  // marks from the panel is turned on school by school.
-  const DEFAULT_FEATURES = { fees: true, examAnalytics: true, staffAttendance: true, behavior: true, adminMarks: false };
+  // adminMarks and reportAfterTest start off: they are turned on school by
+  // school.
+  const DEFAULT_FEATURES = { fees: true, examAnalytics: true, staffAttendance: true, behavior: true, adminMarks: false, reportAfterTest: false };
   const FEATURE_LABELS = {
     fees: "الأقساط والمصروفات",
     examAnalytics: "تحليلات النتائج",
     staffAttendance: "حضور المعلمين",
     behavior: "متابعة السلوك",
     adminMarks: "رصد الدرجات من الإدارة",
+    reportAfterTest: "التقرير الشهري بعد رصد اختبار الشهر",
   };
   const [editForm, setEditForm] = useState({
     name: "",

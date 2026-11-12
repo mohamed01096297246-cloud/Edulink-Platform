@@ -14,8 +14,8 @@ const binary = (res, cb) => {
 
 const MONTH_ONE = ["2026-09-20", "2026-09-27", "2026-10-04", "2026-10-11"];
 
-const setUp = async () => {
-  const s = await f.school({ gradebook: { preparatory: "weekly40" } });
+const setUp = async ({ withTest = true, afterTest = true } = {}) => {
+  const s = await f.school({ gradebook: { preparatory: "weekly40" }, features: { reportAfterTest: afterTest } });
   const g = await f.grade(s, { stage: "preparatory" });
   const c = await f.classroom(g);
   const sub = await f.subject(s, [g], { name: "علوم" });
@@ -38,7 +38,19 @@ const setUp = async () => {
     });
     expect(saved.status).toBe(200);
   }
-  return { student, account };
+  // Month 1's test (weekly40: term test 1), unless a test leaves it out.
+  const testOne = () =>
+    t.post("/api/term-tests/bulk", {
+      classroomId: String(c._id),
+      term: 1,
+      testNo: 1,
+      gradesList: [
+        { studentId: String(student._id), grade: 12 },
+        { studentId: String(classmate._id), grade: 14 },
+      ],
+    });
+  if (withTest) expect((await testOne()).status).toBe(200);
+  return { student, account, testOne };
 };
 
 test("the report reads the student's month beside the class's, and says what to do, to her", async () => {
@@ -91,10 +103,39 @@ test("the student downloads her report through a signed link, for that month onl
   const other = await f.request(f.app).get(`/api${url.replace("month=1", "month=2")}`);
   expect(other.status).toBe(401);
 
-  // A month with nothing recorded has no report; one not begun isn't offered.
-  expect((await st.get("/api/student/monthly-report?month=2")).status).toBe(404);
+  // Month 2 — still running, or over with nothing recorded — has no report;
+  // a month not begun isn't offered.
+  expect((await st.get("/api/student/monthly-report?month=2")).status).not.toBe(200);
   expect((await st.get("/api/student/monthly-report?month=8")).status).toBe(400);
   expect((await st.get("/api/student/monthly-reports/link?month=8")).status).toBe(400);
+});
+
+test("a month's report stays shut until its test is entered", async () => {
+  const { account, testOne } = await setUp({ withTest: false });
+  const st = await f.signIn(account);
+
+  const one = async () => (await st.get("/api/student/monthly-reports")).body.data.months.find((m) => m.month === 1);
+  expect(await one()).toMatchObject({ complete: false, waiting: ["علوم"] });
+
+  for (const path of ["/api/student/monthly-reports/link?month=1", "/api/student/monthly-report?month=1"]) {
+    const shut = await st.get(path);
+    expect(shut.status).toBe(409);
+    expect(shut.body.message).toContain("اختبار الشهر");
+    expect(shut.body.message).toContain("علوم");
+  }
+
+  expect((await testOne()).status).toBe(200);
+  expect(await one()).toMatchObject({ complete: true, waiting: [] });
+  expect((await st.get("/api/student/monthly-reports/link?month=1")).status).toBe(200);
+});
+
+test("a school that doesn't hold reports for the test opens them as before", async () => {
+  const { account } = await setUp({ withTest: false, afterTest: false });
+  const st = await f.signIn(account);
+  const list = await st.get("/api/student/monthly-reports");
+  expect(list.body.data.months.find((m) => m.month === 1)).toMatchObject({ complete: true, waiting: [] });
+  expect((await st.get("/api/student/monthly-reports/link?month=1")).status).toBe(200);
+  expect((await st.get("/api/student/monthly-report?month=1")).status).toBe(200);
 });
 
 test("nobody but a student gets a report", async () => {
