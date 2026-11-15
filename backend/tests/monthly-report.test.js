@@ -72,7 +72,7 @@ test("the report reads the student's month beside the class's, and says what to 
   expect(report.advice.strengths.join(" ")).toContain("خدتي درجة مواظبة وسلوك كاملة");
 });
 
-test("from month 2 the report gives her rank in the class, not the class's average", async () => {
+test("the report gives her rank in the class, not the class's average", async () => {
   const { student, t, c, classmate } = await setUp();
   const { student: third } = await f.student(c);
   // Month 2: she ties the classmate on the weeks, a third pupil is below
@@ -113,12 +113,13 @@ test("from month 2 the report gives her rank in the class, not the class's avera
   expect(two.advice.summary.join(" ")).not.toContain("متوسط فصلك");
   expect(JSON.stringify(two.advice)).not.toContain("متوسط فصلك");
 
-  // Month 1, already printed, keeps the class's average and gives no rank.
+  // Month 1 gives the rank too: her 4s in homework put her below the
+  // classmate (the third pupil joined in month 2 and has no month 1).
   const one = await buildMonthlyReport({ studentId: student._id, monthNumber: 1, now: new Date("2026-11-20") });
-  expect(one.ranked).toBe(false);
-  expect(one.classRank).toBeNull();
-  expect(one.classOverall).not.toBeNull();
-  expect(one.advice.summary.join(" ")).toContain("متوسط فصلك");
+  expect(one.ranked).toBe(true);
+  expect(one.classOverall).toBeNull();
+  expect(one.classRank).toMatchObject({ rank: 2, of: 2 });
+  expect(one.advice.summary.join(" ")).not.toContain("متوسط فصلك");
 });
 
 test("pupils on the same marks share a rank", async () => {

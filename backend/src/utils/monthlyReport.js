@@ -233,9 +233,11 @@ const overallOf = (subjects, markOf, testOf_) => {
 };
 
 // From this school month on, the report gives the student's rank in the
-// class where it gave the class's average (Mohamed, 2026-11-15). Month 1's
-// reports, already printed, stay as they were.
-const RANK_FROM_MONTH = 2;
+// class where it gave the class's average (Mohamed, 2026-11-15: first from
+// month 2, then the same day «توصل للطلبة في التقرير بتاع الشهر اللي اخدوا
+// اختبار الشهر» — month 1 too). A report opens once its test is in, so the
+// rank always counts the test.
+const RANK_FROM_MONTH = 1;
 
 // From this school month on, every school's report waits for the month's
 // test (Mohamed, 2026-11-15: «ما تفتحش لأي حد تقرير الشهر التاني إلا لما
