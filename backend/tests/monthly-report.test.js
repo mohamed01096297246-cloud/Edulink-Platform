@@ -2,6 +2,7 @@ require("./helpers/setup");
 const f = require("./helpers/factory");
 const Schedule = require("../src/models/Schedule");
 const MonthlyGrade = require("../src/models/MonthlyGrade");
+const TermTest = require("../src/models/TermTest");
 const { buildMonthlyReport } = require("../src/utils/monthlyReport");
 const { targetFor } = require("../src/utils/monthlyReportAdvice");
 
@@ -120,6 +121,23 @@ test("the report gives her rank in the class, not the class's average", async ()
   expect(one.classOverall).toBeNull();
   expect(one.classRank).toMatchObject({ rank: 2, of: 2 });
   expect(one.advice.summary.join(" ")).not.toContain("متوسط فصلك");
+});
+
+test("the rank goes by the month's total, not its percentage", async () => {
+  const { student, classmate } = await setUp();
+  // The classmate is «م» in the test: their total leaves the test out, so
+  // their percentage is out of the weeks alone.
+  await TermTest.updateOne({ student: classmate._id, testNo: 1 }, { $set: { grade: 0, withdrawn: true } });
+  const mine = await buildMonthlyReport({ studentId: student._id, monthNumber: 1, now: new Date("2026-11-20") });
+  const theirs = await buildMonthlyReport({ studentId: classmate._id, monthNumber: 1, now: new Date("2026-11-20") });
+  // Her total is higher, his percentage is.
+  expect(mine.overall.earned).toBeGreaterThan(theirs.overall.earned);
+  expect(theirs.overall.percent).toBeGreaterThan(mine.overall.percent);
+  expect(mine.classRank).toMatchObject({ rank: 1, of: 2 });
+  expect(theirs.classRank).toMatchObject({ rank: 2, of: 2 });
+  // Month 1 is weeks 2 to 5 (20/9–15/10), the weeks before test 1.
+  expect(mine.month.from.toISOString().slice(0, 10)).toBe("2026-09-20");
+  expect(mine.month.to.toISOString().slice(0, 10)).toBe("2026-10-15");
 });
 
 test("pupils on the same marks share a rank", async () => {

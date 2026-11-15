@@ -258,8 +258,10 @@ const rankAmong = (scores, mine) => {
   };
 };
 
-// A pupil's share of the month over every subject, as `overall` counts it.
-const overallShare = (subjects, id) => {
+// A pupil's total for the month over every subject — the month marks plus
+// the month's tests, as «مجموعك» counts them — which the rank goes by
+// (Mohamed, 2026-11-15: «الترتيب بناء على المجموع مش النسبة»).
+const overallTotal = (subjects, id) => {
   let earned = 0;
   let possible = 0;
   subjects.forEach((s) => {
@@ -274,7 +276,7 @@ const overallShare = (subjects, id) => {
       possible += s.test.max;
     }
   });
-  return possible ? earned / possible : null;
+  return possible ? earned : null;
 };
 
 // The student, their class and its scheme, the subjects a report covers and
@@ -399,7 +401,7 @@ const buildMonthlyReport = async ({ studentId, monthNumber, now = new Date() }) 
       s.classAverage = null;
       s.classTestAverage = null;
     });
-    classRank = overall ? rankAmong(roster.map((id) => overallShare(perSubject, String(id))), overallShare(perSubject, me)) : null;
+    classRank = overall ? rankAmong(roster.map((id) => overallTotal(perSubject, String(id))), overallTotal(perSubject, me)) : null;
     classOverall = null;
   }
   perSubject.forEach((s) => delete s.classScores);
