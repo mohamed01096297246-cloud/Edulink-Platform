@@ -16,6 +16,11 @@ const levelOf = (percent) => {
   return "يحتاج متابعة";
 };
 
+// The class rank in words up to the tenth («ترتيبك الأول»); past that, the
+// number.
+const ORDINALS = ["الأول", "التاني", "التالت", "الرابع", "الخامس", "السادس", "السابع", "التامن", "التاسع", "العاشر"];
+const ordinal = (rank) => (rank <= ORDINALS.length ? ORDINALS[rank - 1] : String(rank));
+
 const fmt = (n) => (n === null || n === undefined ? "—" : String(toHalf(n)));
 const joinAnd = (items) =>
   items.length <= 1 ? items.join("") : `${items.slice(0, -1).join("، ")} و${items[items.length - 1]}`;
@@ -240,6 +245,10 @@ const adviceFor = (report) => {
   if (report.overall) {
     lines.push(`مجموعك ${fmt(report.overall.earned)} من ${report.overall.possible} يعني ${report.overall.percent}%`);
     if (report.classOverall) lines.push(`متوسط فصلك ${report.classOverall.percent}%`);
+    if (report.classRank) {
+      const r = report.classRank;
+      lines.push(`ترتيبك على الفصل ${ordinal(r.rank)}${r.shared ? " مكرر" : ""} من ${r.of}`);
+    }
   }
   if (report.change) {
     const diff = report.change.to - report.change.from;
@@ -271,4 +280,4 @@ const adviceFor = (report) => {
   return { headline, summary: lines, strengths: strengths.slice(0, 3), plan, polishing, targets };
 };
 
-module.exports = { adviceFor, levelOf, targetFor };
+module.exports = { adviceFor, levelOf, targetFor, ordinal };

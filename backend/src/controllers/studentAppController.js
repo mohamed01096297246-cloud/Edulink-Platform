@@ -12,7 +12,7 @@ const { studentPerformance } = require("../utils/studentPerformance");
 const { testMarksOf } = require("../utils/testMarks");
 const { asTakenBy, otherLanguagesFor } = require("../utils/secondLanguage");
 const { monthsBegun, schoolMonth } = require("../utils/schoolMonths");
-const { buildMonthlyReport, testsWaiting } = require("../utils/monthlyReport");
+const { buildMonthlyReport, testsWaiting, TEST_GATE_FROM_MONTH } = require("../utils/monthlyReport");
 const { writeMonthlyReportPdf } = require("../utils/monthlyReportPdf");
 const { signLink, downloadName } = require("../utils/downloadLink");
 
@@ -424,23 +424,27 @@ exports.getNotifications = async (req, res) => {
 };
 
 // «تقريري الشهري» (utils/monthlyReport.js): the school months begun, newest
-// first, `complete` once over (the app marks the others «لسه ماخلصش»). In a
-// school with School.features.reportAfterTest a month's report opens only
-// once the month is over and its test is entered in every subject
-// (testsWaiting) — printed before, it passed for the month's result with the
-// test missing; `waiting` names the subjects whose test isn't in.
-const reportAfterTest = async (student) =>
+// first, `complete` once over (the app marks the others «لسه ماخلصش»). A
+// month's report opens only once the month is over and its test is entered
+// in every subject (testsWaiting) — printed before, it passed for the
+// month's result with the test missing; `waiting` names the subjects whose
+// test isn't in. That holds in every school from month 2
+// (TEST_GATE_FROM_MONTH), and before it in a school with
+// School.features.reportAfterTest.
+const schoolWaitsForTest = async (student) =>
   Boolean((await School.findById(student.school).select("features").lean())?.features?.reportAfterTest);
+const waitsForTest = (schoolWaits, monthNumber) => schoolWaits || monthNumber >= TEST_GATE_FROM_MONTH;
 
 exports.getMonthlyReports = async (req, res) => {
   try {
     const student = await myStudent(req);
     if (!student) return notFound(res);
     const { startOfDay } = schoolToday(await schoolTimezone(student.school));
-    const gated = await reportAfterTest(student);
+    const schoolWaits = await schoolWaitsForTest(student);
     const months = await Promise.all(
       monthsBegun(startOfDay).map(async (m) => {
         const over = startOfDay > m.to;
+        const gated = waitsForTest(schoolWaits, m.month);
         const waiting = over && gated ? await testsWaiting({ studentId: student._id, monthNumber: m.month }) : [];
         return {
           month: m.month,
@@ -464,9 +468,9 @@ const reportMonth = (value, today) => {
 };
 
 // Why a begun month's report isn't open yet, or null when it is — always
-// open where the school doesn't hold reports for the test.
+// open where it doesn't wait for the test.
 const notOpenYet = async (student, month, today) => {
-  if (!(await reportAfterTest(student))) return null;
+  if (!waitsForTest(await schoolWaitsForTest(student), month.month)) return null;
   if (today <= month.to) return `تقرير ${month.label} هيفتح لما الشهر يخلص ويترصد اختباره.`;
   const waiting = await testsWaiting({ studentId: student._id, monthNumber: month.month });
   if (!waiting.length) return null;

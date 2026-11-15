@@ -196,13 +196,18 @@ const summary = (doc, r, y) => {
 const table = (doc, r, y) => {
   y = sectionTitle(doc, "مستواك في كل مادة", y);
   const first = r.subjects[0];
+  // Four mark columns (Al-Rahma's scheme) take narrower columns, so the
+  // weeks' bars keep their room.
+  const narrow = first && first.columns.length >= 4;
+  const markW = narrow ? 44 : 52;
   const cols = [
-    { key: "subject", label: "المادة", w: 88 },
-    ...(first ? first.columns : []).map((c) => ({ key: c.key, label: `${SHORT[c.key]}\nمن ${c.max}`, w: 52, max: c.max })),
+    { key: "subject", label: "المادة", w: narrow ? 80 : 88 },
+    ...(first ? first.columns : []).map((c) => ({ key: c.key, label: `${SHORT[c.key]}\nمن ${c.max}`, w: markW, max: c.max })),
     { key: "month", label: `الشهر\nمن ${first ? first.weekTotal : 40}`, w: 54 },
-    ...(first && first.test ? [{ key: "test", label: `الاختبار\nمن ${first.test.max}`, w: 52 }] : []),
-    { key: "level", label: "المستوى", w: 70 },
-    { key: "class", label: "متوسط\nالفصل", w: 48 },
+    ...(first && first.test ? [{ key: "test", label: `الاختبار\nمن ${first.test.max}`, w: markW }] : []),
+    { key: "level", label: "المستوى", w: narrow ? 64 : 70 },
+    // From month 2 the class's average is gone; the rank is only the summary's line.
+    ...(r.ranked ? [] : [{ key: "class", label: "متوسط\nالفصل", w: 48 }]),
   ];
   const used = cols.reduce((a, c) => a + c.w, 0);
   cols.push({ key: "weeks", label: "أسابيع\nالشهر", w: W - used });

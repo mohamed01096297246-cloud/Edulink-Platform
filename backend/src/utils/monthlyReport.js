@@ -75,8 +75,11 @@ const testOf = (tests, key) => {
 };
 
 // The month's test: weekly40's term test of that month, or the classic
-// monthly test of the calendar month the school month starts in. A month
-// weekly40 has no test for gives { tests: [], testMax: null }.
+// monthly test of the calendar month the school month ends in — month 1
+// (20/9–15/10) is October's test, month 2 (18/10–12/11) November's. Until
+// 2026-11-15 it was the month it starts in, which gave month 1 September's
+// (none) and month 2 October's. A month weekly40 has no test for gives
+// { tests: [], testMax: null }.
 const monthTests = async ({ classroom, subject, scheme, month, roster }) => {
   if (scheme === "weekly40") {
     const testNo = TERM_TEST_OF_MONTH[month.month];
@@ -93,8 +96,8 @@ const monthTests = async ({ classroom, subject, scheme, month, roster }) => {
   const tests = await MonthlyGrade.find({
     student: { $in: roster },
     subject: subject._id,
-    month: month.from.getUTCMonth() + 1,
-    year: month.from.getUTCFullYear(),
+    month: month.to.getUTCMonth() + 1,
+    year: month.to.getUTCFullYear(),
   }).select("student grade absent withdrawn");
   return { tests, testMax: 15 };
 };
@@ -110,14 +113,22 @@ const subjectMonth = async ({ student, classroom, subject, scheme, month, previo
     monthTests({ classroom, subject, scheme, month, roster }),
   ]);
 
-  const mine = entriesOf(weeks, key);
   // A pupil the teacher entered nothing for all month — one who joined the
   // class after it — has no month here rather than a 0.
-  const hasMarks = mine.some((e) => columns.some((c) => e[c] !== null && e[c] !== undefined));
-  const monthMark = hasMarks ? monthAverage(mine, scheme) : null;
+  const entered = (entries) => entries.some((e) => columns.some((c) => e[c] !== null && e[c] !== undefined));
+  const markOf = (entries) => (entered(entries) ? monthAverage(entries, scheme) : null);
+  const mine = entriesOf(weeks, key);
+  const hasMarks = entered(mine);
+  const monthMark = markOf(mine);
   const classMarks = roster
     .map((id) => monthAverage(entriesOf(weeks, String(id)), scheme))
     .filter((v) => v !== null);
+
+  // Every pupil's month mark and test, for the student's rank in the class.
+  const classScores = roster.map((id) => {
+    const t = testMax ? testOf(tests, String(id)) : null;
+    return { id: String(id), mark: markOf(entriesOf(weeks, String(id))), test: t && t.grade !== null ? t.grade : null };
+  });
 
   const test = testMax ? testOf(tests, key) : null;
   const classTests = testMax
@@ -171,6 +182,7 @@ const subjectMonth = async ({ student, classroom, subject, scheme, month, previo
     })),
     test: testMax ? { ...(test || { grade: null, absent: false, withdrawn: false }), max: testMax } : null,
     classTestAverage: averageToHalf(classTests),
+    classScores,
     weeks: weekRows,
     recordedWeeks,
     absences,
@@ -218,6 +230,49 @@ const overallOf = (subjects, markOf, testOf_) => {
     }
   });
   return possible ? { earned: toHalf(earned), possible, percent: Math.round((earned / possible) * 100) } : null;
+};
+
+// From this school month on, the report gives the student's rank in the
+// class where it gave the class's average (Mohamed, 2026-11-15). Month 1's
+// reports, already printed, stay as they were.
+const RANK_FROM_MONTH = 2;
+
+// From this school month on, every school's report waits for the month's
+// test (Mohamed, 2026-11-15: «ما تفتحش لأي حد تقرير الشهر التاني إلا لما
+// يترصد الاختبار التاني»). Before it, only a school with
+// School.features.reportAfterTest waits.
+const TEST_GATE_FROM_MONTH = 2;
+
+// Where `mine` stands among `scores` (nulls — no marks — left out): 1 plus
+// the pupils above it, `shared` when another pupil has the same.
+const rankAmong = (scores, mine) => {
+  if (mine === null || mine === undefined) return null;
+  const list = scores.filter((v) => v !== null && v !== undefined);
+  const same = (v) => Math.abs(v - mine) < 1e-9;
+  return {
+    rank: 1 + list.filter((v) => v > mine && !same(v)).length,
+    of: list.length,
+    shared: list.filter(same).length > 1,
+  };
+};
+
+// A pupil's share of the month over every subject, as `overall` counts it.
+const overallShare = (subjects, id) => {
+  let earned = 0;
+  let possible = 0;
+  subjects.forEach((s) => {
+    const c = s.classScores.find((x) => x.id === id);
+    if (!c) return;
+    if (c.mark !== null) {
+      earned += c.mark;
+      possible += s.weekTotal;
+    }
+    if (c.test !== null && s.test) {
+      earned += c.test;
+      possible += s.test.max;
+    }
+  });
+  return possible ? earned / possible : null;
 };
 
 // The student, their class and its scheme, the subjects a report covers and
@@ -329,7 +384,23 @@ const buildMonthlyReport = async ({ studentId, monthNumber, now = new Date() }) 
   const overall = overallOf(perSubject, (s) => s.monthMark, (s) => s.test?.grade ?? null);
   const previousOverall = previous ? overallOf(perSubject, (s) => s.previousMark, () => null) : null;
   const monthOnly = overallOf(perSubject, (s) => s.monthMark, () => null);
-  const classOverall = overallOf(perSubject, (s) => s.classAverage, (s) => (s.test ? s.classTestAverage : null));
+  let classOverall = overallOf(perSubject, (s) => s.classAverage, (s) => (s.test ? s.classTestAverage : null));
+
+  // From month 2: the overall rank in the class (one line of the summary —
+  // not per subject, Mohamed 2026-11-15), and no class average anywhere in
+  // the report.
+  const ranked = month.month >= RANK_FROM_MONTH;
+  const me = String(student._id);
+  let classRank = null;
+  if (ranked) {
+    perSubject.forEach((s) => {
+      s.classAverage = null;
+      s.classTestAverage = null;
+    });
+    classRank = overall ? rankAmong(roster.map((id) => overallShare(perSubject, String(id))), overallShare(perSubject, me)) : null;
+    classOverall = null;
+  }
+  perSubject.forEach((s) => delete s.classScores);
 
   const report = {
     student: {
@@ -352,6 +423,8 @@ const buildMonthlyReport = async ({ studentId, monthNumber, now = new Date() }) 
     change:
       previousOverall && monthOnly ? { from: previousOverall.percent, to: monthOnly.percent } : null,
     classOverall,
+    ranked,
+    classRank,
     lost,
     weekTrend,
     absentDays,
@@ -363,4 +436,4 @@ const buildMonthlyReport = async ({ studentId, monthNumber, now = new Date() }) 
   return report;
 };
 
-module.exports = { buildMonthlyReport, testsWaiting };
+module.exports = { buildMonthlyReport, testsWaiting, rankAmong, TEST_GATE_FROM_MONTH };
