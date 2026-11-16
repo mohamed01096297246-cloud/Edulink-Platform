@@ -173,6 +173,8 @@ const userSchema = new mongoose.Schema(
       schedule: { type: Boolean, default: true },
       examGrades: { type: Boolean, default: true },
       homeworkGrades: { type: Boolean, default: true },
+      // The student app's «الامتحانات الإلكترونية» (studentQuizController).
+      quizzes: { type: Boolean, default: true },
     },
 
     // Expo push token for this user's device — set when they log in from

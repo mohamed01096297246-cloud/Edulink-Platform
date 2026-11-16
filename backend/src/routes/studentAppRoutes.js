@@ -12,6 +12,7 @@ const {
   monthlyReportLink,
   getMonthlyReport,
 } = require("../controllers/studentAppController");
+const { listQuizzes, getQuiz, submitQuiz } = require("../controllers/studentQuizController");
 const { protect, authorize, requireUserFeature } = require("../middleware/authMiddleware");
 const { acceptLink } = require("../utils/downloadLink");
 
@@ -44,5 +45,10 @@ router.get("/monthly-reports", requireUserFeature("report"), getMonthlyReports);
 router.get("/monthly-reports/link", requireUserFeature("report"), monthlyReportLink);
 router.get("/notifications", requireUserFeature("notifications"), getNotifications);
 router.patch("/notifications/read", requireUserFeature("notifications"), markNotificationsRead);
+// «الامتحانات الإلكترونية» (controllers/studentQuizController.js); `quizzes`
+// switches them off for one student.
+router.get("/quizzes", requireUserFeature("quizzes"), listQuizzes);
+router.get("/quizzes/:id", requireUserFeature("quizzes"), getQuiz);
+router.post("/quizzes/:id/submit", requireUserFeature("quizzes"), submitQuiz);
 
 module.exports = router;

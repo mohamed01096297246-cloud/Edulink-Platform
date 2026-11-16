@@ -108,6 +108,7 @@ const SchoolManager = () => {
       report: "أدائي",
       grades: "درجاتي",
       notifications: "الإشعارات",
+      quizzes: "الامتحانات الإلكترونية",
     },
   };
   const ROLE_TITLES = { teacher: "معلمو", parent: "أولياء أمور", student: "طلاب" };
