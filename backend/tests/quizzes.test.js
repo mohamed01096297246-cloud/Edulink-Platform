@@ -155,8 +155,12 @@ test("only students take quizzes, and the switch turns them off for one student"
   expect((await st.get(`/api/student/quizzes/${q._id}`)).status).toBe(403);
 });
 
-test("the unit 1 Arabic quiz file is a valid quiz: every answer one of its choices, every question explained", async () => {
-  const spec = require(path.resolve(__dirname, "../scripts/quizzes/arabic-prep2-term1-unit1.json"));
+const QUIZ_FILES = require("fs")
+  .readdirSync(path.resolve(__dirname, "../scripts/quizzes"))
+  .filter((name) => name.endsWith(".json"));
+
+test.each(QUIZ_FILES)("the quiz file %s is a valid quiz: every answer one of its choices, every question explained", async (name) => {
+  const spec = require(path.resolve(__dirname, "../scripts/quizzes", name));
   const s = await f.school();
   const quiz = new Quiz({
     school: s._id,
@@ -175,7 +179,12 @@ test("the unit 1 Arabic quiz file is a valid quiz: every answer one of its choic
     expect(x.explanation.length).toBeGreaterThan(5);
     if (x.type === "tf") expect(x.choices).toEqual(["صح", "غلط"]);
   });
-  // The right answer isn't always in the same place.
-  const places = new Set(spec.questions.filter((x) => x.type === "mcq").map((x) => x.answer));
+  // The right answer isn't always in the same place, nor mostly in one.
+  const mcq = spec.questions.filter((x) => x.type === "mcq");
+  const places = new Set(mcq.map((x) => x.answer));
   expect(places.size).toBeGreaterThanOrEqual(3);
+  [0, 1, 2, 3].forEach((i) => expect(mcq.filter((x) => x.answer === i).length).toBeLessThan(mcq.length * 0.45));
+  // No two questions the same, and every choice of a question different.
+  expect(new Set(spec.questions.map((x) => x.text)).size).toBe(spec.questions.length);
+  spec.questions.forEach((x) => expect(new Set(x.choices).size).toBe(x.choices.length));
 });
