@@ -32,6 +32,7 @@ const quizHead = (quiz) => ({
   title: quiz.title,
   subjectName: quiz.subjectName,
   scope: quiz.scope,
+  direction: quiz.direction || "rtl",
   questionCount: quiz.questions.length,
   fullMark: fullMark(quiz),
   closesAt: quiz.closesAt || null,

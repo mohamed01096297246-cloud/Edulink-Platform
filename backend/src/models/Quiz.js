@@ -76,6 +76,9 @@ const quizSchema = new mongoose.Schema(
     subject: { type: mongoose.Schema.Types.ObjectId, ref: "Subject" },
     // «الوحدة الأولى: انتمائي قوتي», or whatever part of the course it covers.
     scope: { type: String, trim: true, default: "" },
+    // Which way its texts, questions and choices read: "rtl" for Arabic,
+    // "ltr" for English, French, German… The app's own words stay Arabic.
+    direction: { type: String, enum: ["rtl", "ltr"], default: "rtl" },
     classrooms: [{ type: mongoose.Schema.Types.ObjectId, ref: "Classroom" }],
     passages: { type: [passageSchema], default: [] },
     questions: {

@@ -1,0 +1,560 @@
+{
+  "title": "اختبار تدريبي على اختبار شهر نوفمبر - لغة إنجليزية - الصف الثاني الإعدادي",
+  "subjectName": "English",
+  "direction": "ltr",
+  "scope": "Units 3 & 4: Facing Challenges, Art and Expression. Vocabulary, Grammar, Reading, Dialog, Complete, Rewrite and Writing.",
+  "source": "Content of the test from the subject supervisor (2026-11-17): Units 3 and 4 only; the written part (paragraph, dialog, complete, rewrite) is general. Words, grammar and examples from the Prep 2 Student's Book 2026/2027, Term 1: Unit 3 pp. 41-54, Unit 4 pp. 58-71.",
+  "passages": [
+    {
+      "key": "reading",
+      "kind": "reading",
+      "title": "Reading: Nour's Sculptures",
+      "text": "Nour is a fourteen-year-old girl from Fayoum. She loved art, but she had a big challenge: her family could not buy expensive paints and tools. At first, she felt discouraged. Then her art teacher said, \"Use your imagination. Art can be made from anything!\"\nOne day, while Nour was walking home from school, she saw a lot of old cans and plastic bottles in the street. She collected them and started to make small sculptures of birds and fish. Many of her first sculptures broke, but she didn't give up.\nLast spring, her school held an art fair. Nour displayed ten colorful sculptures made from old materials. Everyone was surprised because her artwork was original and had a message: \"Keep our village clean.\" Nour won first prize, and a gallery in Cairo invited her to show her work.\nNour says, \"Every obstacle taught me something new. Determination is the key to success.\""
+    },
+    {
+      "key": "dialog",
+      "kind": "reading",
+      "title": "Dialog: Samy and Hany",
+      "text": "Samy: Hi Hany! You look upset. Is everything OK?\nHany: ......(1)...... I have to give a speech in front of the whole school tomorrow.\nSamy: Really? Are you nervous?\nHany: Yes. ......(2)...... speaking in front of many people.\nSamy: ......(3)...... practise your speech in front of your family tonight.\nHany: That's a good idea. Thanks!\nSamy: What will you do if you forget a word?\nHany: I'll stay calm ......(4)...... I want to finish my speech.\nSamy: That's great. It takes courage to do that."
+    },
+    {
+      "key": "complete",
+      "kind": "reading",
+      "title": "Complete: An Email to Eyad",
+      "text": "Hi Eyad,\nHow are you? I'm writing to tell you about my visit to the Mahmoud Mokhtar Museum last week. Mokhtar was a famous Egyptian ......(1)...... . His statue Nahdat Misr is a ......(2)...... of Egypt's history and agriculture. I loved his work ......(3)...... it mixes old Egyptian art with new European styles. The museum was very crowded, ......(4)...... I enjoyed every minute. I think every great artist ......(5)...... recognition for his hard work.\nWrite back soon,\nAyman"
+    }
+  ],
+  "questions": [
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "Soha failed a quiz, so she felt ...... . She thought, \"This is too hard.\"",
+      "choices": [
+        "original",
+        "colorful",
+        "discouraged",
+        "valuable"
+      ],
+      "answer": 2,
+      "explanation": "discouraged = feeling that you can't do something, so you want to give up."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "Something that blocks your path is an ...... .",
+      "choices": [
+        "obstacle",
+        "achievement",
+        "imagination",
+        "artwork"
+      ],
+      "answer": 0,
+      "explanation": "obstacle = something that blocks your path."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "I was late for school because we got stuck in a ...... .",
+      "choices": [
+        "compass",
+        "symbol",
+        "sculpture",
+        "traffic jam"
+      ],
+      "answer": 3,
+      "explanation": "traffic jam = long lines of cars that cannot move or are moving very slowly."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "A train that runs on a single rail, usually above the ground, is a ...... .",
+      "choices": [
+        "tunnel",
+        "monorail",
+        "flyover",
+        "taxi"
+      ],
+      "answer": 1,
+      "explanation": "monorail = a train that runs on a single rail. A flyover is a road over another road; a tunnel is under the ground."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "It takes ...... to say in front of the whole class, \"I'm not sure of the answer.\"",
+      "choices": [
+        "laziness",
+        "courage",
+        "boredom",
+        "fear"
+      ],
+      "answer": 1,
+      "explanation": "courage = being brave when facing difficulties."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "Mahmoud Mokhtar was a famous Egyptian ...... . He made the statue of Nahdat Misr.",
+      "choices": [
+        "pilot",
+        "singer",
+        "geographer",
+        "sculptor"
+      ],
+      "answer": 3,
+      "explanation": "sculptor = an artist who makes sculptures from stone, clay, metal …"
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "Clay is a ...... used for making pottery and sculptures.",
+      "choices": [
+        "material",
+        "gallery",
+        "message",
+        "symbol"
+      ],
+      "answer": 0,
+      "explanation": "material = what something is made from, like clay, stone, metal or fabric."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "This painting is ......; it is the first copy of its kind.",
+      "choices": [
+        "stressed",
+        "discouraged",
+        "original",
+        "national"
+      ],
+      "answer": 2,
+      "explanation": "original = the first copy of its kind; new and different."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "Artists use their ...... to create new and beautiful works of art.",
+      "choices": [
+        "obstacle",
+        "monorail",
+        "injury",
+        "imagination"
+      ],
+      "answer": 3,
+      "explanation": "imagination = the ability to make pictures and new ideas in your mind."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "While I ...... to school, I saw my friend.",
+      "choices": [
+        "were walking",
+        "was walking",
+        "walked",
+        "walk"
+      ],
+      "answer": 1,
+      "explanation": "While + past continuous for the long action (was walking); the short action is past simple (saw)."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "We were eating dinner when the phone ...... .",
+      "choices": [
+        "was ringing",
+        "rings",
+        "rang",
+        "ring"
+      ],
+      "answer": 2,
+      "explanation": "when + past simple for the short action that stopped the long one: when the phone rang."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "Basma ...... TV at 6 o'clock yesterday.",
+      "choices": [
+        "was watching",
+        "were watching",
+        "watches",
+        "is watching"
+      ],
+      "answer": 0,
+      "explanation": "An action in progress at a specific time in the past → past continuous: was watching."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "I broke my arm while I ...... my bike.",
+      "choices": [
+        "rode",
+        "were riding",
+        "was riding",
+        "ride"
+      ],
+      "answer": 2,
+      "explanation": "while + past continuous: while I was riding. With I / he / she / it we use \"was\"."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "I worked hard, ...... I improved my skills.",
+      "choices": [
+        "so",
+        "although",
+        "but",
+        "because"
+      ],
+      "answer": 0,
+      "explanation": "so shows the result: I worked hard, so I improved."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "I didn't give up ...... I believed in myself.",
+      "choices": [
+        "so",
+        "although",
+        "but",
+        "because"
+      ],
+      "answer": 3,
+      "explanation": "because shows the cause (the reason): because I believed in myself."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "...... he was afraid of speaking, he still gave the presentation.",
+      "choices": [
+        "Because",
+        "Although",
+        "So",
+        "But"
+      ],
+      "answer": 1,
+      "explanation": "Although shows contrast at the start of a sentence: Although he was afraid, he still gave it."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "Omar didn't study, ...... he failed the test.",
+      "choices": [
+        "but",
+        "so",
+        "because",
+        "although"
+      ],
+      "answer": 1,
+      "explanation": "so shows the result: he didn't study, so he failed."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "The gallery was full of ...... artwork, so everyone loved it.",
+      "choices": [
+        "boring",
+        "quiet",
+        "heavy",
+        "creative"
+      ],
+      "answer": 3,
+      "explanation": "creative = new and full of ideas. Everyone loved it, so it can't be boring."
+    },
+    {
+      "type": "mcq",
+      "section": "Reading",
+      "passage": "reading",
+      "text": "What was Nour's challenge at first?",
+      "choices": [
+        "Her family could not buy expensive paints and tools.",
+        "She lived far from school.",
+        "She didn't like art.",
+        "Her teacher didn't help her."
+      ],
+      "answer": 0,
+      "explanation": "The text says: \"she had a big challenge: her family could not buy expensive paints and tools.\""
+    },
+    {
+      "type": "mcq",
+      "section": "Reading",
+      "passage": "reading",
+      "text": "What was Nour doing when she saw the old cans and bottles?",
+      "choices": [
+        "She was painting at home.",
+        "She was visiting a gallery.",
+        "She was walking home from school.",
+        "She was playing football."
+      ],
+      "answer": 2,
+      "explanation": "The text says: \"while Nour was walking home from school, she saw a lot of old cans and plastic bottles\"."
+    },
+    {
+      "type": "tf",
+      "section": "Reading",
+      "passage": "reading",
+      "text": "All of Nour's first sculptures were successful.",
+      "choices": [
+        "True",
+        "False"
+      ],
+      "answer": 1,
+      "explanation": "False. The text says: \"Many of her first sculptures broke, but she didn't give up.\""
+    },
+    {
+      "type": "tf",
+      "section": "Reading",
+      "passage": "reading",
+      "text": "Nour's artwork had a message about keeping the village clean.",
+      "choices": [
+        "True",
+        "False"
+      ],
+      "answer": 0,
+      "explanation": "True. The text says her artwork \"had a message: Keep our village clean.\""
+    },
+    {
+      "type": "mcq",
+      "section": "Reading",
+      "passage": "reading",
+      "text": "The word \"original\" in the text means ...... .",
+      "choices": [
+        "very expensive",
+        "very old",
+        "broken",
+        "new and different from others"
+      ],
+      "answer": 3,
+      "explanation": "original = the first of its kind, new and different. Her sculptures were made from old cans and bottles, which nobody expected."
+    },
+    {
+      "type": "mcq",
+      "section": "Reading",
+      "passage": "reading",
+      "text": "What lesson does the story teach us?",
+      "choices": [
+        "Young artists can't win prizes.",
+        "Determination helps us overcome obstacles.",
+        "Art is only for rich people.",
+        "We should throw cans in the street."
+      ],
+      "answer": 1,
+      "explanation": "Nour says: \"Every obstacle taught me something new. Determination is the key to success.\""
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Choose the correct answer for blank (1) in the dialog.",
+      "choices": [
+        "You're welcome.",
+        "Yes, I'm great.",
+        "To be honest, no.",
+        "Congratulations!"
+      ],
+      "answer": 2,
+      "explanation": "Hany is upset, so \"To be honest, no.\" fits: we use \"To be honest\" to say how we really feel."
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Choose the correct answer for blank (2) in the dialog.",
+      "choices": [
+        "I have trouble with",
+        "I suggest",
+        "I'm good at",
+        "Maybe we should"
+      ],
+      "answer": 0,
+      "explanation": "Expressing a problem: \"I have trouble with …\" / \"It's difficult to …\"."
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Choose the correct answer for blank (3) in the dialog.",
+      "choices": [
+        "I have trouble with",
+        "It's difficult to",
+        "It might be a good idea to",
+        "I didn't expect"
+      ],
+      "answer": 2,
+      "explanation": "Making a suggestion: \"It might be a good idea to …\" / \"I suggest …\" / \"Maybe you should …\"."
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Choose the correct answer for blank (4) in the dialog.",
+      "choices": [
+        "because",
+        "although",
+        "so",
+        "but"
+      ],
+      "answer": 0,
+      "explanation": "because gives the reason: I'll stay calm because I want to finish my speech."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete",
+      "passage": "complete",
+      "text": "Choose the correct answer for blank (1) in the text.",
+      "choices": [
+        "pilot",
+        "singer",
+        "doctor",
+        "sculptor"
+      ],
+      "answer": 3,
+      "explanation": "Mokhtar made statues, so he was a sculptor."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete",
+      "passage": "complete",
+      "text": "Choose the correct answer for blank (2) in the text.",
+      "choices": [
+        "tunnel",
+        "symbol",
+        "compass",
+        "monorail"
+      ],
+      "answer": 1,
+      "explanation": "symbol = something that stands for an idea. Nahdat Misr stands for Egypt's history and agriculture."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete",
+      "passage": "complete",
+      "text": "Choose the correct answer for blank (3) in the text.",
+      "choices": [
+        "but",
+        "because",
+        "so",
+        "although"
+      ],
+      "answer": 1,
+      "explanation": "because gives the reason he loved the work."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete",
+      "passage": "complete",
+      "text": "Choose the correct answer for blank (4) in the text.",
+      "choices": [
+        "because",
+        "when",
+        "so",
+        "but"
+      ],
+      "answer": 3,
+      "explanation": "but shows contrast: it was crowded, but I enjoyed it."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete",
+      "passage": "complete",
+      "text": "Choose the correct answer for blank (5) in the text.",
+      "choices": [
+        "deserves",
+        "ignores",
+        "discourages",
+        "hides"
+      ],
+      "answer": 0,
+      "explanation": "deserve = should get something because of what you did: every great artist deserves recognition."
+    },
+    {
+      "type": "mcq",
+      "section": "Rewrite",
+      "text": "Join with \"because\": Rodayna stayed home. She was unwell.",
+      "choices": [
+        "Because Rodayna stayed home, she was unwell.",
+        "Rodayna stayed home so she was unwell.",
+        "Rodayna stayed home because she was unwell.",
+        "Rodayna was unwell because she stayed home."
+      ],
+      "answer": 2,
+      "explanation": "because comes before the reason: she stayed home because she was unwell."
+    },
+    {
+      "type": "mcq",
+      "section": "Rewrite",
+      "text": "Join with \"Although\": Basem felt sick. He went to school.",
+      "choices": [
+        "Although Basem felt sick, but he went to school.",
+        "Basem felt sick, although went to school.",
+        "Although Basem went to school, he felt sick.",
+        "Although Basem felt sick, he went to school."
+      ],
+      "answer": 3,
+      "explanation": "Although + one idea, then the other idea. We don't use \"but\" with \"although\" in the same sentence."
+    },
+    {
+      "type": "mcq",
+      "section": "Rewrite",
+      "text": "Join with \"While\": I was doing my homework. My brother arrived.",
+      "choices": [
+        "While I doing my homework, my brother arrived.",
+        "While I was doing my homework, my brother arrived.",
+        "While I was do my homework, my brother arrived.",
+        "While I did my homework, my brother was arrive."
+      ],
+      "answer": 1,
+      "explanation": "While + past continuous (was doing) for the long action; past simple (arrived) for the short one."
+    },
+    {
+      "type": "mcq",
+      "section": "Rewrite",
+      "text": "Rewrite with \"when\": I was reading a book. My friend called me.",
+      "choices": [
+        "I was read a book when my friend called me.",
+        "I was reading a book when my friend was call me.",
+        "I was reading a book when my friend called me.",
+        "I reading a book when my friend called me."
+      ],
+      "answer": 2,
+      "explanation": "Past continuous (was reading) + when + past simple (called)."
+    },
+    {
+      "type": "mcq",
+      "section": "Writing",
+      "text": "In a paragraph, the first sentence that tells the reader what the paragraph is about is the ...... .",
+      "choices": [
+        "topic sentence",
+        "supporting sentence",
+        "email subject",
+        "concluding sentence"
+      ],
+      "answer": 0,
+      "explanation": "A paragraph starts with a topic sentence, then 2-4 supporting sentences, and ends with a concluding sentence."
+    },
+    {
+      "type": "mcq",
+      "section": "Writing",
+      "text": "Which is a good concluding sentence for a paragraph about facing challenges?",
+      "choices": [
+        "My name is Soha and I am in Prep 2.",
+        "For example, I had trouble with grammar.",
+        "In the end, facing challenges makes us stronger and better prepared for the future.",
+        "Then I watched some videos."
+      ],
+      "answer": 2,
+      "explanation": "A concluding sentence sums up the idea or gives the writer's opinion. \"For example\" and \"Then\" start supporting sentences."
+    },
+    {
+      "type": "mcq",
+      "section": "Writing",
+      "text": "Which is a good way to end an email to a friend?",
+      "choices": [
+        "Write back soon!",
+        "Dear Sir,",
+        "Subject: Art",
+        "Hi Eyad,"
+      ],
+      "answer": 0,
+      "explanation": "We end an email to a friend with a closing phrase like \"Write back soon!\" or \"Talk to you later!\"."
+    }
+  ]
+}

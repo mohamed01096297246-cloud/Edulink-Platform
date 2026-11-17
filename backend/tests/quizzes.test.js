@@ -127,6 +127,7 @@ test("a question on a passage comes with its text, and points weigh the score", 
     { key: "r1", kind: "reading", title: "نص القراءة", text: "النص الذي يقرؤه الطالب.", image: null, audio: null },
   ]);
   expect(open.fullMark).toBe(3);
+  expect(open.direction).toBe("rtl");
   expect(open.questions.map((x) => [x.passage, x.points])).toEqual([["r1", 2], [null, 1]]);
 
   const sent = await st.post(`/api/student/quizzes/${q._id}/submit`, { answers: { [open.questions[0].id]: 0 } });
@@ -141,6 +142,17 @@ test("a question on a passage comes with its text, and points weigh the score", 
     questions: [{ type: "tf", passage: "missing", text: "؟", choices: ["صح", "غلط"], answer: 0 }],
   });
   await expect(bad.validate()).rejects.toThrow();
+});
+
+test("an English quiz reads left to right, in the questions and in the result", async () => {
+  const { account, q } = await setUp({ quiz: { direction: "ltr" } });
+  const st = await f.signIn(account);
+  expect((await st.get("/api/student/quizzes")).body.data.quizzes[0].direction).toBe("ltr");
+  const open = (await st.get(`/api/student/quizzes/${q._id}`)).body.data.quiz;
+  expect(open.direction).toBe("ltr");
+  const sent = await st.post(`/api/student/quizzes/${q._id}/submit`, { answers: {} });
+  expect(sent.body.data.review.quiz.direction).toBe("ltr");
+  await expect(new Quiz({ ...q.toObject(), _id: undefined, direction: "up" }).validate()).rejects.toThrow();
 });
 
 test("only students take quizzes, and the switch turns them off for one student", async () => {
@@ -166,6 +178,7 @@ test.each(QUIZ_FILES)("the quiz file %s is a valid quiz: every answer one of its
     school: s._id,
     title: spec.title,
     subjectName: spec.subjectName,
+    direction: spec.direction,
     passages: spec.passages,
     questions: spec.questions,
   });
@@ -173,11 +186,13 @@ test.each(QUIZ_FILES)("the quiz file %s is a valid quiz: every answer one of its
   expect(spec.questions.length).toBeGreaterThanOrEqual(25);
   // Listening, reading and poetry questions are asked on the text shown.
   spec.questions
-    .filter((x) => /الاستماع|القراءة|الشعري/.test(x.section))
+    .filter((x) => /الاستماع|القراءة|الشعري|Reading|Listening|Dialog|Complete/i.test(x.section))
     .forEach((x) => expect(x.passage).toBeTruthy());
+  // صح / غلط in an Arabic quiz, True / False in one that reads left to right.
+  const trueFalse = spec.direction === "ltr" ? ["True", "False"] : ["صح", "غلط"];
   spec.questions.forEach((x) => {
     expect(x.explanation.length).toBeGreaterThan(5);
-    if (x.type === "tf") expect(x.choices).toEqual(["صح", "غلط"]);
+    if (x.type === "tf") expect(x.choices).toEqual(trueFalse);
   });
   // The right answer isn't always in the same place, nor mostly in one.
   const mcq = spec.questions.filter((x) => x.type === "mcq");

@@ -1,0 +1,560 @@
+{
+  "title": "اختبار تدريبي على اختبار شهر نوفمبر - لغة إنجليزية - الصف الأول الإعدادي",
+  "subjectName": "English",
+  "direction": "ltr",
+  "scope": "Units 3 & 4: Role Models, Smart Choices. Vocabulary, Grammar, Reading, Dialog, Complete, Rewrite and Writing.",
+  "source": "Content of the test from the subject supervisor (2026-11-17): Units 3 and 4 only; the written part (paragraph, dialog, complete, rewrite) is general. Words, grammar and examples from the Prep 1 Student's Book 2026/2027, Term 1: Unit 3 pp. 41-54, Unit 4 pp. 59-72.",
+  "passages": [
+    {
+      "key": "reading",
+      "kind": "reading",
+      "title": "Reading: Dr. Magdi Yacoub",
+      "text": "Dr. Magdi Yacoub is one of the most famous heart surgeons in the world. He was born in Sharqia, Egypt, in 1935. When he was young, he lost his aunt to a heart disease, so he decided to become a heart doctor and help sick people. He studied medicine at Cairo University. Later, he travelled to Britain, where he worked hard for many years and became a great surgeon.\nAlthough he was famous in Britain, he never forgot his country. In 2009, he opened a heart centre in Aswan. The centre treats children from all over Egypt for free.\nMany young doctors see Dr. Yacoub as their role model. He is kind, brave and determined, and he never gives up. He teaches us that if we work hard and care about others, we will make a difference in our community."
+    },
+    {
+      "key": "dialog",
+      "kind": "reading",
+      "title": "Dialog: Mona and Hana",
+      "text": "Mona: Hi Hana! You look worried. ......(1)......?\nHana: I have a big Maths test tomorrow, and I don't know how to study for it.\nMona: ......(2)...... make a study plan and start with the hardest lessons.\nHana: That's a good idea. What about tonight?\nMona: Don't stay up late. ......(3)......, you will feel tired in the test.\nHana: You're right. ......(4)...... for your advice!\nMona: You're welcome. Good luck!"
+    },
+    {
+      "key": "complete",
+      "kind": "reading",
+      "title": "Complete: A Smart Choice",
+      "text": "Last month, I had to make a big ......(1)...... . My friends wanted to play football, but I had a test the next day. I thought about the ......(2)...... of each choice. I said to myself, \"If I play now, I ......(3)...... time to study.\" So I stayed at home and studied. I wasn't ......(4)......; I was responsible. I passed the test, and I felt very ......(5)...... of myself."
+    }
+  ],
+  "questions": [
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "A ...... is a person who does great things for others.",
+      "choices": [
+        "tourist",
+        "guest",
+        "hero",
+        "patient"
+      ],
+      "answer": 2,
+      "explanation": "hero = a person who does great things for others."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "Dr. Samira Moussa never gave up. She was very ...... to study physics.",
+      "choices": [
+        "determined",
+        "lazy",
+        "careless",
+        "afraid"
+      ],
+      "answer": 0,
+      "explanation": "determined = not giving up easily."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "Winning the gold medal was a big ...... for our team.",
+      "choices": [
+        "problem",
+        "injury",
+        "risk",
+        "achievement"
+      ],
+      "answer": 3,
+      "explanation": "achievement = success in reaching a goal."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "Many young doctors say that Dr. Ghoniem ...... them to become better doctors.",
+      "choices": [
+        "injures",
+        "inspires",
+        "ignores",
+        "refuses"
+      ],
+      "answer": 1,
+      "explanation": "inspire = to motivate or encourage someone."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "Before you make a ......, think about the positive and negative sides of each choice.",
+      "choices": [
+        "tunnel",
+        "decision",
+        "medal",
+        "noise"
+      ],
+      "answer": 1,
+      "explanation": "decision = a choice you make."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "Omar always finishes his homework on time. He is very ...... .",
+      "choices": [
+        "negative",
+        "careless",
+        "foolish",
+        "responsible"
+      ],
+      "answer": 3,
+      "explanation": "responsible = acting with care and thinking of others. Its opposite is careless."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "What is a synonym of \"consequence\"?",
+      "choices": [
+        "result",
+        "rule",
+        "source",
+        "cause"
+      ],
+      "answer": 0,
+      "explanation": "consequence = result: the effect of an action."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "Mr. Nader is a wise man. What is the opposite of \"wise\"?",
+      "choices": [
+        "clever",
+        "sensible",
+        "foolish",
+        "careful"
+      ],
+      "answer": 2,
+      "explanation": "wise ≠ foolish. \"clever\" and \"sensible\" are close in meaning to \"wise\"."
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulary",
+      "text": "The opposite of \"responsible\" is ...... .",
+      "choices": [
+        "inresponsible",
+        "unresponsible",
+        "disresponsible",
+        "irresponsible"
+      ],
+      "answer": 3,
+      "explanation": "We add the prefix ir-: responsible → irresponsible (like regular → irregular)."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "Dr. Samira Moussa ...... in Egypt in 1917.",
+      "choices": [
+        "were born",
+        "was born",
+        "is born",
+        "born"
+      ],
+      "answer": 1,
+      "explanation": "\"in 1917\" is in the past. With he / she / it we use \"was\": She was born in 1917."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "We ...... to Luxor three years ago.",
+      "choices": [
+        "moving",
+        "move",
+        "moved",
+        "will move"
+      ],
+      "answer": 2,
+      "explanation": "\"three years ago\" → past simple. Regular verbs add -ed: move → moved."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "Nada ...... to school yesterday because she was ill.",
+      "choices": [
+        "didn't go",
+        "didn't went",
+        "don't go",
+        "doesn't go"
+      ],
+      "answer": 0,
+      "explanation": "Negative past simple: didn't + infinitive. We say \"didn't go\", not \"didn't went\"."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "Where ...... you go last summer?",
+      "choices": [
+        "does",
+        "were",
+        "did",
+        "do"
+      ],
+      "answer": 2,
+      "explanation": "Past simple question: Where + did + subject + infinitive? \"last summer\" is in the past."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "The soldiers ...... bravely to protect their country in 1973.",
+      "choices": [
+        "fought",
+        "fights",
+        "fight",
+        "fighted"
+      ],
+      "answer": 0,
+      "explanation": "\"fight\" is an irregular verb: fight → fought."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "If you study hard, you ...... the test.",
+      "choices": [
+        "pass",
+        "passing",
+        "passed",
+        "will pass"
+      ],
+      "answer": 3,
+      "explanation": "First conditional: If + present simple, will + infinitive."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "If she ...... too much candy, she will feel sick.",
+      "choices": [
+        "eating",
+        "eats",
+        "ate",
+        "will eat"
+      ],
+      "answer": 1,
+      "explanation": "After \"If\" in the first conditional we use the present simple: If she eats …"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "If he ...... come, we'll leave without him.",
+      "choices": [
+        "didn't",
+        "doesn't",
+        "won't",
+        "isn't"
+      ],
+      "answer": 1,
+      "explanation": "Negative after \"If\": doesn't + infinitive: If he doesn't come, we'll leave."
+    },
+    {
+      "type": "mcq",
+      "section": "Grammar",
+      "text": "You should ...... your parents for advice.",
+      "choices": [
+        "asking",
+        "asks",
+        "asked",
+        "ask"
+      ],
+      "answer": 3,
+      "explanation": "should / shouldn't + infinitive without \"to\": You should ask."
+    },
+    {
+      "type": "mcq",
+      "section": "Reading",
+      "passage": "reading",
+      "text": "Where was Dr. Magdi Yacoub born?",
+      "choices": [
+        "In Sharqia",
+        "In Britain",
+        "In Aswan",
+        "In Cairo"
+      ],
+      "answer": 0,
+      "explanation": "The text says: \"He was born in Sharqia, Egypt, in 1935.\""
+    },
+    {
+      "type": "mcq",
+      "section": "Reading",
+      "passage": "reading",
+      "text": "Why did he decide to become a heart doctor?",
+      "choices": [
+        "He wanted to be rich.",
+        "He wanted to travel to Britain.",
+        "He lost his aunt to a heart disease.",
+        "He won a medal."
+      ],
+      "answer": 2,
+      "explanation": "The text says: \"he lost his aunt to a heart disease, so he decided to become a heart doctor\"."
+    },
+    {
+      "type": "tf",
+      "section": "Reading",
+      "passage": "reading",
+      "text": "Dr. Yacoub studied medicine at Cairo University.",
+      "choices": [
+        "True",
+        "False"
+      ],
+      "answer": 0,
+      "explanation": "True. The text says: \"He studied medicine at Cairo University.\""
+    },
+    {
+      "type": "tf",
+      "section": "Reading",
+      "passage": "reading",
+      "text": "Dr. Yacoub forgot his country when he became famous.",
+      "choices": [
+        "True",
+        "False"
+      ],
+      "answer": 1,
+      "explanation": "False. The text says: \"Although he was famous in Britain, he never forgot his country.\""
+    },
+    {
+      "type": "mcq",
+      "section": "Reading",
+      "passage": "reading",
+      "text": "The heart centre in Aswan ...... .",
+      "choices": [
+        "opened in 1935",
+        "is only for doctors",
+        "is in Britain",
+        "treats children for free"
+      ],
+      "answer": 3,
+      "explanation": "The text says: \"The centre treats children from all over Egypt for free.\" It opened in 2009."
+    },
+    {
+      "type": "mcq",
+      "section": "Reading",
+      "passage": "reading",
+      "text": "What is the main idea of the text?",
+      "choices": [
+        "How to build a hospital.",
+        "A great heart doctor who is a role model for many people.",
+        "How to travel to Britain.",
+        "The history of Aswan."
+      ],
+      "answer": 1,
+      "explanation": "The whole text is about Dr. Yacoub's life, his work and why young doctors see him as a role model."
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Choose the correct answer for blank (1) in the dialog.",
+      "choices": [
+        "Where do you live",
+        "How old are you",
+        "What's the matter",
+        "What's your name"
+      ],
+      "answer": 2,
+      "explanation": "Mona sees that Hana looks worried, so she asks \"What's the matter?\", and Hana tells her the problem."
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Choose the correct answer for blank (2) in the dialog.",
+      "choices": [
+        "You should",
+        "Did you",
+        "You shouldn't",
+        "You didn't"
+      ],
+      "answer": 0,
+      "explanation": "Mona is giving advice: You should + infinitive (make a study plan)."
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Choose the correct answer for blank (3) in the dialog.",
+      "choices": [
+        "If you slept late",
+        "If you will sleep late",
+        "If you sleep late",
+        "If you sleep early"
+      ],
+      "answer": 2,
+      "explanation": "First conditional: If + present simple, will + infinitive: If you sleep late, you will feel tired."
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Choose the correct answer for blank (4) in the dialog.",
+      "choices": [
+        "Thanks a lot",
+        "Excuse me",
+        "Congratulations",
+        "Sorry"
+      ],
+      "answer": 0,
+      "explanation": "Hana thanks Mona for her advice, and Mona answers \"You're welcome.\""
+    },
+    {
+      "type": "mcq",
+      "section": "Complete",
+      "passage": "complete",
+      "text": "Choose the correct answer for blank (1) in the text.",
+      "choices": [
+        "tunnel",
+        "medal",
+        "hobby",
+        "decision"
+      ],
+      "answer": 3,
+      "explanation": "make a decision = choose between two things (football or studying)."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete",
+      "passage": "complete",
+      "text": "Choose the correct answer for blank (2) in the text.",
+      "choices": [
+        "awards",
+        "consequences",
+        "sculptures",
+        "holidays"
+      ],
+      "answer": 1,
+      "explanation": "The writer thought about the result (consequence) of each choice."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete",
+      "passage": "complete",
+      "text": "Choose the correct answer for blank (3) in the text.",
+      "choices": [
+        "don't have",
+        "won't have",
+        "haven't",
+        "didn't have"
+      ],
+      "answer": 1,
+      "explanation": "First conditional: If I play now, I won't have (will not have) time to study."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete",
+      "passage": "complete",
+      "text": "Choose the correct answer for blank (4) in the text.",
+      "choices": [
+        "brave",
+        "honest",
+        "kind",
+        "careless"
+      ],
+      "answer": 3,
+      "explanation": "careless is the opposite of responsible: I wasn't careless; I was responsible."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete",
+      "passage": "complete",
+      "text": "Choose the correct answer for blank (5) in the text.",
+      "choices": [
+        "proud",
+        "ignored",
+        "afraid",
+        "negative"
+      ],
+      "answer": 0,
+      "explanation": "proud = pleased with something you did well: I felt proud of myself."
+    },
+    {
+      "type": "mcq",
+      "section": "Rewrite",
+      "text": "Rewrite in the past simple: \"I help my brother with his homework.\"",
+      "choices": [
+        "I was help my brother with his homework.",
+        "I helps my brother with his homework.",
+        "I helped my brother with his homework.",
+        "I helping my brother with his homework."
+      ],
+      "answer": 2,
+      "explanation": "Past simple of a regular verb: help → helped."
+    },
+    {
+      "type": "mcq",
+      "section": "Rewrite",
+      "text": "Rewrite in the past simple: \"Where does Aziz go on vacation?\"",
+      "choices": [
+        "Where Aziz went on vacation?",
+        "Where does Aziz went on vacation?",
+        "Where did Aziz went on vacation?",
+        "Where did Aziz go on vacation?"
+      ],
+      "answer": 3,
+      "explanation": "Past simple question: did + subject + infinitive (go, not went)."
+    },
+    {
+      "type": "mcq",
+      "section": "Rewrite",
+      "text": "Rewrite using \"shouldn't\": \"Don't waste time on computer games.\"",
+      "choices": [
+        "You should waste time on computer games.",
+        "You shouldn't waste time on computer games.",
+        "You don't should waste time on computer games.",
+        "You shouldn't wasting time on computer games."
+      ],
+      "answer": 1,
+      "explanation": "shouldn't + infinitive gives advice not to do something."
+    },
+    {
+      "type": "mcq",
+      "section": "Rewrite",
+      "text": "Rewrite using \"If\": \"Study hard and you will pass the test.\"",
+      "choices": [
+        "If you study hard, you passed the test.",
+        "If you studied hard, you will pass the test.",
+        "If you study hard, you will pass the test.",
+        "If you will study hard, you pass the test."
+      ],
+      "answer": 2,
+      "explanation": "First conditional: If + present simple, will + infinitive."
+    },
+    {
+      "type": "mcq",
+      "section": "Writing",
+      "text": "Choose the correctly punctuated sentence.",
+      "choices": [
+        "Nada, would you help me with my project?",
+        "Nada would you, help me with my project!",
+        "nada would you help me with my project.",
+        "Nada, would you help me with my project."
+      ],
+      "answer": 0,
+      "explanation": "A capital letter for a name, a comma when we speak to a person, and a question mark at the end of a question."
+    },
+    {
+      "type": "mcq",
+      "section": "Writing",
+      "text": "Which sentence needs an exclamation point (!) at the end?",
+      "choices": [
+        "Where is my pencil",
+        "My brother has two cats",
+        "Wow, that's a big dog",
+        "Do you like football"
+      ],
+      "answer": 2,
+      "explanation": "We use ! to show strong feeling, like surprise: Wow, that's a big dog!"
+    },
+    {
+      "type": "mcq",
+      "section": "Writing",
+      "text": "When you write a biography of your role model, you describe what he / she did using the ...... .",
+      "choices": [
+        "past simple",
+        "future",
+        "present continuous",
+        "first conditional"
+      ],
+      "answer": 0,
+      "explanation": "A biography tells what the person did in the past: helped, worked, became, inspired."
+    }
+  ]
+}

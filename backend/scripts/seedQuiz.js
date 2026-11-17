@@ -49,6 +49,7 @@ require("../src/models/Grade");
     subjectName: spec.subjectName,
     subject: subject?._id,
     scope: spec.scope || "",
+    direction: spec.direction || "rtl",
     classrooms: classes.map((c) => c._id),
     passages: spec.passages || [],
     questions: spec.questions,
