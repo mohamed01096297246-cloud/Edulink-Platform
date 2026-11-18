@@ -186,7 +186,9 @@ test.each(QUIZ_FILES)("the quiz file %s is a valid quiz: every answer one of its
   expect(spec.questions.length).toBeGreaterThanOrEqual(25);
   // Listening, reading and poetry questions are asked on the text shown.
   spec.questions
-    .filter((x) => /الاستماع|القراءة|الشعري|Reading|Listening|Dialog|Complete/i.test(x.section))
+    // ("Complete" alone is the English text with numbered blanks; "Complete
+    // the statements" in science is single sentences.)
+    .filter((x) => /الاستماع|القراءة|الشعري|Reading|Listening|Dialog|^Complete$/i.test(x.section))
     .forEach((x) => expect(x.passage).toBeTruthy());
   // صح / غلط in an Arabic quiz, True / False in one that reads left to right.
   const trueFalse = spec.direction === "ltr" ? ["True", "False"] : ["صح", "غلط"];

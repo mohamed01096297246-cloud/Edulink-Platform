@@ -1,0 +1,522 @@
+{
+  "title": "اختبار تدريبي على اختبار شهر نوفمبر - Science - الصف الثاني الإعدادي لغات",
+  "subjectName": "Science",
+  "direction": "ltr",
+  "scope": "November monthly test practice (29/11): from Methods of Heat Transfer to the Chemical Equation.",
+  "source": "Scope from the science (languages) supervisor, 2026-11-19. All questions from the Performances and Assessments book 2026/2027, Prep 2, Term 1: pp. 23-38.",
+  "passages": [],
+  "questions": [
+    {
+      "type": "mcq",
+      "section": "Scientific term",
+      "text": "The state in which two objects in contact reach the same temperature, so heat stops flowing between them.",
+      "choices": [
+        "Convection",
+        "Specific heat",
+        "Thermal equilibrium",
+        "Thermal conduction"
+      ],
+      "answer": 2,
+      "explanation": "Heat flows from the hotter object to the colder one until their temperatures are equal: thermal equilibrium (p. 24-26)."
+    },
+    {
+      "type": "mcq",
+      "section": "Scientific term",
+      "text": "The energy that transfers from one system to another because of the difference in their temperatures.",
+      "choices": [
+        "Heat",
+        "Temperature",
+        "Internal energy",
+        "Specific heat"
+      ],
+      "answer": 0,
+      "explanation": "Heat is energy in transfer; temperature measures how hot a system is (p. 26)."
+    },
+    {
+      "type": "mcq",
+      "section": "Scientific term",
+      "text": "The transfer of heat through solids from one point to another without the particles moving from their places.",
+      "choices": [
+        "Radiation",
+        "Thermal equilibrium",
+        "Convection",
+        "Thermal conduction"
+      ],
+      "answer": 3,
+      "explanation": "In conduction, vibrating particles pass energy to neighbouring particles without leaving their places (p. 26)."
+    },
+    {
+      "type": "mcq",
+      "section": "Scientific term",
+      "text": "Materials that do not allow heat to pass through them easily, such as wood and plastic.",
+      "choices": [
+        "Thermal conductors",
+        "Thermal insulators",
+        "Catalysts",
+        "Precipitates"
+      ],
+      "answer": 1,
+      "explanation": "Thermal insulators have low thermal conductivity; metals such as silver and copper are good thermal conductors (p. 26)."
+    },
+    {
+      "type": "mcq",
+      "section": "Scientific term",
+      "text": "Substances that increase the speed of a chemical reaction without being consumed or changed.",
+      "choices": [
+        "Products",
+        "Catalysts",
+        "Precipitates",
+        "Reactants"
+      ],
+      "answer": 1,
+      "explanation": "A catalyst is written on the arrow of the equation as (cat) (p. 33)."
+    },
+    {
+      "type": "mcq",
+      "section": "Scientific term",
+      "text": "The total mass of the reactants in a chemical reaction equals the total mass of the products.",
+      "choices": [
+        "Balanced chemical equation",
+        "Chemical change",
+        "Thermal equilibrium",
+        "Law of conservation of mass"
+      ],
+      "answer": 3,
+      "explanation": "Matter is neither created nor destroyed in a reaction; the atoms are only rearranged (p. 33)."
+    },
+    {
+      "type": "mcq",
+      "section": "Scientific term",
+      "text": "A change in which new substances with new properties are formed.",
+      "choices": [
+        "Chemical change",
+        "Thermal equilibrium",
+        "Physical change",
+        "Sublimation"
+      ],
+      "answer": 0,
+      "explanation": "Burning wood is a chemical change; melting ice is a physical change because no new substance forms (p. 29 and 38)."
+    },
+    {
+      "type": "mcq",
+      "section": "Scientific term",
+      "text": "Numbers written below and to the right of the symbols in a chemical formula to show the number of atoms.",
+      "choices": [
+        "Physical states",
+        "Catalysts",
+        "Subscripts",
+        "Coefficients"
+      ],
+      "answer": 2,
+      "explanation": "In H₂O the subscript 2 shows two hydrogen atoms. Coefficients are the numbers written before formulas to balance equations (p. 33)."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete the statements",
+      "text": "Heat transfers in three different ways: ......",
+      "choices": [
+        "convection, condensation and radiation",
+        "conduction, evaporation and melting",
+        "sublimation, conduction and deposition",
+        "conduction, convection and radiation"
+      ],
+      "answer": 3,
+      "explanation": "Heat moves by conduction (mainly in solids), convection (liquids and gases) and radiation (no medium needed) (p. 27)."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete the statements",
+      "text": "Energy transfers from a system with a ...... temperature to a system with a ...... temperature.",
+      "choices": [
+        "higher / higher",
+        "higher / lower",
+        "lower / lower",
+        "lower / higher"
+      ],
+      "answer": 1,
+      "explanation": "Heat always flows from the hotter system to the colder one (p. 27)."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete the statements",
+      "text": "A thermal camera detects the ...... radiation emitted by objects and converts it into coloured images.",
+      "choices": [
+        "visible",
+        "X-ray",
+        "infrared",
+        "ultraviolet"
+      ],
+      "answer": 2,
+      "explanation": "Warm bodies emit infrared radiation, which thermal cameras turn into images (p. 27)."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete the statements",
+      "text": "In a chemical equation, the symbol (aq) means ......",
+      "choices": [
+        "aqueous solution (a substance dissolved in water)",
+        "solid or precipitate",
+        "using a concentrated acid",
+        "gas"
+      ],
+      "answer": 0,
+      "explanation": "(s) solid or precipitate, (l) liquid, (g) gas, (v) vapour, (aq) aqueous solution (p. 33)."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete the statements",
+      "text": "The symbol Δ written on the arrow of a chemical equation means ......",
+      "choices": [
+        "using a concentrated acid",
+        "using a dilute acid",
+        "heating",
+        "using a catalyst"
+      ],
+      "answer": 2,
+      "explanation": "Δ heat, cat catalyst, dil dilute acid, conc concentrated acid (p. 33)."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete the statements",
+      "text": "The chemical formula of copper sulphate is ......",
+      "choices": [
+        "CuSO₄",
+        "Cu₂SO₄",
+        "CuS",
+        "CuSO₃"
+      ],
+      "answer": 0,
+      "explanation": "Copper sulphate is CuSO₄; zinc sulphate is ZnSO₄ (p. 31)."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete the statements",
+      "text": "The balanced equation for the electrolysis of water is ......",
+      "choices": [
+        "H₂O(l) → 2H₂(g) + O₂(g)",
+        "2H₂O(l) → H₂(g) + O₂(g)",
+        "H₂O(l) → H₂(g) + O₂(g)",
+        "2H₂O(l) → 2H₂(g) + O₂(g)"
+      ],
+      "answer": 3,
+      "explanation": "There are 4 H and 2 O atoms on each side only in 2H₂O → 2H₂ + O₂ (p. 32)."
+    },
+    {
+      "type": "mcq",
+      "section": "Complete the statements",
+      "text": "The balanced equation for burning aluminum in oxygen is ......",
+      "choices": [
+        "Al(s) + O₂(g) → Al₂O₃(s)",
+        "4Al(s) + 3O₂(g) → 2Al₂O₃(s)",
+        "2Al(s) + 3O₂(g) → Al₂O₃(s)",
+        "4Al(s) + 2O₂(g) → 2Al₂O₃(s)"
+      ],
+      "answer": 1,
+      "explanation": "4 Al and 6 O atoms on each side: 4Al + 3O₂ → 2Al₂O₃ (p. 34)."
+    },
+    {
+      "type": "mcq",
+      "section": "Give reason",
+      "text": "Firefighters wear shiny silver suits, because ......",
+      "choices": [
+        "silver suits are lighter",
+        "shiny surfaces reflect heat radiation, so they absorb less heat",
+        "shiny surfaces absorb heat radiation",
+        "silver is a good thermal conductor"
+      ],
+      "answer": 1,
+      "explanation": "Dark, dull surfaces absorb radiation; shiny surfaces reflect it (p. 26)."
+    },
+    {
+      "type": "mcq",
+      "section": "Give reason",
+      "text": "Cooking utensils are made of metal, while their handles are made of wood or plastic, because ......",
+      "choices": [
+        "metals are thermal insulators, while wood and plastic are conductors",
+        "wood and plastic are cheaper than metal",
+        "metals do not transfer heat by conduction",
+        "metals are good thermal conductors, while wood and plastic are thermal insulators"
+      ],
+      "answer": 3,
+      "explanation": "The metal pot heats the food quickly, and the insulating handle does not burn the hand (p. 27)."
+    },
+    {
+      "type": "mcq",
+      "section": "Give reason",
+      "text": "Polystyrene panels are used between hollow bricks when building walls, because ......",
+      "choices": [
+        "polystyrene is a thermal insulator that reduces heat transfer",
+        "polystyrene is a good thermal conductor",
+        "polystyrene absorbs sound only",
+        "polystyrene makes walls heavier"
+      ],
+      "answer": 0,
+      "explanation": "It keeps buildings cool in summer and warm in winter (p. 26-27)."
+    },
+    {
+      "type": "mcq",
+      "section": "Give reason",
+      "text": "The electric heater is placed on the floor of the room, because ......",
+      "choices": [
+        "hot air sinks to the floor",
+        "the floor reflects the heat radiation",
+        "hot air rises and cold air sinks, forming convection currents that heat the whole room",
+        "heat moves only by conduction"
+      ],
+      "answer": 2,
+      "explanation": "Heated air expands, becomes less dense and rises; cooler, denser air sinks to replace it (p. 27)."
+    },
+    {
+      "type": "mcq",
+      "section": "Give reason",
+      "text": "The freezer is placed at the top of the refrigerator, because ......",
+      "choices": [
+        "cold air rises to the top",
+        "the top is closer to the motor",
+        "heat moves down by radiation",
+        "cold air is denser and sinks, cooling the parts below by convection"
+      ],
+      "answer": 3,
+      "explanation": "The same convection currents that rise from a heater sink from a freezer (p. 27)."
+    },
+    {
+      "type": "mcq",
+      "section": "Give reason",
+      "text": "The sea breeze occurs during the day, because ......",
+      "choices": [
+        "heat moves from the sea to the land by conduction",
+        "land heats faster than sea water, so the hot air over the land rises and cooler air from the sea replaces it",
+        "the air over the sea is hotter",
+        "sea water heats faster than land"
+      ],
+      "answer": 1,
+      "explanation": "Land has a lower specific heat than water, so its temperature rises faster (p. 26-27)."
+    },
+    {
+      "type": "mcq",
+      "section": "Give reason",
+      "text": "Heat transfers from the Sun to the Earth despite the great empty distance between them, because ......",
+      "choices": [
+        "space is full of air",
+        "conduction can happen in a vacuum",
+        "radiation does not need a medium to travel through",
+        "convection can happen in a vacuum"
+      ],
+      "answer": 2,
+      "explanation": "Conduction and convection need particles of matter; radiation travels as electromagnetic waves through a vacuum (p. 26-27)."
+    },
+    {
+      "type": "mcq",
+      "section": "Give reason",
+      "text": "Snakes are able to hunt their prey at night, because ......",
+      "choices": [
+        "they sense the infrared radiation emitted by the bodies of their prey",
+        "their prey glows in the dark",
+        "they see well in visible light",
+        "they feel the prey by conduction"
+      ],
+      "answer": 0,
+      "explanation": "Warm bodies give off infrared radiation even in the dark (p. 27)."
+    },
+    {
+      "type": "mcq",
+      "section": "Give reason",
+      "text": "When a zinc plate is placed in blue copper sulphate solution, the blue colour disappears, because ......",
+      "choices": [
+        "zinc dissolves without any reaction",
+        "copper replaces zinc",
+        "zinc replaces copper, forming colourless zinc sulphate, and copper is deposited",
+        "the solution evaporates"
+      ],
+      "answer": 2,
+      "explanation": "Zn + CuSO₄ → ZnSO₄ + Cu: a chemical reaction shown by a colour change (p. 31)."
+    },
+    {
+      "type": "mcq",
+      "section": "Give reason",
+      "text": "The melting of a candle is a physical change, while the burning of coal is a chemical change, because ......",
+      "choices": [
+        "melting forms no new substance, while burning forms new substances",
+        "both form new substances",
+        "neither forms new substances",
+        "melting forms new substances, while burning does not"
+      ],
+      "answer": 0,
+      "explanation": "A chemical change produces new substances with new properties (p. 31)."
+    },
+    {
+      "type": "mcq",
+      "section": "What happens",
+      "text": "What happens when silver nitrate solution is added to sodium chloride solution?",
+      "choices": [
+        "A dazzling light is emitted",
+        "Hydrogen gas evolves",
+        "The solution turns blue",
+        "A white precipitate of silver chloride forms"
+      ],
+      "answer": 3,
+      "explanation": "AgNO₃(aq) + NaCl(aq) → AgCl(s) + NaNO₃(aq); silver chloride does not dissolve in water (p. 29)."
+    },
+    {
+      "type": "mcq",
+      "section": "What happens",
+      "text": "What happens when a magnesium strip is placed in a test tube of dilute hydrochloric acid?",
+      "choices": [
+        "The solution turns blue",
+        "Bubbles of hydrogen gas evolve",
+        "A white precipitate forms",
+        "Copper is deposited on the strip"
+      ],
+      "answer": 1,
+      "explanation": "Mg(s) + 2HCl(aq) → MgCl₂(aq) + H₂(g) (p. 29)."
+    },
+    {
+      "type": "mcq",
+      "section": "What happens",
+      "text": "What happens when a magnesium ribbon is lit in air?",
+      "choices": [
+        "It melts without burning",
+        "It burns with a dazzling light and heat, forming a white powder of magnesium oxide",
+        "Hydrogen gas evolves",
+        "A blue solution forms"
+      ],
+      "answer": 1,
+      "explanation": "2Mg(s) + O₂(g) → 2MgO(s). Hold it with tongs and protect your eyes (p. 29 and 38)."
+    },
+    {
+      "type": "mcq",
+      "section": "What happens",
+      "text": "What happens when sodium hydroxide (caustic soda) is heated with cooking oil and stirred continuously?",
+      "choices": [
+        "The mixture turns blue",
+        "A white precipitate of silver chloride forms",
+        "Hydrogen gas evolves",
+        "Soap forms, and the texture of the mixture changes"
+      ],
+      "answer": 3,
+      "explanation": "This chemical reaction is how soap is made (p. 29 and 31)."
+    },
+    {
+      "type": "mcq",
+      "section": "What happens",
+      "text": "Two identical copper cubes at 70°C and 50°C touch each other. What happens?",
+      "choices": [
+        "Heat flows from the 70°C cube to the 50°C cube until both reach about 60°C",
+        "Heat flows from the 50°C cube to the 70°C cube",
+        "Nothing happens",
+        "Both cubes reach 70°C"
+      ],
+      "answer": 0,
+      "explanation": "Heat flows from hot to cold until thermal equilibrium; identical cubes meet halfway (p. 24)."
+    },
+    {
+      "type": "tf",
+      "section": "True or False",
+      "text": "Heat cannot transfer through a vacuum by conduction or convection.",
+      "choices": [
+        "True",
+        "False"
+      ],
+      "answer": 0,
+      "explanation": "True. Both need particles of matter; only radiation travels through a vacuum (p. 26)."
+    },
+    {
+      "type": "tf",
+      "section": "True or False",
+      "text": "The pipes of solar heaters are painted black because black surfaces reflect heat radiation.",
+      "choices": [
+        "True",
+        "False"
+      ],
+      "answer": 1,
+      "explanation": "False. Black surfaces absorb heat radiation best, so the water in the pipes heats up faster (p. 25)."
+    },
+    {
+      "type": "tf",
+      "section": "True or False",
+      "text": "The melting of ice is a chemical change.",
+      "choices": [
+        "True",
+        "False"
+      ],
+      "answer": 1,
+      "explanation": "False. It is a physical change: no new substance forms (p. 38)."
+    },
+    {
+      "type": "tf",
+      "section": "True or False",
+      "text": "A chemical equation is balanced when the number of atoms of each element in the reactants equals their number in the products.",
+      "choices": [
+        "True",
+        "False"
+      ],
+      "answer": 0,
+      "explanation": "True. A balanced equation obeys the law of conservation of mass (p. 33)."
+    },
+    {
+      "type": "mcq",
+      "section": "Compare",
+      "text": "Unlike convection, radiation ......",
+      "choices": [
+        "happens only in solids",
+        "needs the movement of particles",
+        "can transfer heat through a vacuum without a medium",
+        "happens only in liquids and gases"
+      ],
+      "answer": 2,
+      "explanation": "Convection moves heat with moving particles of liquids and gases; radiation is electromagnetic waves (p. 27)."
+    },
+    {
+      "type": "mcq",
+      "section": "Compare",
+      "text": "Which pair gives a thermal conductor and then a thermal insulator?",
+      "choices": [
+        "Polystyrene / silver",
+        "Wood / copper",
+        "Plastic / aluminum",
+        "Silver / polystyrene"
+      ],
+      "answer": 3,
+      "explanation": "Silver and copper conduct heat well; wood, plastic and polystyrene are insulators (p. 27 and 37)."
+    },
+    {
+      "type": "mcq",
+      "section": "How can you infer",
+      "text": "How can you infer that a chemical reaction happens when you fry an egg?",
+      "choices": [
+        "The egg becomes magnetic",
+        "The colour and texture of the egg change, and they do not change back",
+        "The egg's mass decreases by half",
+        "Hydrogen gas evolves"
+      ],
+      "answer": 1,
+      "explanation": "A lasting change in colour and state is a sign of a chemical reaction (p. 31)."
+    },
+    {
+      "type": "mcq",
+      "section": "How can you infer",
+      "text": "How can you infer that a chemical reaction happens when you light fireworks?",
+      "choices": [
+        "Nothing is given off",
+        "The fireworks dissolve in water",
+        "Light, heat and colours are given off",
+        "A blue solution forms"
+      ],
+      "answer": 2,
+      "explanation": "Emission of light and heat is one of the signs of a chemical reaction (p. 29 and 31)."
+    },
+    {
+      "type": "mcq",
+      "section": "How can you infer",
+      "text": "How can you infer that a chemical reaction happens when you add a magnesium strip to dilute hydrochloric acid?",
+      "choices": [
+        "Gas bubbles (hydrogen) evolve",
+        "The strip becomes magnetic",
+        "A white precipitate forms",
+        "The colour turns blue"
+      ],
+      "answer": 0,
+      "explanation": "Evolution of a gas is a sign of a chemical reaction (p. 31)."
+    }
+  ]
+}
