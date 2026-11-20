@@ -62,6 +62,10 @@ require("../src/models/Grade");
   } else {
     const existing = await Quiz.findOne({ school: school._id, title: spec.title });
     if (existing) {
+      // A question whose wording is unchanged keeps its id, so a student who
+      // already took the quiz keeps their answer to it.
+      const idByText = new Map(existing.questions.map((q) => [q.text, q._id]));
+      doc.questions = doc.questions.map((q) => (idByText.has(q.text) ? { ...q, _id: idByText.get(q.text) } : q));
       existing.set(doc);
       await existing.save();
       console.log("updated quiz", String(existing._id), "published:", existing.published);

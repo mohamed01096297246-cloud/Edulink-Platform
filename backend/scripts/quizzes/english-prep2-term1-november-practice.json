@@ -36,7 +36,8 @@
         "valuable"
       ],
       "answer": 2,
-      "explanation": "discouraged = feeling that you can't do something, so you want to give up."
+      "explanation": "discouraged = feeling that you can't do something, so you want to give up.",
+      "lesson": "Unit 3 vocabulary (Facing Challenges)"
     },
     {
       "type": "mcq",
@@ -49,7 +50,8 @@
         "artwork"
       ],
       "answer": 0,
-      "explanation": "obstacle = something that blocks your path."
+      "explanation": "obstacle = something that blocks your path.",
+      "lesson": "Unit 3 vocabulary (Facing Challenges)"
     },
     {
       "type": "mcq",
@@ -62,7 +64,8 @@
         "traffic jam"
       ],
       "answer": 3,
-      "explanation": "traffic jam = long lines of cars that cannot move or are moving very slowly."
+      "explanation": "traffic jam = long lines of cars that cannot move or are moving very slowly.",
+      "lesson": "Unit 3 vocabulary (Facing Challenges)"
     },
     {
       "type": "mcq",
@@ -75,7 +78,8 @@
         "taxi"
       ],
       "answer": 1,
-      "explanation": "monorail = a train that runs on a single rail. A flyover is a road over another road; a tunnel is under the ground."
+      "explanation": "monorail = a train that runs on a single rail. A flyover is a road over another road; a tunnel is under the ground.",
+      "lesson": "Unit 3 vocabulary (Facing Challenges)"
     },
     {
       "type": "mcq",
@@ -88,7 +92,8 @@
         "fear"
       ],
       "answer": 1,
-      "explanation": "courage = being brave when facing difficulties."
+      "explanation": "courage = being brave when facing difficulties.",
+      "lesson": "Unit 3 vocabulary (Facing Challenges)"
     },
     {
       "type": "mcq",
@@ -101,7 +106,8 @@
         "sculptor"
       ],
       "answer": 3,
-      "explanation": "sculptor = an artist who makes sculptures from stone, clay, metal …"
+      "explanation": "sculptor = an artist who makes sculptures from stone, clay, metal …",
+      "lesson": "Unit 4 vocabulary (Art and Expression)"
     },
     {
       "type": "mcq",
@@ -114,7 +120,8 @@
         "symbol"
       ],
       "answer": 0,
-      "explanation": "material = what something is made from, like clay, stone, metal or fabric."
+      "explanation": "material = what something is made from, like clay, stone, metal or fabric.",
+      "lesson": "Unit 4 vocabulary (Art and Expression)"
     },
     {
       "type": "mcq",
@@ -127,7 +134,8 @@
         "national"
       ],
       "answer": 2,
-      "explanation": "original = the first copy of its kind; new and different."
+      "explanation": "original = the first copy of its kind; new and different.",
+      "lesson": "Unit 4 vocabulary (Art and Expression)"
     },
     {
       "type": "mcq",
@@ -140,7 +148,8 @@
         "imagination"
       ],
       "answer": 3,
-      "explanation": "imagination = the ability to make pictures and new ideas in your mind."
+      "explanation": "imagination = the ability to make pictures and new ideas in your mind.",
+      "lesson": "Unit 4 vocabulary (Art and Expression)"
     },
     {
       "type": "mcq",
@@ -153,7 +162,8 @@
         "walk"
       ],
       "answer": 1,
-      "explanation": "While + past continuous for the long action (was walking); the short action is past simple (saw)."
+      "explanation": "While + past continuous for the long action (was walking); the short action is past simple (saw).",
+      "lesson": "Unit 3 grammar: past simple and past continuous"
     },
     {
       "type": "mcq",
@@ -166,7 +176,8 @@
         "ring"
       ],
       "answer": 2,
-      "explanation": "when + past simple for the short action that stopped the long one: when the phone rang."
+      "explanation": "when + past simple for the short action that stopped the long one: when the phone rang.",
+      "lesson": "Unit 3 grammar: past simple and past continuous"
     },
     {
       "type": "mcq",
@@ -179,7 +190,8 @@
         "is watching"
       ],
       "answer": 0,
-      "explanation": "An action in progress at a specific time in the past → past continuous: was watching."
+      "explanation": "An action in progress at a specific time in the past → past continuous: was watching.",
+      "lesson": "Unit 3 grammar: past simple and past continuous"
     },
     {
       "type": "mcq",
@@ -192,7 +204,8 @@
         "ride"
       ],
       "answer": 2,
-      "explanation": "while + past continuous: while I was riding. With I / he / she / it we use \"was\"."
+      "explanation": "while + past continuous: while I was riding. With I / he / she / it we use \"was\".",
+      "lesson": "Unit 3 grammar: past simple and past continuous"
     },
     {
       "type": "mcq",
@@ -205,7 +218,8 @@
         "because"
       ],
       "answer": 0,
-      "explanation": "so shows the result: I worked hard, so I improved."
+      "explanation": "so shows the result: I worked hard, so I improved.",
+      "lesson": "Unit 4 language: because, so, although, but and adjectives"
     },
     {
       "type": "mcq",
@@ -218,7 +232,8 @@
         "because"
       ],
       "answer": 3,
-      "explanation": "because shows the cause (the reason): because I believed in myself."
+      "explanation": "because shows the cause (the reason): because I believed in myself.",
+      "lesson": "Unit 4 language: because, so, although, but and adjectives"
     },
     {
       "type": "mcq",
@@ -231,7 +246,8 @@
         "But"
       ],
       "answer": 1,
-      "explanation": "Although shows contrast at the start of a sentence: Although he was afraid, he still gave it."
+      "explanation": "Although shows contrast at the start of a sentence: Although he was afraid, he still gave it.",
+      "lesson": "Unit 4 language: because, so, although, but and adjectives"
     },
     {
       "type": "mcq",
@@ -244,7 +260,8 @@
         "although"
       ],
       "answer": 1,
-      "explanation": "so shows the result: he didn't study, so he failed."
+      "explanation": "so shows the result: he didn't study, so he failed.",
+      "lesson": "Unit 4 language: because, so, although, but and adjectives"
     },
     {
       "type": "mcq",
@@ -257,7 +274,8 @@
         "creative"
       ],
       "answer": 3,
-      "explanation": "creative = new and full of ideas. Everyone loved it, so it can't be boring."
+      "explanation": "creative = new and full of ideas. Everyone loved it, so it can't be boring.",
+      "lesson": "Unit 4 language: because, so, although, but and adjectives"
     },
     {
       "type": "mcq",
@@ -271,7 +289,8 @@
         "Her teacher didn't help her."
       ],
       "answer": 0,
-      "explanation": "The text says: \"she had a big challenge: her family could not buy expensive paints and tools.\""
+      "explanation": "The text says: \"she had a big challenge: her family could not buy expensive paints and tools.\"",
+      "lesson": "Reading"
     },
     {
       "type": "mcq",
@@ -285,7 +304,8 @@
         "She was playing football."
       ],
       "answer": 2,
-      "explanation": "The text says: \"while Nour was walking home from school, she saw a lot of old cans and plastic bottles\"."
+      "explanation": "The text says: \"while Nour was walking home from school, she saw a lot of old cans and plastic bottles\".",
+      "lesson": "Reading"
     },
     {
       "type": "tf",
@@ -297,7 +317,8 @@
         "False"
       ],
       "answer": 1,
-      "explanation": "False. The text says: \"Many of her first sculptures broke, but she didn't give up.\""
+      "explanation": "False. The text says: \"Many of her first sculptures broke, but she didn't give up.\"",
+      "lesson": "Reading"
     },
     {
       "type": "tf",
@@ -309,7 +330,8 @@
         "False"
       ],
       "answer": 0,
-      "explanation": "True. The text says her artwork \"had a message: Keep our village clean.\""
+      "explanation": "True. The text says her artwork \"had a message: Keep our village clean.\"",
+      "lesson": "Reading"
     },
     {
       "type": "mcq",
@@ -323,7 +345,8 @@
         "new and different from others"
       ],
       "answer": 3,
-      "explanation": "original = the first of its kind, new and different. Her sculptures were made from old cans and bottles, which nobody expected."
+      "explanation": "original = the first of its kind, new and different. Her sculptures were made from old cans and bottles, which nobody expected.",
+      "lesson": "Reading"
     },
     {
       "type": "mcq",
@@ -337,7 +360,8 @@
         "We should throw cans in the street."
       ],
       "answer": 1,
-      "explanation": "Nour says: \"Every obstacle taught me something new. Determination is the key to success.\""
+      "explanation": "Nour says: \"Every obstacle taught me something new. Determination is the key to success.\"",
+      "lesson": "Reading"
     },
     {
       "type": "mcq",
@@ -351,7 +375,8 @@
         "Congratulations!"
       ],
       "answer": 2,
-      "explanation": "Hany is upset, so \"To be honest, no.\" fits: we use \"To be honest\" to say how we really feel."
+      "explanation": "Hany is upset, so \"To be honest, no.\" fits: we use \"To be honest\" to say how we really feel.",
+      "lesson": "Dialog"
     },
     {
       "type": "mcq",
@@ -365,7 +390,8 @@
         "Maybe we should"
       ],
       "answer": 0,
-      "explanation": "Expressing a problem: \"I have trouble with …\" / \"It's difficult to …\"."
+      "explanation": "Expressing a problem: \"I have trouble with …\" / \"It's difficult to …\".",
+      "lesson": "Dialog"
     },
     {
       "type": "mcq",
@@ -379,7 +405,8 @@
         "I didn't expect"
       ],
       "answer": 2,
-      "explanation": "Making a suggestion: \"It might be a good idea to …\" / \"I suggest …\" / \"Maybe you should …\"."
+      "explanation": "Making a suggestion: \"It might be a good idea to …\" / \"I suggest …\" / \"Maybe you should …\".",
+      "lesson": "Dialog"
     },
     {
       "type": "mcq",
@@ -393,7 +420,8 @@
         "but"
       ],
       "answer": 0,
-      "explanation": "because gives the reason: I'll stay calm because I want to finish my speech."
+      "explanation": "because gives the reason: I'll stay calm because I want to finish my speech.",
+      "lesson": "Unit 4 language: because, so, although, but and adjectives"
     },
     {
       "type": "mcq",
@@ -407,7 +435,8 @@
         "sculptor"
       ],
       "answer": 3,
-      "explanation": "Mokhtar made statues, so he was a sculptor."
+      "explanation": "Mokhtar made statues, so he was a sculptor.",
+      "lesson": "Unit 4 vocabulary (Art and Expression)"
     },
     {
       "type": "mcq",
@@ -421,7 +450,8 @@
         "monorail"
       ],
       "answer": 1,
-      "explanation": "symbol = something that stands for an idea. Nahdat Misr stands for Egypt's history and agriculture."
+      "explanation": "symbol = something that stands for an idea. Nahdat Misr stands for Egypt's history and agriculture.",
+      "lesson": "Unit 4 vocabulary (Art and Expression)"
     },
     {
       "type": "mcq",
@@ -435,7 +465,8 @@
         "although"
       ],
       "answer": 1,
-      "explanation": "because gives the reason he loved the work."
+      "explanation": "because gives the reason he loved the work.",
+      "lesson": "Unit 4 language: because, so, although, but and adjectives"
     },
     {
       "type": "mcq",
@@ -449,7 +480,8 @@
         "but"
       ],
       "answer": 3,
-      "explanation": "but shows contrast: it was crowded, but I enjoyed it."
+      "explanation": "but shows contrast: it was crowded, but I enjoyed it.",
+      "lesson": "Unit 4 language: because, so, although, but and adjectives"
     },
     {
       "type": "mcq",
@@ -463,7 +495,8 @@
         "hides"
       ],
       "answer": 0,
-      "explanation": "deserve = should get something because of what you did: every great artist deserves recognition."
+      "explanation": "deserve = should get something because of what you did: every great artist deserves recognition.",
+      "lesson": "Unit 4 vocabulary (Art and Expression)"
     },
     {
       "type": "mcq",
@@ -476,7 +509,8 @@
         "Rodayna was unwell because she stayed home."
       ],
       "answer": 2,
-      "explanation": "because comes before the reason: she stayed home because she was unwell."
+      "explanation": "because comes before the reason: she stayed home because she was unwell.",
+      "lesson": "Unit 4 language: because, so, although, but and adjectives"
     },
     {
       "type": "mcq",
@@ -489,7 +523,8 @@
         "Although Basem felt sick, he went to school."
       ],
       "answer": 3,
-      "explanation": "Although + one idea, then the other idea. We don't use \"but\" with \"although\" in the same sentence."
+      "explanation": "Although + one idea, then the other idea. We don't use \"but\" with \"although\" in the same sentence.",
+      "lesson": "Unit 4 language: because, so, although, but and adjectives"
     },
     {
       "type": "mcq",
@@ -502,7 +537,8 @@
         "While I did my homework, my brother was arrive."
       ],
       "answer": 1,
-      "explanation": "While + past continuous (was doing) for the long action; past simple (arrived) for the short one."
+      "explanation": "While + past continuous (was doing) for the long action; past simple (arrived) for the short one.",
+      "lesson": "Unit 3 grammar: past simple and past continuous"
     },
     {
       "type": "mcq",
@@ -515,7 +551,8 @@
         "I reading a book when my friend called me."
       ],
       "answer": 2,
-      "explanation": "Past continuous (was reading) + when + past simple (called)."
+      "explanation": "Past continuous (was reading) + when + past simple (called).",
+      "lesson": "Unit 3 grammar: past simple and past continuous"
     },
     {
       "type": "mcq",
@@ -528,7 +565,8 @@
         "concluding sentence"
       ],
       "answer": 0,
-      "explanation": "A paragraph starts with a topic sentence, then 2-4 supporting sentences, and ends with a concluding sentence."
+      "explanation": "A paragraph starts with a topic sentence, then 2-4 supporting sentences, and ends with a concluding sentence.",
+      "lesson": "Writing and punctuation"
     },
     {
       "type": "mcq",
@@ -541,7 +579,8 @@
         "Then I watched some videos."
       ],
       "answer": 2,
-      "explanation": "A concluding sentence sums up the idea or gives the writer's opinion. \"For example\" and \"Then\" start supporting sentences."
+      "explanation": "A concluding sentence sums up the idea or gives the writer's opinion. \"For example\" and \"Then\" start supporting sentences.",
+      "lesson": "Writing and punctuation"
     },
     {
       "type": "mcq",
@@ -554,7 +593,8 @@
         "Hi Eyad,"
       ],
       "answer": 0,
-      "explanation": "We end an email to a friend with a closing phrase like \"Write back soon!\" or \"Talk to you later!\"."
+      "explanation": "We end an email to a friend with a closing phrase like \"Write back soon!\" or \"Talk to you later!\".",
+      "lesson": "Writing and punctuation"
     }
   ]
 }

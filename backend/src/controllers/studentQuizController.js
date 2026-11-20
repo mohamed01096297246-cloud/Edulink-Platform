@@ -60,11 +60,16 @@ const askedShape = (q) => ({
   choices: q.choices,
 });
 
+const lessonOf = (q) => q.lesson || q.section || "";
+
 // The marked attempt as the student reads it: score, the score of each part
-// of the unit, and every question with the pick, the right answer and why.
+// of the unit, every question with the pick, the right answer and why, and
+// the lessons to go back to — the ones with a question answered wrong (or
+// left), most missed first.
 const reviewOf = (quiz, attempt) => {
   const picked = new Map(attempt.questionIds.map((id, i) => [String(id), attempt.answers[i]]));
   const sections = new Map();
+  const lessons = new Map();
   const questions = quiz.questions.map((q) => {
     const chosen = picked.has(String(q._id)) ? picked.get(String(q._id)) : null;
     const correct = chosen === q.answer;
@@ -73,14 +78,32 @@ const reviewOf = (quiz, attempt) => {
     s.total += pointsOf(q);
     if (correct) s.score += pointsOf(q);
     sections.set(key, s);
+    const name = lessonOf(q);
+    const l = lessons.get(name) || { lesson: name, questions: 0, wrong: 0, score: 0, total: 0 };
+    l.questions += 1;
+    l.total += pointsOf(q);
+    if (correct) l.score += pointsOf(q);
+    else l.wrong += 1;
+    lessons.set(name, l);
     return {
       ...askedShape(q),
+      lesson: name,
       answer: q.answer,
       chosen: chosen === undefined ? null : chosen,
       correct,
       explanation: q.explanation,
     };
   });
+  const allLessons = [...lessons.values()];
+  // Most of the lesson missed first; the order of the quiz breaks ties.
+  const toReview = allLessons
+    .filter((l) => l.wrong > 0)
+    .sort(
+      (a, b) =>
+        b.wrong / b.questions - a.wrong / a.questions ||
+        b.wrong - a.wrong ||
+        allLessons.indexOf(a) - allLessons.indexOf(b),
+    );
   return {
     quiz: quizHead(quiz),
     passages: passagesOf(quiz),
@@ -90,6 +113,8 @@ const reviewOf = (quiz, attempt) => {
     submittedAt: attempt.createdAt,
     seconds: attempt.seconds ?? null,
     sections: [...sections.values()],
+    lessons: allLessons,
+    toReview,
     questions,
   };
 };

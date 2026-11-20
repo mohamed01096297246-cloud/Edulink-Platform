@@ -36,7 +36,8 @@
         "patient"
       ],
       "answer": 2,
-      "explanation": "hero = a person who does great things for others."
+      "explanation": "hero = a person who does great things for others.",
+      "lesson": "Unit 3 vocabulary (Role Models)"
     },
     {
       "type": "mcq",
@@ -49,7 +50,8 @@
         "afraid"
       ],
       "answer": 0,
-      "explanation": "determined = not giving up easily."
+      "explanation": "determined = not giving up easily.",
+      "lesson": "Unit 3 vocabulary (Role Models)"
     },
     {
       "type": "mcq",
@@ -62,7 +64,8 @@
         "achievement"
       ],
       "answer": 3,
-      "explanation": "achievement = success in reaching a goal."
+      "explanation": "achievement = success in reaching a goal.",
+      "lesson": "Unit 3 vocabulary (Role Models)"
     },
     {
       "type": "mcq",
@@ -75,7 +78,8 @@
         "refuses"
       ],
       "answer": 1,
-      "explanation": "inspire = to motivate or encourage someone."
+      "explanation": "inspire = to motivate or encourage someone.",
+      "lesson": "Unit 3 vocabulary (Role Models)"
     },
     {
       "type": "mcq",
@@ -88,7 +92,8 @@
         "noise"
       ],
       "answer": 1,
-      "explanation": "decision = a choice you make."
+      "explanation": "decision = a choice you make.",
+      "lesson": "Unit 4 vocabulary (Smart Choices)"
     },
     {
       "type": "mcq",
@@ -101,7 +106,8 @@
         "responsible"
       ],
       "answer": 3,
-      "explanation": "responsible = acting with care and thinking of others. Its opposite is careless."
+      "explanation": "responsible = acting with care and thinking of others. Its opposite is careless.",
+      "lesson": "Unit 4 vocabulary (Smart Choices)"
     },
     {
       "type": "mcq",
@@ -114,7 +120,8 @@
         "cause"
       ],
       "answer": 0,
-      "explanation": "consequence = result: the effect of an action."
+      "explanation": "consequence = result: the effect of an action.",
+      "lesson": "Unit 4 vocabulary (Smart Choices)"
     },
     {
       "type": "mcq",
@@ -127,7 +134,8 @@
         "careful"
       ],
       "answer": 2,
-      "explanation": "wise ≠ foolish. \"clever\" and \"sensible\" are close in meaning to \"wise\"."
+      "explanation": "wise ≠ foolish. \"clever\" and \"sensible\" are close in meaning to \"wise\".",
+      "lesson": "Unit 4 vocabulary (Smart Choices)"
     },
     {
       "type": "mcq",
@@ -140,7 +148,8 @@
         "irresponsible"
       ],
       "answer": 3,
-      "explanation": "We add the prefix ir-: responsible → irresponsible (like regular → irregular)."
+      "explanation": "We add the prefix ir-: responsible → irresponsible (like regular → irregular).",
+      "lesson": "Unit 3 vocabulary (Role Models)"
     },
     {
       "type": "mcq",
@@ -153,7 +162,8 @@
         "born"
       ],
       "answer": 1,
-      "explanation": "\"in 1917\" is in the past. With he / she / it we use \"was\": She was born in 1917."
+      "explanation": "\"in 1917\" is in the past. With he / she / it we use \"was\": She was born in 1917.",
+      "lesson": "Unit 3 grammar: the past simple"
     },
     {
       "type": "mcq",
@@ -166,7 +176,8 @@
         "will move"
       ],
       "answer": 2,
-      "explanation": "\"three years ago\" → past simple. Regular verbs add -ed: move → moved."
+      "explanation": "\"three years ago\" → past simple. Regular verbs add -ed: move → moved.",
+      "lesson": "Unit 3 grammar: the past simple"
     },
     {
       "type": "mcq",
@@ -179,7 +190,8 @@
         "doesn't go"
       ],
       "answer": 0,
-      "explanation": "Negative past simple: didn't + infinitive. We say \"didn't go\", not \"didn't went\"."
+      "explanation": "Negative past simple: didn't + infinitive. We say \"didn't go\", not \"didn't went\".",
+      "lesson": "Unit 3 grammar: the past simple"
     },
     {
       "type": "mcq",
@@ -192,7 +204,8 @@
         "do"
       ],
       "answer": 2,
-      "explanation": "Past simple question: Where + did + subject + infinitive? \"last summer\" is in the past."
+      "explanation": "Past simple question: Where + did + subject + infinitive? \"last summer\" is in the past.",
+      "lesson": "Unit 3 grammar: the past simple"
     },
     {
       "type": "mcq",
@@ -205,7 +218,8 @@
         "fighted"
       ],
       "answer": 0,
-      "explanation": "\"fight\" is an irregular verb: fight → fought."
+      "explanation": "\"fight\" is an irregular verb: fight → fought.",
+      "lesson": "Unit 3 grammar: the past simple"
     },
     {
       "type": "mcq",
@@ -218,7 +232,8 @@
         "will pass"
       ],
       "answer": 3,
-      "explanation": "First conditional: If + present simple, will + infinitive."
+      "explanation": "First conditional: If + present simple, will + infinitive.",
+      "lesson": "Unit 4 grammar: first conditional, should / shouldn't"
     },
     {
       "type": "mcq",
@@ -231,7 +246,8 @@
         "will eat"
       ],
       "answer": 1,
-      "explanation": "After \"If\" in the first conditional we use the present simple: If she eats …"
+      "explanation": "After \"If\" in the first conditional we use the present simple: If she eats …",
+      "lesson": "Unit 4 grammar: first conditional, should / shouldn't"
     },
     {
       "type": "mcq",
@@ -244,7 +260,8 @@
         "isn't"
       ],
       "answer": 1,
-      "explanation": "Negative after \"If\": doesn't + infinitive: If he doesn't come, we'll leave."
+      "explanation": "Negative after \"If\": doesn't + infinitive: If he doesn't come, we'll leave.",
+      "lesson": "Unit 4 grammar: first conditional, should / shouldn't"
     },
     {
       "type": "mcq",
@@ -257,7 +274,8 @@
         "ask"
       ],
       "answer": 3,
-      "explanation": "should / shouldn't + infinitive without \"to\": You should ask."
+      "explanation": "should / shouldn't + infinitive without \"to\": You should ask.",
+      "lesson": "Unit 4 grammar: first conditional, should / shouldn't"
     },
     {
       "type": "mcq",
@@ -271,7 +289,8 @@
         "In Cairo"
       ],
       "answer": 0,
-      "explanation": "The text says: \"He was born in Sharqia, Egypt, in 1935.\""
+      "explanation": "The text says: \"He was born in Sharqia, Egypt, in 1935.\"",
+      "lesson": "Reading"
     },
     {
       "type": "mcq",
@@ -285,7 +304,8 @@
         "He won a medal."
       ],
       "answer": 2,
-      "explanation": "The text says: \"he lost his aunt to a heart disease, so he decided to become a heart doctor\"."
+      "explanation": "The text says: \"he lost his aunt to a heart disease, so he decided to become a heart doctor\".",
+      "lesson": "Reading"
     },
     {
       "type": "tf",
@@ -297,7 +317,8 @@
         "False"
       ],
       "answer": 0,
-      "explanation": "True. The text says: \"He studied medicine at Cairo University.\""
+      "explanation": "True. The text says: \"He studied medicine at Cairo University.\"",
+      "lesson": "Reading"
     },
     {
       "type": "tf",
@@ -309,7 +330,8 @@
         "False"
       ],
       "answer": 1,
-      "explanation": "False. The text says: \"Although he was famous in Britain, he never forgot his country.\""
+      "explanation": "False. The text says: \"Although he was famous in Britain, he never forgot his country.\"",
+      "lesson": "Reading"
     },
     {
       "type": "mcq",
@@ -323,7 +345,8 @@
         "treats children for free"
       ],
       "answer": 3,
-      "explanation": "The text says: \"The centre treats children from all over Egypt for free.\" It opened in 2009."
+      "explanation": "The text says: \"The centre treats children from all over Egypt for free.\" It opened in 2009.",
+      "lesson": "Reading"
     },
     {
       "type": "mcq",
@@ -337,7 +360,8 @@
         "The history of Aswan."
       ],
       "answer": 1,
-      "explanation": "The whole text is about Dr. Yacoub's life, his work and why young doctors see him as a role model."
+      "explanation": "The whole text is about Dr. Yacoub's life, his work and why young doctors see him as a role model.",
+      "lesson": "Reading"
     },
     {
       "type": "mcq",
@@ -351,7 +375,8 @@
         "What's your name"
       ],
       "answer": 2,
-      "explanation": "Mona sees that Hana looks worried, so she asks \"What's the matter?\", and Hana tells her the problem."
+      "explanation": "Mona sees that Hana looks worried, so she asks \"What's the matter?\", and Hana tells her the problem.",
+      "lesson": "Dialog"
     },
     {
       "type": "mcq",
@@ -365,7 +390,8 @@
         "You didn't"
       ],
       "answer": 0,
-      "explanation": "Mona is giving advice: You should + infinitive (make a study plan)."
+      "explanation": "Mona is giving advice: You should + infinitive (make a study plan).",
+      "lesson": "Unit 4 grammar: first conditional, should / shouldn't"
     },
     {
       "type": "mcq",
@@ -379,7 +405,8 @@
         "If you sleep early"
       ],
       "answer": 2,
-      "explanation": "First conditional: If + present simple, will + infinitive: If you sleep late, you will feel tired."
+      "explanation": "First conditional: If + present simple, will + infinitive: If you sleep late, you will feel tired.",
+      "lesson": "Unit 4 grammar: first conditional, should / shouldn't"
     },
     {
       "type": "mcq",
@@ -393,7 +420,8 @@
         "Sorry"
       ],
       "answer": 0,
-      "explanation": "Hana thanks Mona for her advice, and Mona answers \"You're welcome.\""
+      "explanation": "Hana thanks Mona for her advice, and Mona answers \"You're welcome.\"",
+      "lesson": "Dialog"
     },
     {
       "type": "mcq",
@@ -407,7 +435,8 @@
         "decision"
       ],
       "answer": 3,
-      "explanation": "make a decision = choose between two things (football or studying)."
+      "explanation": "make a decision = choose between two things (football or studying).",
+      "lesson": "Unit 4 vocabulary (Smart Choices)"
     },
     {
       "type": "mcq",
@@ -421,7 +450,8 @@
         "holidays"
       ],
       "answer": 1,
-      "explanation": "The writer thought about the result (consequence) of each choice."
+      "explanation": "The writer thought about the result (consequence) of each choice.",
+      "lesson": "Unit 4 vocabulary (Smart Choices)"
     },
     {
       "type": "mcq",
@@ -435,7 +465,8 @@
         "didn't have"
       ],
       "answer": 1,
-      "explanation": "First conditional: If I play now, I won't have (will not have) time to study."
+      "explanation": "First conditional: If I play now, I won't have (will not have) time to study.",
+      "lesson": "Unit 4 grammar: first conditional, should / shouldn't"
     },
     {
       "type": "mcq",
@@ -449,7 +480,8 @@
         "careless"
       ],
       "answer": 3,
-      "explanation": "careless is the opposite of responsible: I wasn't careless; I was responsible."
+      "explanation": "careless is the opposite of responsible: I wasn't careless; I was responsible.",
+      "lesson": "Unit 4 vocabulary (Smart Choices)"
     },
     {
       "type": "mcq",
@@ -463,7 +495,8 @@
         "negative"
       ],
       "answer": 0,
-      "explanation": "proud = pleased with something you did well: I felt proud of myself."
+      "explanation": "proud = pleased with something you did well: I felt proud of myself.",
+      "lesson": "Unit 4 vocabulary (Smart Choices)"
     },
     {
       "type": "mcq",
@@ -476,7 +509,8 @@
         "I helping my brother with his homework."
       ],
       "answer": 2,
-      "explanation": "Past simple of a regular verb: help → helped."
+      "explanation": "Past simple of a regular verb: help → helped.",
+      "lesson": "Unit 3 grammar: the past simple"
     },
     {
       "type": "mcq",
@@ -489,7 +523,8 @@
         "Where did Aziz go on vacation?"
       ],
       "answer": 3,
-      "explanation": "Past simple question: did + subject + infinitive (go, not went)."
+      "explanation": "Past simple question: did + subject + infinitive (go, not went).",
+      "lesson": "Unit 3 grammar: the past simple"
     },
     {
       "type": "mcq",
@@ -502,7 +537,8 @@
         "You shouldn't wasting time on computer games."
       ],
       "answer": 1,
-      "explanation": "shouldn't + infinitive gives advice not to do something."
+      "explanation": "shouldn't + infinitive gives advice not to do something.",
+      "lesson": "Unit 4 grammar: first conditional, should / shouldn't"
     },
     {
       "type": "mcq",
@@ -515,7 +551,8 @@
         "If you will study hard, you pass the test."
       ],
       "answer": 2,
-      "explanation": "First conditional: If + present simple, will + infinitive."
+      "explanation": "First conditional: If + present simple, will + infinitive.",
+      "lesson": "Unit 4 grammar: first conditional, should / shouldn't"
     },
     {
       "type": "mcq",
@@ -528,7 +565,8 @@
         "Nada, would you help me with my project."
       ],
       "answer": 0,
-      "explanation": "A capital letter for a name, a comma when we speak to a person, and a question mark at the end of a question."
+      "explanation": "A capital letter for a name, a comma when we speak to a person, and a question mark at the end of a question.",
+      "lesson": "Writing and punctuation"
     },
     {
       "type": "mcq",
@@ -541,7 +579,8 @@
         "Do you like football"
       ],
       "answer": 2,
-      "explanation": "We use ! to show strong feeling, like surprise: Wow, that's a big dog!"
+      "explanation": "We use ! to show strong feeling, like surprise: Wow, that's a big dog!",
+      "lesson": "Writing and punctuation"
     },
     {
       "type": "mcq",
@@ -554,7 +593,8 @@
         "first conditional"
       ],
       "answer": 0,
-      "explanation": "A biography tells what the person did in the past: helped, worked, became, inspired."
+      "explanation": "A biography tells what the person did in the past: helped, worked, became, inspired.",
+      "lesson": "Writing and punctuation"
     }
   ]
 }

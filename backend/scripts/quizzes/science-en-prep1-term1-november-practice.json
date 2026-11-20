@@ -17,7 +17,8 @@
         "Neutron"
       ],
       "answer": 2,
-      "explanation": "A metal atom that loses electrons has more protons than electrons, so it becomes a positive ion, e.g. Na⁺ (p. 44)."
+      "explanation": "A metal atom that loses electrons has more protons than electrons, so it becomes a positive ion, e.g. Na⁺ (p. 44).",
+      "lesson": "Chemical Bonds"
     },
     {
       "type": "mcq",
@@ -30,7 +31,8 @@
         "Double covalent bond"
       ],
       "answer": 0,
-      "explanation": "The ionic bond is the attraction between a cation and an anion, as in sodium chloride (p. 44)."
+      "explanation": "The ionic bond is the attraction between a cation and an anion, as in sodium chloride (p. 44).",
+      "lesson": "Chemical Bonds"
     },
     {
       "type": "mcq",
@@ -43,7 +45,8 @@
         "Double covalent bond"
       ],
       "answer": 3,
-      "explanation": "Sharing one electron each gives a single bond, two a double bond (as in O₂), three a triple bond (as in N₂) (p. 44)."
+      "explanation": "Sharing one electron each gives a single bond, two a double bond (as in O₂), three a triple bond (as in N₂) (p. 44).",
+      "lesson": "Chemical Bonds"
     },
     {
       "type": "mcq",
@@ -56,7 +59,8 @@
         "Water (H₂O)"
       ],
       "answer": 1,
-      "explanation": "Methane CH₄ is the simplest organic molecule: one carbon atom with four single covalent bonds to hydrogen (p. 44)."
+      "explanation": "Methane CH₄ is the simplest organic molecule: one carbon atom with four single covalent bonds to hydrogen (p. 44).",
+      "lesson": "Chemical Bonds"
     },
     {
       "type": "mcq",
@@ -69,7 +73,8 @@
         "Lightning rod"
       ],
       "answer": 1,
-      "explanation": "The electrostatic series arranges substances by how easily they lose electrons when rubbed (p. 32)."
+      "explanation": "The electrostatic series arranges substances by how easily they lose electrons when rubbed (p. 32).",
+      "lesson": "Electric Forces"
     },
     {
       "type": "mcq",
@@ -82,7 +87,8 @@
         "Coulomb meter"
       ],
       "answer": 3,
-      "explanation": "The coulomb meter measures weak electric charges; the electroscope detects a charge and its type (p. 32)."
+      "explanation": "The coulomb meter measures weak electric charges; the electroscope detects a charge and its type (p. 32).",
+      "lesson": "Electric Forces"
     },
     {
       "type": "mcq",
@@ -95,7 +101,8 @@
         "Spring balance"
       ],
       "answer": 0,
-      "explanation": "The electroscope (with a metal disc and gold leaves) detects a charge and determines its type (p. 32)."
+      "explanation": "The electroscope (with a metal disc and gold leaves) detects a charge and determines its type (p. 32).",
+      "lesson": "Electric Forces"
     },
     {
       "type": "mcq",
@@ -108,7 +115,8 @@
         "Electrostatic series"
       ],
       "answer": 2,
-      "explanation": "The magnetic field is the area around a magnet where its effect appears; magnetic field lines are imaginary lines that represent it (p. 35)."
+      "explanation": "The magnetic field is the area around a magnet where its effect appears; magnetic field lines are imaginary lines that represent it (p. 35).",
+      "lesson": "Magnetic Forces"
     },
     {
       "type": "mcq",
@@ -121,7 +129,8 @@
         "Non-magnetic materials"
       ],
       "answer": 3,
-      "explanation": "Non-magnetic materials such as copper, aluminum, silver and gold are not attracted to magnets (p. 35)."
+      "explanation": "Non-magnetic materials such as copper, aluminum, silver and gold are not attracted to magnets (p. 35).",
+      "lesson": "Magnetic Forces"
     },
     {
       "type": "mcq",
@@ -134,7 +143,8 @@
         "Gravitational forces"
       ],
       "answer": 1,
-      "explanation": "Contact forces (e.g. collision, elastic and friction forces) act on touch; field forces such as gravity act at a distance (p. 39-40)."
+      "explanation": "Contact forces (e.g. collision, elastic and friction forces) act on touch; field forces such as gravity act at a distance (p. 39-40).",
+      "lesson": "Gravitational Forces"
     },
     {
       "type": "mcq",
@@ -147,7 +157,8 @@
         "positive / negative"
       ],
       "answer": 2,
-      "explanation": "Electrons move from the wool to the ebonite: the ebonite gains electrons (negative) and the wool loses them (positive) (p. 30)."
+      "explanation": "Electrons move from the wool to the ebonite: the ebonite gains electrons (negative) and the wool loses them (positive) (p. 30).",
+      "lesson": "Electric Forces"
     },
     {
       "type": "mcq",
@@ -160,7 +171,8 @@
         "negative / negative"
       ],
       "answer": 0,
-      "explanation": "Electric force lines are imaginary, do not intersect, start at the positive charge and end at the negative charge (p. 31)."
+      "explanation": "Electric force lines are imaginary, do not intersect, start at the positive charge and end at the negative charge (p. 31).",
+      "lesson": "Electric Forces"
     },
     {
       "type": "mcq",
@@ -173,7 +185,8 @@
         "negative / negative"
       ],
       "answer": 2,
-      "explanation": "Opposite charges attract, so the paint spreads evenly on the object and less paint is wasted (p. 31)."
+      "explanation": "Opposite charges attract, so the paint spreads evenly on the object and less paint is wasted (p. 31).",
+      "lesson": "Electric Forces"
     },
     {
       "type": "mcq",
@@ -186,7 +199,8 @@
         "the middle"
       ],
       "answer": 0,
-      "explanation": "Iron filings gather in large quantities at the two poles, where the magnetic force is strongest (p. 36-37)."
+      "explanation": "Iron filings gather in large quantities at the two poles, where the magnetic force is strongest (p. 36-37).",
+      "lesson": "Magnetic Forces"
     },
     {
       "type": "mcq",
@@ -199,7 +213,8 @@
         "north / south"
       ],
       "answer": 3,
-      "explanation": "Magnetic field lines start at the north pole and end at the south pole, and condense at the poles (p. 37)."
+      "explanation": "Magnetic field lines start at the north pole and end at the south pole, and condense at the poles (p. 37).",
+      "lesson": "Magnetic Forces"
     },
     {
       "type": "mcq",
@@ -212,7 +227,8 @@
         "50"
       ],
       "answer": 1,
-      "explanation": "500 g = 0.5 kg. Weight = mass × gravitational field intensity = 0.5 × 10 = 5 N (p. 41)."
+      "explanation": "500 g = 0.5 kg. Weight = mass × gravitational field intensity = 0.5 × 10 = 5 N (p. 41).",
+      "lesson": "Gravitational Forces"
     },
     {
       "type": "mcq",
@@ -225,7 +241,8 @@
         "500"
       ],
       "answer": 1,
-      "explanation": "Mass = weight ÷ gravitational field intensity = 50 ÷ 10 = 5 kg (p. 41)."
+      "explanation": "Mass = weight ÷ gravitational field intensity = 50 ÷ 10 = 5 kg (p. 41).",
+      "lesson": "Gravitational Forces"
     },
     {
       "type": "mcq",
@@ -238,7 +255,8 @@
         "decreases"
       ],
       "answer": 3,
-      "explanation": "Gravitational force increases with the masses of the two objects and decreases as the distance between them increases (p. 40)."
+      "explanation": "Gravitational force increases with the masses of the two objects and decreases as the distance between them increases (p. 40).",
+      "lesson": "Gravitational Forces"
     },
     {
       "type": "mcq",
@@ -251,7 +269,8 @@
         "random"
       ],
       "answer": 0,
-      "explanation": "Orbital motion is the motion of an object in a curved path around another central object, like the Moon around the Earth or electrons around the nucleus (p. 40)."
+      "explanation": "Orbital motion is the motion of an object in a curved path around another central object, like the Moon around the Earth or electrons around the nucleus (p. 40).",
+      "lesson": "Gravitational Forces"
     },
     {
       "type": "mcq",
@@ -264,7 +283,8 @@
         "one oxygen atom gives two electrons to the other"
       ],
       "answer": 2,
-      "explanation": "Each oxygen atom needs two electrons to complete its outer level, so the two atoms share two pairs of electrons (p. 26)."
+      "explanation": "Each oxygen atom needs two electrons to complete its outer level, so the two atoms share two pairs of electrons (p. 26).",
+      "lesson": "Chemical Bonds"
     },
     {
       "type": "mcq",
@@ -277,7 +297,8 @@
         "sodium loses an electron and becomes a positive ion, chlorine gains it and becomes a negative ion, and the two ions attract"
       ],
       "answer": 3,
-      "explanation": "Sodium (a metal) loses one electron and chlorine (a non-metal) gains it; the electrostatic attraction between Na⁺ and Cl⁻ is the ionic bond (p. 26)."
+      "explanation": "Sodium (a metal) loses one electron and chlorine (a non-metal) gains it; the electrostatic attraction between Na⁺ and Cl⁻ is the ionic bond (p. 26).",
+      "lesson": "Chemical Bonds"
     },
     {
       "type": "mcq",
@@ -290,7 +311,8 @@
         "they have no electrons"
       ],
       "answer": 1,
-      "explanation": "In an ionic compound the charges of the cations and the anions cancel out (p. 46)."
+      "explanation": "In an ionic compound the charges of the cations and the anions cancel out (p. 46).",
+      "lesson": "Chemical Bonds"
     },
     {
       "type": "mcq",
@@ -303,7 +325,8 @@
         "keep the truck balanced on the road"
       ],
       "answer": 2,
-      "explanation": "Friction produces static charges on the tank; the metal chains conduct them to the ground so no spark ignites the fuel (p. 29-30)."
+      "explanation": "Friction produces static charges on the tank; the metal chains conduct them to the ground so no spark ignites the fuel (p. 29-30).",
+      "lesson": "Electric Forces"
     },
     {
       "type": "mcq",
@@ -316,7 +339,8 @@
         "copper and plastic are magnetic materials"
       ],
       "answer": 0,
-      "explanation": "The compass needle is a free-moving magnet; an iron case would attract it and spoil the direction (p. 36)."
+      "explanation": "The compass needle is a free-moving magnet; an iron case would attract it and spoil the direction (p. 36).",
+      "lesson": "Magnetic Forces"
     },
     {
       "type": "mcq",
@@ -329,7 +353,8 @@
         "the mass of the object on the Earth is greater"
       ],
       "answer": 2,
-      "explanation": "Mass stays the same, but weight = mass × gravitational field intensity, and the Moon's field is about 1/6 of the Earth's (p. 40)."
+      "explanation": "Mass stays the same, but weight = mass × gravitational field intensity, and the Moon's field is about 1/6 of the Earth's (p. 40).",
+      "lesson": "Gravitational Forces"
     },
     {
       "type": "mcq",
@@ -342,7 +367,8 @@
         "They attract, because they carry different charges"
       ],
       "answer": 0,
-      "explanation": "Both rods gain electrons from the silk and become negative; similar charges repel (p. 32)."
+      "explanation": "Both rods gain electrons from the silk and become negative; similar charges repel (p. 32).",
+      "lesson": "Electric Forces"
     },
     {
       "type": "mcq",
@@ -355,7 +381,8 @@
         "They attract, because the ebonite is negative and the glass is positive"
       ],
       "answer": 3,
-      "explanation": "Rubbed with silk, glass loses electrons (positive) and ebonite gains electrons (negative); different charges attract (p. 32)."
+      "explanation": "Rubbed with silk, glass loses electrons (positive) and ebonite gains electrons (negative); different charges attract (p. 32).",
+      "lesson": "Electric Forces"
     },
     {
       "type": "mcq",
@@ -368,7 +395,8 @@
         "The charge on the disc doubles"
       ],
       "answer": 1,
-      "explanation": "Your body is a conductor, so the charge escapes to the ground and the leaves close (p. 32)."
+      "explanation": "Your body is a conductor, so the charge escapes to the ground and the leaves close (p. 32).",
+      "lesson": "Electric Forces"
     },
     {
       "type": "mcq",
@@ -381,7 +409,8 @@
         "The gold leaves collapse completely"
       ],
       "answer": 1,
-      "explanation": "A charge of the same type as the electroscope's increases the divergence; an opposite charge decreases it (p. 32)."
+      "explanation": "A charge of the same type as the electroscope's increases the divergence; an opposite charge decreases it (p. 32).",
+      "lesson": "Electric Forces"
     },
     {
       "type": "mcq",
@@ -394,7 +423,8 @@
         "Each piece becomes a new magnet with a north pole and a south pole"
       ],
       "answer": 3,
-      "explanation": "It is impossible to get a single magnetic pole: every piece is a complete magnet (p. 34)."
+      "explanation": "It is impossible to get a single magnetic pole: every piece is a complete magnet (p. 34).",
+      "lesson": "Magnetic Forces"
     },
     {
       "type": "mcq",
@@ -407,7 +437,8 @@
         "The suspended magnet loses its magnetism"
       ],
       "answer": 0,
-      "explanation": "Law of attraction and repulsion: different magnetic poles attract, similar poles repel (p. 36)."
+      "explanation": "Law of attraction and repulsion: different magnetic poles attract, similar poles repel (p. 36).",
+      "lesson": "Magnetic Forces"
     },
     {
       "type": "mcq",
@@ -420,7 +451,8 @@
         "It decreases"
       ],
       "answer": 2,
-      "explanation": "Gravitational force increases as the masses of the two objects increase (p. 40)."
+      "explanation": "Gravitational force increases as the masses of the two objects increase (p. 40).",
+      "lesson": "Gravitational Forces"
     },
     {
       "type": "tf",
@@ -431,7 +463,8 @@
         "False"
       ],
       "answer": 1,
-      "explanation": "False. Electric force lines are imaginary, but they never intersect (p. 28)."
+      "explanation": "False. Electric force lines are imaginary, but they never intersect (p. 28).",
+      "lesson": "Electric Forces"
     },
     {
       "type": "tf",
@@ -442,7 +475,8 @@
         "False"
       ],
       "answer": 0,
-      "explanation": "True. That is why the magnetic force is strongest at the poles (p. 34)."
+      "explanation": "True. That is why the magnetic force is strongest at the poles (p. 34).",
+      "lesson": "Magnetic Forces"
     },
     {
       "type": "tf",
@@ -453,7 +487,8 @@
         "False"
       ],
       "answer": 1,
-      "explanation": "False. The mass is constant everywhere; it is the weight that changes from one planet to another (p. 39-40)."
+      "explanation": "False. The mass is constant everywhere; it is the weight that changes from one planet to another (p. 39-40).",
+      "lesson": "Gravitational Forces"
     },
     {
       "type": "tf",
@@ -464,7 +499,8 @@
         "False"
       ],
       "answer": 0,
-      "explanation": "True. Iron, nickel and cobalt are attracted to magnets (p. 36)."
+      "explanation": "True. Iron, nickel and cobalt are attracted to magnets (p. 36).",
+      "lesson": "Magnetic Forces"
     },
     {
       "type": "tf",
@@ -475,7 +511,8 @@
         "False"
       ],
       "answer": 0,
-      "explanation": "True. Each hydrogen atom shares one electron (H─H) (p. 73)."
+      "explanation": "True. Each hydrogen atom shares one electron (H─H) (p. 73).",
+      "lesson": "Chemical Bonds"
     },
     {
       "type": "mcq",
@@ -488,7 +525,8 @@
         "fewer / more"
       ],
       "answer": 3,
-      "explanation": "A positive ion lost electrons and a negative ion gained electrons; the number of protons does not change (p. 26 and 45)."
+      "explanation": "A positive ion lost electrons and a negative ion gained electrons; the number of protons does not change (p. 26 and 45).",
+      "lesson": "Chemical Bonds"
     },
     {
       "type": "mcq",
@@ -501,7 +539,8 @@
         "They do not conduct electricity in solution"
       ],
       "answer": 1,
-      "explanation": "Most covalent compounds do not dissolve in water, do not conduct electricity, and have low melting and boiling points (p. 26)."
+      "explanation": "Most covalent compounds do not dissolve in water, do not conduct electricity, and have low melting and boiling points (p. 26).",
+      "lesson": "Chemical Bonds"
     },
     {
       "type": "mcq",
@@ -514,7 +553,8 @@
         "newton (N) / newton (N)"
       ],
       "answer": 2,
-      "explanation": "Weight is measured with a spring balance in newtons; mass in kilograms (p. 39 and 41)."
+      "explanation": "Weight is measured with a spring balance in newtons; mass in kilograms (p. 39 and 41).",
+      "lesson": "Gravitational Forces"
     },
     {
       "type": "mcq",
@@ -527,7 +567,8 @@
         "Dip it in iron filings"
       ],
       "answer": 0,
-      "explanation": "If the divergence increases, the rod has the same type of charge as the electroscope; if it decreases, the opposite type (p. 31-32)."
+      "explanation": "If the divergence increases, the rod has the same type of charge as the electroscope; if it decreases, the opposite type (p. 31-32).",
+      "lesson": "Electric Forces"
     },
     {
       "type": "mcq",
@@ -540,7 +581,8 @@
         "Rub it with wool: it becomes charged"
       ],
       "answer": 2,
-      "explanation": "Only magnetic materials are attracted to a magnet; a copper-nickel coin is attracted because of the nickel (p. 33)."
+      "explanation": "Only magnetic materials are attracted to a magnet; a copper-nickel coin is attracted because of the nickel (p. 33).",
+      "lesson": "Magnetic Forces"
     },
     {
       "type": "mcq",
@@ -553,7 +595,8 @@
         "Rub it with silk"
       ],
       "answer": 0,
-      "explanation": "Iron filings line up along the field lines and gather most densely at the poles (p. 34-35)."
+      "explanation": "Iron filings line up along the field lines and gather most densely at the poles (p. 34-35).",
+      "lesson": "Magnetic Forces"
     }
   ]
 }

@@ -144,6 +144,51 @@ test("a question on a passage comes with its text, and points weigh the score", 
   await expect(bad.validate()).rejects.toThrow();
 });
 
+test("after sending, the student is told which lessons to go back to, most missed first", async () => {
+  const { account, s, c } = await setUp();
+  const tfq = (text, lesson, extra = {}) => ({ type: "tf", text, lesson, choices: ["صح", "غلط"], answer: 0, ...extra });
+  const q = await Quiz.create({
+    school: s._id,
+    title: "مراجعة",
+    subjectName: "علوم",
+    classrooms: [c._id],
+    published: true,
+    questions: [
+      tfq("١", "الروابط الكيميائية"),
+      tfq("٢", "الروابط الكيميائية"),
+      tfq("٣", "القوى الكهربية"),
+      tfq("٤", "القوى الكهربية"),
+      tfq("٥", "القوى المغناطيسية"),
+      // No lesson: the section stands in for it.
+      tfq("٦", undefined, { section: "قوى الجاذبية" }),
+    ],
+  });
+  const st = await f.signIn(account);
+  const open = (await st.get(`/api/student/quizzes/${q._id}`)).body.data.quiz;
+  const id = (text) => open.questions.find((x) => x.text === text).id;
+  // Bonds: 1 of 2 wrong. Electricity: both wrong (one left). Magnetism right. Gravity wrong.
+  const sent = await st.post(`/api/student/quizzes/${q._id}/submit`, {
+    answers: { [id("١")]: 0, [id("٢")]: 1, [id("٣")]: 1, [id("٥")]: 0, [id("٦")]: 1 },
+  });
+  const review = sent.body.data.review;
+  expect(review.toReview.map((l) => [l.lesson, l.wrong, l.questions])).toEqual([
+    ["القوى الكهربية", 2, 2],
+    ["قوى الجاذبية", 1, 1],
+    ["الروابط الكيميائية", 1, 2],
+  ]);
+  expect(review.lessons.map((l) => l.lesson)).toEqual(["الروابط الكيميائية", "القوى الكهربية", "القوى المغناطيسية", "قوى الجاذبية"]);
+  expect(review.questions[0].lesson).toBe("الروابط الكيميائية");
+  // While the quiz is being taken the lesson isn't sent; it only matters once marked.
+  expect(open.questions[0].lesson).toBeUndefined();
+
+  // All right: nothing to go back to.
+  await QuizAttempt.deleteMany({});
+  const all = await st.post(`/api/student/quizzes/${q._id}/submit`, {
+    answers: Object.fromEntries(open.questions.map((x) => [x.id, 0])),
+  });
+  expect(all.body.data.review.toReview).toEqual([]);
+});
+
 test("an English quiz reads left to right, in the questions and in the result", async () => {
   const { account, q } = await setUp({ quiz: { direction: "ltr" } });
   const st = await f.signIn(account);
@@ -194,6 +239,8 @@ test.each(QUIZ_FILES)("the quiz file %s is a valid quiz: every answer one of its
   const trueFalse = spec.direction === "ltr" ? ["True", "False"] : ["صح", "غلط"];
   spec.questions.forEach((x) => {
     expect(x.explanation.length).toBeGreaterThan(5);
+    // Every question names its lesson, for «راجع الدروس دي» after the quiz.
+    expect(x.lesson).toBeTruthy();
     if (x.type === "tf") expect(x.choices).toEqual(trueFalse);
   });
   // The right answer isn't always in the same place, nor mostly in one.

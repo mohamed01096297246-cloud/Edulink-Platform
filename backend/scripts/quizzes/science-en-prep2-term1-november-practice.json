@@ -17,7 +17,8 @@
         "Thermal conduction"
       ],
       "answer": 2,
-      "explanation": "Heat flows from the hotter object to the colder one until their temperatures are equal: thermal equilibrium (p. 24-26)."
+      "explanation": "Heat flows from the hotter object to the colder one until their temperatures are equal: thermal equilibrium (p. 24-26).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -30,7 +31,8 @@
         "Specific heat"
       ],
       "answer": 0,
-      "explanation": "Heat is energy in transfer; temperature measures how hot a system is (p. 26)."
+      "explanation": "Heat is energy in transfer; temperature measures how hot a system is (p. 26).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -43,7 +45,8 @@
         "Thermal conduction"
       ],
       "answer": 3,
-      "explanation": "In conduction, vibrating particles pass energy to neighbouring particles without leaving their places (p. 26)."
+      "explanation": "In conduction, vibrating particles pass energy to neighbouring particles without leaving their places (p. 26).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -56,7 +59,8 @@
         "Precipitates"
       ],
       "answer": 1,
-      "explanation": "Thermal insulators have low thermal conductivity; metals such as silver and copper are good thermal conductors (p. 26)."
+      "explanation": "Thermal insulators have low thermal conductivity; metals such as silver and copper are good thermal conductors (p. 26).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -69,7 +73,8 @@
         "Reactants"
       ],
       "answer": 1,
-      "explanation": "A catalyst is written on the arrow of the equation as (cat) (p. 33)."
+      "explanation": "A catalyst is written on the arrow of the equation as (cat) (p. 33).",
+      "lesson": "Chemical Equation"
     },
     {
       "type": "mcq",
@@ -82,7 +87,8 @@
         "Law of conservation of mass"
       ],
       "answer": 3,
-      "explanation": "Matter is neither created nor destroyed in a reaction; the atoms are only rearranged (p. 33)."
+      "explanation": "Matter is neither created nor destroyed in a reaction; the atoms are only rearranged (p. 33).",
+      "lesson": "Chemical Equation"
     },
     {
       "type": "mcq",
@@ -95,7 +101,8 @@
         "Sublimation"
       ],
       "answer": 0,
-      "explanation": "Burning wood is a chemical change; melting ice is a physical change because no new substance forms (p. 29 and 38)."
+      "explanation": "Burning wood is a chemical change; melting ice is a physical change because no new substance forms (p. 29 and 38).",
+      "lesson": "Chemical Reactions"
     },
     {
       "type": "mcq",
@@ -108,7 +115,8 @@
         "Coefficients"
       ],
       "answer": 2,
-      "explanation": "In H₂O the subscript 2 shows two hydrogen atoms. Coefficients are the numbers written before formulas to balance equations (p. 33)."
+      "explanation": "In H₂O the subscript 2 shows two hydrogen atoms. Coefficients are the numbers written before formulas to balance equations (p. 33).",
+      "lesson": "Chemical Equation"
     },
     {
       "type": "mcq",
@@ -121,7 +129,8 @@
         "conduction, convection and radiation"
       ],
       "answer": 3,
-      "explanation": "Heat moves by conduction (mainly in solids), convection (liquids and gases) and radiation (no medium needed) (p. 27)."
+      "explanation": "Heat moves by conduction (mainly in solids), convection (liquids and gases) and radiation (no medium needed) (p. 27).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -134,7 +143,8 @@
         "lower / higher"
       ],
       "answer": 1,
-      "explanation": "Heat always flows from the hotter system to the colder one (p. 27)."
+      "explanation": "Heat always flows from the hotter system to the colder one (p. 27).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -147,7 +157,8 @@
         "ultraviolet"
       ],
       "answer": 2,
-      "explanation": "Warm bodies emit infrared radiation, which thermal cameras turn into images (p. 27)."
+      "explanation": "Warm bodies emit infrared radiation, which thermal cameras turn into images (p. 27).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -160,7 +171,8 @@
         "gas"
       ],
       "answer": 0,
-      "explanation": "(s) solid or precipitate, (l) liquid, (g) gas, (v) vapour, (aq) aqueous solution (p. 33)."
+      "explanation": "(s) solid or precipitate, (l) liquid, (g) gas, (v) vapour, (aq) aqueous solution (p. 33).",
+      "lesson": "Chemical Equation"
     },
     {
       "type": "mcq",
@@ -173,7 +185,8 @@
         "using a catalyst"
       ],
       "answer": 2,
-      "explanation": "Δ heat, cat catalyst, dil dilute acid, conc concentrated acid (p. 33)."
+      "explanation": "Δ heat, cat catalyst, dil dilute acid, conc concentrated acid (p. 33).",
+      "lesson": "Chemical Equation"
     },
     {
       "type": "mcq",
@@ -186,7 +199,8 @@
         "CuSO₃"
       ],
       "answer": 0,
-      "explanation": "Copper sulphate is CuSO₄; zinc sulphate is ZnSO₄ (p. 31)."
+      "explanation": "Copper sulphate is CuSO₄; zinc sulphate is ZnSO₄ (p. 31).",
+      "lesson": "Chemical Reactions"
     },
     {
       "type": "mcq",
@@ -199,7 +213,8 @@
         "2H₂O(l) → 2H₂(g) + O₂(g)"
       ],
       "answer": 3,
-      "explanation": "There are 4 H and 2 O atoms on each side only in 2H₂O → 2H₂ + O₂ (p. 32)."
+      "explanation": "There are 4 H and 2 O atoms on each side only in 2H₂O → 2H₂ + O₂ (p. 32).",
+      "lesson": "Chemical Equation"
     },
     {
       "type": "mcq",
@@ -212,7 +227,8 @@
         "4Al(s) + 2O₂(g) → 2Al₂O₃(s)"
       ],
       "answer": 1,
-      "explanation": "4 Al and 6 O atoms on each side: 4Al + 3O₂ → 2Al₂O₃ (p. 34)."
+      "explanation": "4 Al and 6 O atoms on each side: 4Al + 3O₂ → 2Al₂O₃ (p. 34).",
+      "lesson": "Chemical Equation"
     },
     {
       "type": "mcq",
@@ -225,7 +241,8 @@
         "silver is a good thermal conductor"
       ],
       "answer": 1,
-      "explanation": "Dark, dull surfaces absorb radiation; shiny surfaces reflect it (p. 26)."
+      "explanation": "Dark, dull surfaces absorb radiation; shiny surfaces reflect it (p. 26).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -238,7 +255,8 @@
         "metals are good thermal conductors, while wood and plastic are thermal insulators"
       ],
       "answer": 3,
-      "explanation": "The metal pot heats the food quickly, and the insulating handle does not burn the hand (p. 27)."
+      "explanation": "The metal pot heats the food quickly, and the insulating handle does not burn the hand (p. 27).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -251,7 +269,8 @@
         "polystyrene makes walls heavier"
       ],
       "answer": 0,
-      "explanation": "It keeps buildings cool in summer and warm in winter (p. 26-27)."
+      "explanation": "It keeps buildings cool in summer and warm in winter (p. 26-27).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -264,7 +283,8 @@
         "heat moves only by conduction"
       ],
       "answer": 2,
-      "explanation": "Heated air expands, becomes less dense and rises; cooler, denser air sinks to replace it (p. 27)."
+      "explanation": "Heated air expands, becomes less dense and rises; cooler, denser air sinks to replace it (p. 27).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -277,7 +297,8 @@
         "cold air is denser and sinks, cooling the parts below by convection"
       ],
       "answer": 3,
-      "explanation": "The same convection currents that rise from a heater sink from a freezer (p. 27)."
+      "explanation": "The same convection currents that rise from a heater sink from a freezer (p. 27).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -290,7 +311,8 @@
         "sea water heats faster than land"
       ],
       "answer": 1,
-      "explanation": "Land has a lower specific heat than water, so its temperature rises faster (p. 26-27)."
+      "explanation": "Land has a lower specific heat than water, so its temperature rises faster (p. 26-27).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -303,7 +325,8 @@
         "convection can happen in a vacuum"
       ],
       "answer": 2,
-      "explanation": "Conduction and convection need particles of matter; radiation travels as electromagnetic waves through a vacuum (p. 26-27)."
+      "explanation": "Conduction and convection need particles of matter; radiation travels as electromagnetic waves through a vacuum (p. 26-27).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -316,7 +339,8 @@
         "they feel the prey by conduction"
       ],
       "answer": 0,
-      "explanation": "Warm bodies give off infrared radiation even in the dark (p. 27)."
+      "explanation": "Warm bodies give off infrared radiation even in the dark (p. 27).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -329,7 +353,8 @@
         "the solution evaporates"
       ],
       "answer": 2,
-      "explanation": "Zn + CuSO₄ → ZnSO₄ + Cu: a chemical reaction shown by a colour change (p. 31)."
+      "explanation": "Zn + CuSO₄ → ZnSO₄ + Cu: a chemical reaction shown by a colour change (p. 31).",
+      "lesson": "Chemical Reactions"
     },
     {
       "type": "mcq",
@@ -342,7 +367,8 @@
         "melting forms new substances, while burning does not"
       ],
       "answer": 0,
-      "explanation": "A chemical change produces new substances with new properties (p. 31)."
+      "explanation": "A chemical change produces new substances with new properties (p. 31).",
+      "lesson": "Chemical Reactions"
     },
     {
       "type": "mcq",
@@ -355,7 +381,8 @@
         "A white precipitate of silver chloride forms"
       ],
       "answer": 3,
-      "explanation": "AgNO₃(aq) + NaCl(aq) → AgCl(s) + NaNO₃(aq); silver chloride does not dissolve in water (p. 29)."
+      "explanation": "AgNO₃(aq) + NaCl(aq) → AgCl(s) + NaNO₃(aq); silver chloride does not dissolve in water (p. 29).",
+      "lesson": "Chemical Reactions"
     },
     {
       "type": "mcq",
@@ -368,7 +395,8 @@
         "Copper is deposited on the strip"
       ],
       "answer": 1,
-      "explanation": "Mg(s) + 2HCl(aq) → MgCl₂(aq) + H₂(g) (p. 29)."
+      "explanation": "Mg(s) + 2HCl(aq) → MgCl₂(aq) + H₂(g) (p. 29).",
+      "lesson": "Chemical Reactions"
     },
     {
       "type": "mcq",
@@ -381,7 +409,8 @@
         "A blue solution forms"
       ],
       "answer": 1,
-      "explanation": "2Mg(s) + O₂(g) → 2MgO(s). Hold it with tongs and protect your eyes (p. 29 and 38)."
+      "explanation": "2Mg(s) + O₂(g) → 2MgO(s). Hold it with tongs and protect your eyes (p. 29 and 38).",
+      "lesson": "Chemical Reactions"
     },
     {
       "type": "mcq",
@@ -394,7 +423,8 @@
         "Soap forms, and the texture of the mixture changes"
       ],
       "answer": 3,
-      "explanation": "This chemical reaction is how soap is made (p. 29 and 31)."
+      "explanation": "This chemical reaction is how soap is made (p. 29 and 31).",
+      "lesson": "Chemical Reactions"
     },
     {
       "type": "mcq",
@@ -407,7 +437,8 @@
         "Both cubes reach 70°C"
       ],
       "answer": 0,
-      "explanation": "Heat flows from hot to cold until thermal equilibrium; identical cubes meet halfway (p. 24)."
+      "explanation": "Heat flows from hot to cold until thermal equilibrium; identical cubes meet halfway (p. 24).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "tf",
@@ -418,7 +449,8 @@
         "False"
       ],
       "answer": 0,
-      "explanation": "True. Both need particles of matter; only radiation travels through a vacuum (p. 26)."
+      "explanation": "True. Both need particles of matter; only radiation travels through a vacuum (p. 26).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "tf",
@@ -429,7 +461,8 @@
         "False"
       ],
       "answer": 1,
-      "explanation": "False. Black surfaces absorb heat radiation best, so the water in the pipes heats up faster (p. 25)."
+      "explanation": "False. Black surfaces absorb heat radiation best, so the water in the pipes heats up faster (p. 25).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "tf",
@@ -440,7 +473,8 @@
         "False"
       ],
       "answer": 1,
-      "explanation": "False. It is a physical change: no new substance forms (p. 38)."
+      "explanation": "False. It is a physical change: no new substance forms (p. 38).",
+      "lesson": "Chemical Reactions"
     },
     {
       "type": "tf",
@@ -451,7 +485,8 @@
         "False"
       ],
       "answer": 0,
-      "explanation": "True. A balanced equation obeys the law of conservation of mass (p. 33)."
+      "explanation": "True. A balanced equation obeys the law of conservation of mass (p. 33).",
+      "lesson": "Chemical Equation"
     },
     {
       "type": "mcq",
@@ -464,7 +499,8 @@
         "happens only in liquids and gases"
       ],
       "answer": 2,
-      "explanation": "Convection moves heat with moving particles of liquids and gases; radiation is electromagnetic waves (p. 27)."
+      "explanation": "Convection moves heat with moving particles of liquids and gases; radiation is electromagnetic waves (p. 27).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -477,7 +513,8 @@
         "Silver / polystyrene"
       ],
       "answer": 3,
-      "explanation": "Silver and copper conduct heat well; wood, plastic and polystyrene are insulators (p. 27 and 37)."
+      "explanation": "Silver and copper conduct heat well; wood, plastic and polystyrene are insulators (p. 27 and 37).",
+      "lesson": "Methods of Heat Transfer"
     },
     {
       "type": "mcq",
@@ -490,7 +527,8 @@
         "Hydrogen gas evolves"
       ],
       "answer": 1,
-      "explanation": "A lasting change in colour and state is a sign of a chemical reaction (p. 31)."
+      "explanation": "A lasting change in colour and state is a sign of a chemical reaction (p. 31).",
+      "lesson": "Chemical Reactions"
     },
     {
       "type": "mcq",
@@ -503,7 +541,8 @@
         "A blue solution forms"
       ],
       "answer": 2,
-      "explanation": "Emission of light and heat is one of the signs of a chemical reaction (p. 29 and 31)."
+      "explanation": "Emission of light and heat is one of the signs of a chemical reaction (p. 29 and 31).",
+      "lesson": "Chemical Reactions"
     },
     {
       "type": "mcq",
@@ -516,7 +555,8 @@
         "The colour turns blue"
       ],
       "answer": 0,
-      "explanation": "Evolution of a gas is a sign of a chemical reaction (p. 31)."
+      "explanation": "Evolution of a gas is a sign of a chemical reaction (p. 31).",
+      "lesson": "Chemical Reactions"
     }
   ]
 }

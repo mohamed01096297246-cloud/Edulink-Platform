@@ -46,6 +46,11 @@ const questionSchema = new mongoose.Schema(
     // The part of the unit it comes from («الاستماع»، «النحو»…), shown above
     // the question and used to sum the result up by part.
     section: { type: String, trim: true, default: "" },
+    // The lesson it tests, as the student's book names it («الروابط
+    // الكيميائية», "Unit 3 grammar: the past simple"). After the quiz the
+    // student is told which lessons to go back to, from the ones they got
+    // wrong. Left out, the section stands in for it.
+    lesson: { type: String, trim: true },
     text: { type: String, required: true, trim: true },
     choices: {
       type: [{ type: String, trim: true }],
