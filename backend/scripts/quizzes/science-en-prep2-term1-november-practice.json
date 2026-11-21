@@ -491,15 +491,15 @@
     {
       "type": "mcq",
       "section": "Compare",
-      "text": "Unlike convection, radiation ......",
+      "text": "Which of the following is true for radiation but NOT for convection?",
       "choices": [
-        "happens only in solids",
-        "needs the movement of particles",
-        "can transfer heat through a vacuum without a medium",
-        "happens only in liquids and gases"
+        "It happens only in solids",
+        "It needs the movement of the medium's particles",
+        "It can transfer heat through a vacuum, without a medium",
+        "It happens only in liquids and gases"
       ],
       "answer": 2,
-      "explanation": "Convection moves heat with moving particles of liquids and gases; radiation is electromagnetic waves (p. 27).",
+      "explanation": "Radiation moves heat as electromagnetic waves, so it can cross a vacuum (that is how the Sun's heat reaches the Earth). Convection needs moving particles of a liquid or gas (p. 27).",
       "lesson": "Methods of Heat Transfer"
     },
     {
