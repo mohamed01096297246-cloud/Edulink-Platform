@@ -4,6 +4,7 @@ const {
   getToday,
   getSchedule,
   getHomework,
+  getReviewFiles,
   getGrades,
   getPerformance,
   getNotifications,
@@ -39,6 +40,8 @@ router.use(protect, authorize("student"));
 router.get("/today", requireUserFeature("home"), getToday);
 router.get("/schedule", requireUserFeature("schedule"), getSchedule);
 router.get("/homework", requireUserFeature("homework"), getHomework);
+// «ملفات المراجعة» sit on the same page as the homework, so the same switch.
+router.get("/review-files", requireUserFeature("homework"), getReviewFiles);
 router.get("/grades", requireUserFeature("grades"), getGrades);
 router.get("/performance", requireUserFeature("report"), getPerformance);
 router.get("/monthly-reports", requireUserFeature("report"), getMonthlyReports);

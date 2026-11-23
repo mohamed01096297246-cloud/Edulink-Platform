@@ -8,6 +8,7 @@ const Attendance = require("../models/Attendance");
 const Behavior = require("../models/Behavior");
 const Notification = require("../models/Notification");
 const School = require("../models/School");
+const ReviewFile = require("../models/ReviewFile");
 const { studentPerformance } = require("../utils/studentPerformance");
 const { testMarksOf } = require("../utils/testMarks");
 const { asTakenBy, otherLanguagesFor } = require("../utils/secondLanguage");
@@ -287,6 +288,46 @@ exports.getHomework = async (req, res) => {
           teacherFeedback: mine?.teacherFeedback || "",
         };
       }),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// «ملفات المراجعة» at the top of واجباتي: the files the school gave this
+// student's grade (models/ReviewFile.js), newest first, without the other
+// second language's. The app opens each link in the phone's browser; the
+// files are public on the site, so nothing here signs a link.
+exports.getReviewFiles = async (req, res) => {
+  try {
+    const student = await myStudent(req);
+    if (!student) return notFound(res);
+    const gradeId = student.classroom?.grade || student.grade?._id || student.grade;
+    if (!gradeId) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const otherLanguages = await otherLanguagesFor(student);
+    const files = await ReviewFile.find({
+      school: req.user.school,
+      grades: gradeId,
+      published: true,
+      ...(otherLanguages.length ? { subject: { $nin: otherLanguages } } : {}),
+    })
+      .populate("subject", "name")
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(30);
+
+    res.status(200).json({
+      success: true,
+      data: files.map((file) => ({
+        _id: file._id,
+        title: file.title,
+        note: file.note,
+        subject: file.subject?.name || "",
+        url: file.url,
+        createdAt: file.createdAt,
+      })),
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
