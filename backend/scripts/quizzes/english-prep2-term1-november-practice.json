@@ -501,21 +501,21 @@
     {
       "type": "mcq",
       "section": "Rewrite",
-      "text": "Join with \"because\": Rodayna stayed home. She was unwell.",
+      "text": "Rewrite using the word between brackets: \"Rodayna stayed home. She was unwell.\" (because)",
       "choices": [
         "Because Rodayna stayed home, she was unwell.",
-        "Rodayna stayed home so she was unwell.",
+        "Rodayna stayed home because she is unwell.",
         "Rodayna stayed home because she was unwell.",
         "Rodayna was unwell because she stayed home."
       ],
       "answer": 2,
-      "explanation": "because comes before the reason: she stayed home because she was unwell.",
+      "explanation": "because comes before the reason (she was unwell), and both parts stay in the past: she stayed home because she was unwell.",
       "lesson": "Unit 4 language: because, so, although, but and adjectives"
     },
     {
       "type": "mcq",
       "section": "Rewrite",
-      "text": "Join with \"Although\": Basem felt sick. He went to school.",
+      "text": "Rewrite using the word between brackets: \"Basem felt sick. He went to school.\" (Although)",
       "choices": [
         "Although Basem felt sick, but he went to school.",
         "Basem felt sick, although went to school.",
@@ -529,7 +529,7 @@
     {
       "type": "mcq",
       "section": "Rewrite",
-      "text": "Join with \"While\": I was doing my homework. My brother arrived.",
+      "text": "Rewrite using the word between brackets: \"I was doing my homework. My brother arrived.\" (While)",
       "choices": [
         "While I doing my homework, my brother arrived.",
         "While I was doing my homework, my brother arrived.",
@@ -543,7 +543,7 @@
     {
       "type": "mcq",
       "section": "Rewrite",
-      "text": "Rewrite with \"when\": I was reading a book. My friend called me.",
+      "text": "Rewrite using the word between brackets: \"I was reading a book. My friend called me.\" (when)",
       "choices": [
         "I was read a book when my friend called me.",
         "I was reading a book when my friend was call me.",

@@ -501,49 +501,49 @@
     {
       "type": "mcq",
       "section": "Rewrite",
-      "text": "Rewrite in the past simple: \"I help my brother with his homework.\"",
+      "text": "Rewrite using the word between brackets: \"I help my brother with his homework.\" (yesterday)",
       "choices": [
-        "I was help my brother with his homework.",
-        "I helps my brother with his homework.",
-        "I helped my brother with his homework.",
-        "I helping my brother with his homework."
+        "I was help my brother with his homework yesterday.",
+        "I helps my brother with his homework yesterday.",
+        "I helped my brother with his homework yesterday.",
+        "I help my brother with his homework yesterday."
       ],
       "answer": 2,
-      "explanation": "Past simple of a regular verb: help → helped.",
+      "explanation": "\"yesterday\" is in the past, so the verb goes into the past simple: help → helped.",
       "lesson": "Unit 3 grammar: the past simple"
     },
     {
       "type": "mcq",
       "section": "Rewrite",
-      "text": "Rewrite in the past simple: \"Where does Aziz go on vacation?\"",
+      "text": "Rewrite using the words between brackets: \"Where does Aziz go on vacation?\" (last summer)",
       "choices": [
-        "Where Aziz went on vacation?",
-        "Where does Aziz went on vacation?",
-        "Where did Aziz went on vacation?",
-        "Where did Aziz go on vacation?"
+        "Where Aziz went on vacation last summer?",
+        "Where does Aziz go on vacation last summer?",
+        "Where did Aziz went on vacation last summer?",
+        "Where did Aziz go on vacation last summer?"
       ],
       "answer": 3,
-      "explanation": "Past simple question: did + subject + infinitive (go, not went).",
+      "explanation": "\"last summer\" is in the past. Past simple question: Where + did + subject + infinitive (go, not went).",
       "lesson": "Unit 3 grammar: the past simple"
     },
     {
       "type": "mcq",
       "section": "Rewrite",
-      "text": "Rewrite using \"shouldn't\": \"Don't waste time on computer games.\"",
+      "text": "Rewrite using the word between brackets: \"Don't waste time on computer games.\" (shouldn't)",
       "choices": [
-        "You should waste time on computer games.",
+        "You shouldn't to waste time on computer games.",
         "You shouldn't waste time on computer games.",
-        "You don't should waste time on computer games.",
+        "You shouldn't wastes time on computer games.",
         "You shouldn't wasting time on computer games."
       ],
       "answer": 1,
-      "explanation": "shouldn't + infinitive gives advice not to do something.",
+      "explanation": "shouldn't + infinitive without \"to\" gives advice not to do something: You shouldn't waste …",
       "lesson": "Unit 4 grammar: first conditional, should / shouldn't"
     },
     {
       "type": "mcq",
       "section": "Rewrite",
-      "text": "Rewrite using \"If\": \"Study hard and you will pass the test.\"",
+      "text": "Rewrite using the word between brackets: \"Study hard and you will pass the test.\" (If)",
       "choices": [
         "If you study hard, you passed the test.",
         "If you studied hard, you will pass the test.",
