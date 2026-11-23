@@ -1,0 +1,748 @@
+{
+  "title": "اختبار تدريبي على اختبار شهر نوفمبر - لغة فرنسية - الصف الثاني الإعدادي",
+  "subjectName": "لغة فرنسية",
+  "direction": "ltr",
+  "scope": "Module 2 : Chez moi. Les pièces et les meubles de la maison, il y a, les prépositions de lieu, l'interrogation, dormir, prendre et faire.",
+  "source": "Content from Mohamed (2026-11-23): unit 2 only. Book «Ensemble, apprenons le français 2» 2026/2027, Module 2 «Chez moi», as in the ministry weekly assessments (weeks 7-9, 2nd prep) and the exam specification (2ème langue étrangère, 1er semestre 2026/2027).",
+  "passages": [
+    {
+      "key": "doc",
+      "kind": "reading",
+      "title": "Document : la maison de Nour",
+      "text": "Je m'appelle Nour. J'habite à Alexandrie, dans un appartement au troisième étage. Il y a cinq pièces : un salon, une salle à manger, deux chambres et une cuisine. Le salon est grand : il y a un canapé et deux fauteuils. Ma chambre est petite mais confortable. Il y a un lit, une armoire et un bureau. Sur le bureau, il y a un ordinateur. Le matin, nous prenons le petit déjeuner dans la cuisine."
+    }
+  ],
+  "questions": [
+    {
+      "type": "mcq",
+      "section": "Compréhension",
+      "lesson": "Compréhension : décrire sa maison",
+      "text": "Est-ce que Nour habite au Caire ?",
+      "explanation": "Nour dit : « J'habite à Alexandrie. » La réponse est donc Non, avec une phrase complète.",
+      "passage": "doc",
+      "choices": [
+        "Oui, elle habite au Caire.",
+        "Non, elle habite à Alexandrie.",
+        "Oui, elle habite à Alexandrie.",
+        "Non, elle habite à Louxor."
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Compréhension",
+      "lesson": "Compréhension : décrire sa maison",
+      "text": "Est-ce que la chambre de Nour est grande ?",
+      "explanation": "Nour dit : « Ma chambre est petite mais confortable. » C'est le salon qui est grand.",
+      "passage": "doc",
+      "choices": [
+        "Oui, elle est grande.",
+        "Oui, elle est petite.",
+        "Non, elle est grande.",
+        "Non, elle est petite."
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Compréhension",
+      "lesson": "Compréhension : décrire sa maison",
+      "text": "Combien de pièces il y a dans l'appartement ?",
+      "explanation": "« Il y a cinq pièces : un salon, une salle à manger, deux chambres et une cuisine. »",
+      "passage": "doc",
+      "choices": [
+        "Il y a quatre pièces.",
+        "Il y a cinq pièces.",
+        "Il y a trois pièces.",
+        "Il y a deux pièces."
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Compréhension",
+      "lesson": "Compréhension : décrire sa maison",
+      "text": "Qu'est-ce qu'il y a dans le salon ?",
+      "explanation": "« Le salon est grand : il y a un canapé et deux fauteuils. »",
+      "passage": "doc",
+      "choices": [
+        "Un canapé et deux fauteuils.",
+        "Un lit et une armoire.",
+        "Un ordinateur et un bureau.",
+        "Une table et des chaises."
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Compréhension",
+      "lesson": "Compréhension : décrire sa maison",
+      "text": "Où est l'ordinateur ?",
+      "explanation": "« Sur le bureau, il y a un ordinateur. »",
+      "passage": "doc",
+      "choices": [
+        "Dans le salon.",
+        "Sous le lit.",
+        "Dans la cuisine.",
+        "Sur le bureau."
+      ],
+      "answer": 3
+    },
+    {
+      "type": "tf",
+      "section": "Compréhension",
+      "lesson": "Compréhension : décrire sa maison",
+      "text": "L'appartement est au troisième étage.",
+      "choices": [
+        "Vrai",
+        "Faux"
+      ],
+      "answer": 0,
+      "explanation": "Vrai. Nour habite « dans un appartement au troisième étage ».",
+      "passage": "doc"
+    },
+    {
+      "type": "tf",
+      "section": "Compréhension",
+      "lesson": "Compréhension : décrire sa maison",
+      "text": "La famille prend le petit déjeuner dans la salle à manger.",
+      "choices": [
+        "Vrai",
+        "Faux"
+      ],
+      "answer": 1,
+      "explanation": "Faux. « Le matin, nous prenons le petit déjeuner dans la cuisine. »",
+      "passage": "doc"
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Les pièces de la maison et ce qu'on y fait",
+      "text": "On dort dans ......",
+      "explanation": "On dort dans la chambre. une chambre = غرفة نوم",
+      "choices": [
+        "la chambre",
+        "la cuisine",
+        "la salle de bains",
+        "le salon"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Les pièces de la maison et ce qu'on y fait",
+      "text": "On prépare les repas dans ......",
+      "explanation": "On prépare les repas dans la cuisine. une cuisine = مطبخ",
+      "choices": [
+        "la chambre",
+        "le couloir",
+        "la cuisine",
+        "la salle de bains"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Les pièces de la maison et ce qu'on y fait",
+      "text": "On prend une douche dans ......",
+      "explanation": "On prend une douche (on fait sa toilette) dans la salle de bains. une salle de bains = حمام",
+      "choices": [
+        "le salon",
+        "la salle de bains",
+        "la cuisine",
+        "la salle à manger"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Les pièces de la maison et ce qu'on y fait",
+      "text": "On reçoit les invités dans ......",
+      "explanation": "On reçoit les invités dans le salon. un salon = صالون",
+      "choices": [
+        "la salle de bains",
+        "le garage",
+        "le salon",
+        "la cuisine"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Les pièces de la maison et ce qu'on y fait",
+      "text": "On prend les repas dans ......",
+      "explanation": "On prend les repas (on mange) dans la salle à manger. une salle à manger = غرفة السفرة",
+      "choices": [
+        "le couloir",
+        "la chambre",
+        "la salle à manger",
+        "la salle de bains"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Les meubles et les objets de la maison",
+      "text": "Dans la cuisine, il y a ......",
+      "explanation": "Dans la cuisine : un frigo, une cuisinière, un four, un évier et des placards.",
+      "choices": [
+        "un canapé et des fauteuils",
+        "un lit et une armoire",
+        "un frigo et une cuisinière",
+        "une douche et un lavabo"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Les meubles et les objets de la maison",
+      "text": "Je range mes vêtements dans ......",
+      "explanation": "On range les vêtements dans l'armoire. une armoire = دولاب",
+      "choices": [
+        "le lavabo",
+        "la cuisinière",
+        "l'armoire",
+        "le frigo"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Les meubles et les objets de la maison",
+      "text": "Les livres sont sur ......",
+      "explanation": "Les étagères sont pour les livres. une étagère = رف",
+      "choices": [
+        "le frigo",
+        "le lavabo",
+        "les étagères",
+        "la douche"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Les meubles et les objets de la maison",
+      "text": "Dans la salle de bains, il y a ......",
+      "explanation": "Dans la salle de bains : un lavabo, une douche et une baignoire.",
+      "choices": [
+        "un lavabo et une douche",
+        "un canapé et un tapis",
+        "un lit et un bureau",
+        "un frigo et un four"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Les pièces de la maison et ce qu'on y fait",
+      "text": "Complète avec un mot du même bagage linguistique : Cuisine – Salle à manger – ......",
+      "explanation": "Ce sont des pièces de la maison : cuisine, salle à manger, chambre, salon, salle de bains.",
+      "choices": [
+        "Chambre",
+        "Lampe",
+        "Tapis",
+        "Armoire"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Les meubles et les objets de la maison",
+      "text": "Complète avec un mot du même bagage linguistique : Fauteuil – Canapé – ......",
+      "explanation": "Ce sont des meubles : un fauteuil, un canapé, une chaise, une table, un lit.",
+      "choices": [
+        "Chaise",
+        "Couloir",
+        "Cuisine",
+        "Chambre"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Les meubles et les objets de la maison",
+      "text": "Complète avec un mot du même bagage linguistique : Tapis – Lampe – ......",
+      "explanation": "Ce sont des objets de décoration : un tapis, une lampe, un poster, un rideau, un tableau.",
+      "choices": [
+        "Escalier",
+        "Salon",
+        "Poster",
+        "Cuisine"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Les prépositions de lieu",
+      "lesson": "Les prépositions de lieu",
+      "text": "Le contraire de « sur » est ......",
+      "explanation": "sur ≠ sous. Le livre est sur la table, le chat est sous la table.",
+      "choices": [
+        "dans",
+        "sous",
+        "entre",
+        "devant"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Les prépositions de lieu",
+      "lesson": "Les prépositions de lieu",
+      "text": "Le contraire de « devant » est ......",
+      "explanation": "devant ≠ derrière.",
+      "choices": [
+        "derrière",
+        "dans",
+        "sur",
+        "près de"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Les prépositions de lieu",
+      "lesson": "Les prépositions de lieu",
+      "text": "Le contraire de « près de » est ......",
+      "explanation": "près de ≠ loin de.",
+      "choices": [
+        "sous",
+        "à côté de",
+        "en face de",
+        "loin de"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Les prépositions de lieu",
+      "lesson": "Les prépositions de lieu",
+      "text": "Le contraire de « à gauche de » est ......",
+      "explanation": "à gauche de ≠ à droite de.",
+      "choices": [
+        "derrière",
+        "loin de",
+        "à droite de",
+        "à côté de"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Les prépositions de lieu",
+      "lesson": "Les prépositions de lieu",
+      "text": "La chaise est à côté ...... bureau.",
+      "explanation": "de + le = du : à côté du bureau. (de + la = de la, de + les = des)",
+      "choices": [
+        "du",
+        "des",
+        "de la",
+        "de le"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Les prépositions de lieu",
+      "lesson": "Les prépositions de lieu",
+      "text": "Ma chambre est en face ...... cuisine.",
+      "explanation": "« cuisine » est féminin : en face de la cuisine.",
+      "choices": [
+        "des",
+        "de la",
+        "du",
+        "de le"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Les prépositions de lieu",
+      "lesson": "Les prépositions de lieu",
+      "text": "Le chat est ...... le lit et l'armoire.",
+      "explanation": "entre … et … : le chat est entre le lit et l'armoire.",
+      "choices": [
+        "sur",
+        "dans",
+        "sous",
+        "entre"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Les prépositions de lieu",
+      "lesson": "Les prépositions de lieu",
+      "text": "Je mets mes livres ...... mon cartable.",
+      "explanation": "On met les livres dans le cartable.",
+      "choices": [
+        "entre",
+        "sous",
+        "derrière",
+        "dans"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "L'interrogation",
+      "lesson": "L'interrogation : Comment, Où, Combien de, Quel, Qu'est-ce que",
+      "text": "...... est ta chambre ? – Elle est petite et rangée.",
+      "explanation": "Pour décrire (petite, grande, rangée…), on demande Comment : Comment est ta chambre ?",
+      "choices": [
+        "Qu'est-ce que",
+        "Combien de",
+        "Comment",
+        "Où"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "L'interrogation",
+      "lesson": "L'interrogation : Comment, Où, Combien de, Quel, Qu'est-ce que",
+      "text": "...... est ta chambre ? – À côté de la cuisine.",
+      "explanation": "Pour le lieu (à côté de la cuisine), on demande Où : Où est ta chambre ?",
+      "choices": [
+        "Quelle",
+        "Où",
+        "Combien",
+        "Comment"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "L'interrogation",
+      "lesson": "L'interrogation : Comment, Où, Combien de, Quel, Qu'est-ce que",
+      "text": "...... pièces il y a dans ta maison ? – Il y a cinq pièces.",
+      "explanation": "Pour le nombre, on demande Combien de : Combien de pièces il y a dans ta maison ?",
+      "choices": [
+        "Combien de",
+        "Quel",
+        "Comment",
+        "Où"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "L'interrogation",
+      "lesson": "L'interrogation : Comment, Où, Combien de, Quel, Qu'est-ce que",
+      "text": "...... meubles il y a dans la salle à manger ?",
+      "explanation": "« meubles » est masculin pluriel : Quels meubles ?",
+      "choices": [
+        "Quel",
+        "Quelle",
+        "Quels",
+        "Quelles"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "L'interrogation",
+      "lesson": "L'interrogation : Comment, Où, Combien de, Quel, Qu'est-ce que",
+      "text": "...... décorations tu as dans ta chambre ?",
+      "explanation": "« décorations » est féminin pluriel : Quelles décorations ?",
+      "choices": [
+        "Quels",
+        "Quelles",
+        "Quel",
+        "Quelle"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "L'interrogation",
+      "lesson": "L'interrogation : Comment, Où, Combien de, Quel, Qu'est-ce que",
+      "text": "...... il y a dans le salon ? – Il y a un canapé.",
+      "explanation": "Pour demander une chose : Qu'est-ce qu'il y a dans le salon ?",
+      "choices": [
+        "Comment",
+        "Qu'est-ce qu'",
+        "Qui",
+        "Où"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Les verbes dormir, prendre, faire, préparer et regarder",
+      "text": "Je ...... à dix heures du soir. (dormir)",
+      "explanation": "dormir : je dors, tu dors, il dort, nous dormons, vous dormez, ils dorment.",
+      "choices": [
+        "dors",
+        "dort",
+        "dorment",
+        "dormons"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Les verbes dormir, prendre, faire, préparer et regarder",
+      "text": "On ...... les repas dans la salle à manger. (prendre)",
+      "explanation": "prendre : je prends, tu prends, il/on prend, nous prenons, vous prenez, ils prennent.",
+      "choices": [
+        "prenons",
+        "prennent",
+        "prends",
+        "prend"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Les verbes dormir, prendre, faire, préparer et regarder",
+      "text": "Les enfants ...... leurs devoirs dans leur chambre. (faire)",
+      "explanation": "faire : je fais, tu fais, il fait, nous faisons, vous faites, ils font.",
+      "choices": [
+        "faites",
+        "font",
+        "faisons",
+        "fait"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Les verbes dormir, prendre, faire, préparer et regarder",
+      "text": "Nous ...... la télévision dans le salon. (regarder)",
+      "explanation": "regarder (verbe en -er) : nous regardons.",
+      "choices": [
+        "regardent",
+        "regarde",
+        "regardez",
+        "regardons"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Les verbes dormir, prendre, faire, préparer et regarder",
+      "text": "Ma mère ...... le dîner dans la cuisine. (préparer)",
+      "explanation": "préparer avec il/elle : elle prépare.",
+      "choices": [
+        "prépare",
+        "préparent",
+        "prépares",
+        "préparez"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Les verbes dormir, prendre, faire, préparer et regarder",
+      "text": "Vous ...... dans une grande chambre ? (dormir)",
+      "explanation": "dormir avec vous : vous dormez.",
+      "choices": [
+        "dormez",
+        "dorment",
+        "dormons",
+        "dort"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Les verbes dormir, prendre, faire, préparer et regarder",
+      "text": "Mes parents ...... le petit déjeuner à sept heures. (prendre)",
+      "explanation": "prendre avec ils (mes parents) : ils prennent.",
+      "choices": [
+        "prenons",
+        "prenez",
+        "prend",
+        "prennent"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Les verbes dormir, prendre, faire, préparer et regarder",
+      "text": "Tu ...... une étagère dans le salon ? (avoir)",
+      "explanation": "avoir : j'ai, tu as, il a, nous avons, vous avez, ils ont.",
+      "choices": [
+        "a",
+        "as",
+        "ai",
+        "avez"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Décrire sa maison",
+      "lesson": "Décrire sa maison : il y a, grand / petit",
+      "text": "Mon appartement est ......",
+      "explanation": "« appartement » est masculin : il est petit (ou grand). Au féminin : petite, grande.",
+      "choices": [
+        "petites",
+        "grande",
+        "petit",
+        "petite"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Décrire sa maison",
+      "lesson": "Décrire sa maison : il y a, grand / petit",
+      "text": "J'habite dans une ...... maison.",
+      "explanation": "« maison » est féminin : une grande maison (ou une petite maison).",
+      "choices": [
+        "grands",
+        "grande",
+        "petit",
+        "grand"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Décrire sa maison",
+      "lesson": "Décrire sa maison : il y a, grand / petit",
+      "text": "Dans la chambre, il y a ...... lit.",
+      "explanation": "« lit » est masculin singulier : il y a un lit.",
+      "choices": [
+        "les",
+        "une",
+        "un",
+        "des"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Décrire sa maison",
+      "lesson": "Décrire sa maison : il y a, grand / petit",
+      "text": "Il y a ...... table et des chaises dans la salle à manger.",
+      "explanation": "« table » est féminin singulier : il y a une table.",
+      "choices": [
+        "le",
+        "une",
+        "des",
+        "un"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Mets en ordre",
+      "lesson": "Décrire sa maison : il y a, grand / petit",
+      "text": "Mets les mots en ordre : une porte / à l'entrée. / Il y a",
+      "explanation": "Il y a + la chose + le lieu : Il y a une porte à l'entrée.",
+      "choices": [
+        "Il y a l'entrée à une porte.",
+        "Une porte il y a à l'entrée.",
+        "À l'entrée une porte il y a.",
+        "Il y a une porte à l'entrée."
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Mets en ordre",
+      "lesson": "Décrire sa maison : il y a, grand / petit",
+      "text": "Mets les mots en ordre : Les toilettes / la maison. / dans / sont",
+      "explanation": "Le sujet, le verbe, puis le lieu : Les toilettes sont dans la maison.",
+      "choices": [
+        "Dans les toilettes sont la maison.",
+        "La maison sont dans les toilettes.",
+        "Les toilettes dans sont la maison.",
+        "Les toilettes sont dans la maison."
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Mets en ordre",
+      "lesson": "Décrire sa maison : il y a, grand / petit",
+      "text": "Mets les mots en ordre : est / la cuisine. / Ma chambre / devant",
+      "explanation": "Le sujet (Ma chambre), le verbe (est), puis le lieu (devant la cuisine).",
+      "choices": [
+        "Ma chambre est devant la cuisine.",
+        "Devant est ma chambre la cuisine.",
+        "Est ma chambre devant la cuisine.",
+        "Ma chambre la cuisine est devant."
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Mets en ordre",
+      "lesson": "Décrire sa maison : il y a, grand / petit",
+      "text": "Mets les mots en ordre : un poster. / il y a / Dans ma chambre,",
+      "explanation": "Le lieu, puis il y a + la chose : Dans ma chambre, il y a un poster.",
+      "choices": [
+        "Un poster il y a dans ma chambre.",
+        "Dans ma chambre, un poster il y a.",
+        "Dans il y a ma chambre, un poster.",
+        "Dans ma chambre, il y a un poster."
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Expression",
+      "lesson": "Les pièces de la maison et ce qu'on y fait",
+      "text": "Je suis dans la cuisine pour ......",
+      "explanation": "Dans la cuisine, on prépare les repas.",
+      "choices": [
+        "prendre une douche",
+        "préparer le repas",
+        "dormir dans mon lit",
+        "ranger mes vêtements"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Expression",
+      "lesson": "Les pièces de la maison et ce qu'on y fait",
+      "text": "Nous sommes dans le salon pour ......",
+      "explanation": "Dans le salon, on regarde la télévision et on reçoit les invités.",
+      "choices": [
+        "prendre une douche",
+        "faire la cuisine",
+        "dormir",
+        "regarder la télévision"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Expression",
+      "lesson": "Les meubles et les objets de la maison",
+      "text": "Dans ma chambre, il y a ......",
+      "explanation": "Dans la chambre : un lit, une armoire, un bureau, des étagères, un tapis…",
+      "choices": [
+        "un lit et une armoire",
+        "une douche et un lavabo",
+        "une cuisinière et un évier",
+        "un frigo et un four"
+      ],
+      "answer": 0
+    }
+  ]
+}

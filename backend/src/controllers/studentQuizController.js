@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Student = require("../models/Student");
 const Quiz = require("../models/Quiz");
 const QuizAttempt = require("../models/QuizAttempt");
+const { otherLanguagesFor } = require("../utils/secondLanguage");
 
 // «الامتحانات الإلكترونية» in the student app (models/Quiz.js). A student
 // sees the published quizzes of their own classroom, takes one once, and is
@@ -10,17 +11,24 @@ const QuizAttempt = require("../models/QuizAttempt");
 // explanation. The right answers are never sent before that.
 
 const myStudent = async (req) =>
-  Student.findOne({ _id: req.user.studentProfile, school: req.user.school }).select("classroom school");
+  Student.findOne({ _id: req.user.studentProfile, school: req.user.school }).select("classroom school secondLanguage");
 
 const notFound = (res, message = "الامتحان ده مش موجود.") => res.status(404).json({ success: false, message });
 
-// The quizzes a student may see: their classroom's, published, opened.
-const visibleTo = (student, now = new Date()) => ({
-  school: student.school,
-  classrooms: student.classroom,
-  published: true,
-  $or: [{ opensAt: null }, { opensAt: { $exists: false } }, { opensAt: { $lte: now } }],
-});
+// The quizzes a student may see: their classroom's, published, opened —
+// except one in another language of their class's «مادة ثانية»: in a class
+// split between French and German, a German pupil doesn't get the French
+// test (utils/secondLanguage.js; a pupil with no language yet sees both).
+const visibleTo = async (student, now = new Date()) => {
+  const otherLanguages = await otherLanguagesFor(student);
+  return {
+    school: student.school,
+    classrooms: student.classroom,
+    published: true,
+    $or: [{ opensAt: null }, { opensAt: { $exists: false } }, { opensAt: { $lte: now } }],
+    ...(otherLanguages.length ? { subject: { $nin: otherLanguages } } : {}),
+  };
+};
 
 const isClosed = (quiz, now = new Date()) => Boolean(quiz.closesAt && quiz.closesAt < now);
 
@@ -126,7 +134,7 @@ exports.listQuizzes = async (req, res) => {
     const student = await myStudent(req);
     if (!student || !student.classroom) return res.status(200).json({ success: true, data: { quizzes: [] } });
     const now = new Date();
-    const quizzes = await Quiz.find(visibleTo(student, now)).sort({ createdAt: -1 }).lean();
+    const quizzes = await Quiz.find(await visibleTo(student, now)).sort({ createdAt: -1 }).lean();
     const attempts = await QuizAttempt.find({ student: student._id, quiz: { $in: quizzes.map((q) => q._id) } })
       .select("quiz score total createdAt")
       .lean();
@@ -153,7 +161,7 @@ exports.listQuizzes = async (req, res) => {
 
 const findVisible = async (req, student) => {
   if (!mongoose.isValidObjectId(req.params.id)) return null;
-  return Quiz.findOne({ _id: req.params.id, ...visibleTo(student) });
+  return Quiz.findOne({ _id: req.params.id, ...(await visibleTo(student)) });
 };
 
 // GET /student/quizzes/:id — the questions to answer, without their answers;

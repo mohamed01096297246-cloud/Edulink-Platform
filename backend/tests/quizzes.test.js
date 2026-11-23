@@ -4,6 +4,9 @@ const f = require("./helpers/factory");
 const Quiz = require("../src/models/Quiz");
 const QuizAttempt = require("../src/models/QuizAttempt");
 const User = require("../src/models/User");
+const Student = require("../src/models/Student");
+const Schedule = require("../src/models/Schedule");
+const Grade = require("../src/models/Grade");
 
 // «الامتحانات الإلكترونية»: a student takes their classroom's quiz once and
 // is marked the moment they send it — the score, and every question with
@@ -200,6 +203,49 @@ test("an English quiz reads left to right, in the questions and in the result", 
   await expect(new Quiz({ ...q.toObject(), _id: undefined, direction: "up" }).validate()).rejects.toThrow();
 });
 
+test("in a class split between French and German, each pupil gets their own language's quiz", async () => {
+  const { s, c, account, q } = await setUp();
+  const g = await Grade.findById(c.grade);
+  const french = await f.subject(s, [g], { name: "لغة فرنسية" });
+  const german = await f.subject(s, [g], { name: "لغة ألمانية" });
+  const slot = { school: s._id, classroom: c._id, day: "sun", period: 1, startTime: "08:00", endTime: "08:45", secondLanguage: true };
+  await Schedule.create([{ ...slot, subject: french._id }, { ...slot, subject: german._id }]);
+  const questions = q.questions.map((x) => x.toObject());
+  const base = { school: s._id, classrooms: [c._id], published: true, questions, direction: "ltr" };
+  const frQuiz = await Quiz.create({ ...base, title: "Français", subjectName: "لغة فرنسية", subject: french._id });
+  await Quiz.create({ ...base, title: "Deutsch", subjectName: "لغة ألمانية", subject: german._id });
+
+  const titlesFor = async (acc) =>
+    (await (await f.signIn(acc)).get("/api/student/quizzes")).body.data.quizzes.map((x) => x.title).sort();
+
+  // No language set yet: every language's quiz, as on the registers.
+  expect(await titlesFor(account)).toEqual(["Deutsch", "Français", "امتحان الوحدة الأولى"]);
+
+  // A German pupil: the German one and the class's others, never the French.
+  const { student: kidDe } = await f.student(c);
+  await Student.updateOne({ _id: kidDe._id }, { secondLanguage: german._id });
+  const de = await f.user("student", s, { studentProfile: kidDe._id });
+  expect(await titlesFor(de)).toEqual(["Deutsch", "امتحان الوحدة الأولى"]);
+  const deApi = await f.signIn(de);
+  expect((await deApi.get(`/api/student/quizzes/${frQuiz._id}`)).status).toBe(404);
+  expect((await deApi.post(`/api/student/quizzes/${frQuiz._id}/submit`, { answers: {} })).status).toBe(404);
+
+  // A French pupil: the French one.
+  const { student: kidFr } = await f.student(c);
+  await Student.updateOne({ _id: kidFr._id }, { secondLanguage: french._id });
+  const fr = await f.user("student", s, { studentProfile: kidFr._id });
+  expect(await titlesFor(fr)).toEqual(["Français", "امتحان الوحدة الأولى"]);
+
+  // A class whose French is a plain period (no German beside it): everyone.
+  const other = await f.classroom(g);
+  await Schedule.create({ ...slot, classroom: other._id, subject: french._id, secondLanguage: false });
+  await Quiz.updateOne({ _id: frQuiz._id }, { $push: { classrooms: other._id } });
+  const { student: kidPlain } = await f.student(other);
+  await Student.updateOne({ _id: kidPlain._id }, { secondLanguage: german._id });
+  const plain = await f.user("student", s, { studentProfile: kidPlain._id });
+  expect(await titlesFor(plain)).toEqual(["Français"]);
+});
+
 test("only students take quizzes, and the switch turns them off for one student", async () => {
   const { account, s, q } = await setUp();
   const parent = await f.user("parent", s);
@@ -233,10 +279,15 @@ test.each(QUIZ_FILES)("the quiz file %s is a valid quiz: every answer one of its
   spec.questions
     // ("Complete" alone is the English text with numbered blanks; "Complete
     // the statements" in science is single sentences.)
-    .filter((x) => /الاستماع|القراءة|الشعري|Reading|Listening|Dialog|^Complete$/i.test(x.section))
+    .filter((x) => /الاستماع|القراءة|الشعري|Reading|Listening|Dialog|^Complete$|Compréhension/i.test(x.section))
     .forEach((x) => expect(x.passage).toBeTruthy());
-  // صح / غلط in an Arabic quiz, True / False in one that reads left to right.
-  const trueFalse = spec.direction === "ltr" ? ["True", "False"] : ["صح", "غلط"];
+  // صح / غلط in an Arabic quiz, Vrai / Faux in French, True / False in the
+  // other ones that read left to right.
+  const trueFalse = /فرنسية/.test(spec.subjectName)
+    ? ["Vrai", "Faux"]
+    : spec.direction === "ltr"
+      ? ["True", "False"]
+      : ["صح", "غلط"];
   spec.questions.forEach((x) => {
     expect(x.explanation.length).toBeGreaterThan(5);
     // Every question names its lesson, for «راجع الدروس دي» after the quiz.

@@ -1,0 +1,687 @@
+{
+  "title": "اختبار تدريبي على اختبار شهر نوفمبر - لغة فرنسية - الصف الأول الإعدادي",
+  "subjectName": "لغة فرنسية",
+  "direction": "ltr",
+  "scope": "Module 2 : Je suis égyptien(ne), et toi ? Se présenter, la nationalité, les nombres jusqu'à 20, être, avoir, s'appeler et habiter, la carte scolaire.",
+  "source": "Content from Mohamed (2026-11-23): unit 2 only. Book «Ensemble» 2026/2027, Module 2, as in the ministry weekly assessments (weeks 7-9, 1st prep) and the exam specification (2ème langue étrangère, 1er semestre 2026/2027).",
+  "passages": [
+    {
+      "key": "doc",
+      "kind": "reading",
+      "title": "Document : Lina se présente",
+      "text": "Bonjour ! Je m'appelle Lina Samir. J'ai treize ans. Je suis égyptienne. J'habite au Caire, 10 rue El Nozha. Je suis collégienne. Mon ami s'appelle Marc. Il est français. Il a quatorze ans et il habite à Paris."
+    },
+    {
+      "key": "fiche",
+      "kind": "reading",
+      "title": "Document : la carte scolaire de Amr",
+      "text": "Il s'appelle Amr Ali. Il a douze ans. Il est égyptien. Il habite 5, rue Al Maadi, au Caire. Il est collégien."
+    }
+  ],
+  "questions": [
+    {
+      "type": "tf",
+      "section": "Compréhension",
+      "lesson": "Compréhension : se présenter",
+      "text": "Lina a quinze ans.",
+      "choices": [
+        "Vrai",
+        "Faux"
+      ],
+      "answer": 1,
+      "explanation": "Faux. Lina dit : « J'ai treize ans. »",
+      "passage": "doc"
+    },
+    {
+      "type": "tf",
+      "section": "Compréhension",
+      "lesson": "Compréhension : se présenter",
+      "text": "Marc est français.",
+      "choices": [
+        "Vrai",
+        "Faux"
+      ],
+      "answer": 0,
+      "explanation": "Vrai. Le document dit : « Il est français. »",
+      "passage": "doc"
+    },
+    {
+      "type": "mcq",
+      "section": "Compréhension",
+      "lesson": "Compréhension : se présenter",
+      "text": "Où habite Lina ?",
+      "explanation": "Lina dit : « J'habite au Caire, 10 rue El Nozha. » C'est Marc qui habite à Paris.",
+      "passage": "doc",
+      "choices": [
+        "À Louxor.",
+        "À Paris.",
+        "Au Caire.",
+        "À Alexandrie."
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Compréhension",
+      "lesson": "Compréhension : se présenter",
+      "text": "Quel âge a Marc ?",
+      "explanation": "Le document dit : « Il a quatorze ans. » Treize ans, c'est l'âge de Lina.",
+      "passage": "doc",
+      "choices": [
+        "Il a douze ans.",
+        "Il a quatorze ans.",
+        "Il a treize ans.",
+        "Il a quinze ans."
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Compréhension",
+      "lesson": "Compréhension : se présenter",
+      "text": "Quelle est la nationalité de Lina ?",
+      "explanation": "Lina dit : « Je suis égyptienne. » Lina est une fille, alors on écrit égyptienne (et pas égyptien).",
+      "passage": "doc",
+      "choices": [
+        "Elle est française.",
+        "Elle est italienne.",
+        "Elle est égyptien.",
+        "Elle est égyptienne."
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Le vocabulaire du module 2",
+      "text": "Paris est la ...... de la France.",
+      "explanation": "Paris est la capitale de la France. une capitale = عاصمة",
+      "choices": [
+        "capitale",
+        "carte",
+        "rue",
+        "nationalité"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Le vocabulaire du module 2",
+      "text": "Un élève du collège est un ......",
+      "explanation": "Un élève du collège est un collégien (une fille : une collégienne). un collégien = طالب إعدادي",
+      "choices": [
+        "collégien",
+        "directeur",
+        "professeur",
+        "passeport"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Le vocabulaire du module 2",
+      "text": "Pour voyager dans un autre pays, j'ai un ......",
+      "explanation": "Pour voyager, on a un passeport. un passeport = جواز سفر",
+      "choices": [
+        "cahier",
+        "drapeau",
+        "numéro",
+        "passeport"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Le vocabulaire du module 2",
+      "text": "Les pyramides et le Sphinx sont en ......",
+      "explanation": "Les pyramides et le Sphinx sont en Égypte. La Tour Eiffel est en France.",
+      "choices": [
+        "France",
+        "Espagne",
+        "Égypte",
+        "Italie"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Le vocabulaire du module 2",
+      "text": "Sur ma carte scolaire, il y a mon nom, mon prénom, mon âge et mon ......",
+      "explanation": "Sur une carte, on écrit le nom, le prénom, l'âge et l'adresse. une adresse = عنوان",
+      "choices": [
+        "ballon",
+        "cartable",
+        "adresse",
+        "drapeau"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Vocabulaire",
+      "lesson": "Le vocabulaire du module 2",
+      "text": "« Égyptien », « français » et « italien » sont des ......",
+      "explanation": "Égyptien, français, italien : ce sont des nationalités. une nationalité = جنسية",
+      "choices": [
+        "professions",
+        "adresses",
+        "villes",
+        "nationalités"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Les nombres",
+      "lesson": "Les nombres jusqu'à 20",
+      "text": "15 = ......",
+      "explanation": "15 = quinze. 14 = quatorze, 16 = seize, 5 = cinq.",
+      "choices": [
+        "cinq",
+        "quinze",
+        "quatorze",
+        "seize"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Les nombres",
+      "lesson": "Les nombres jusqu'à 20",
+      "text": "dix + sept = ......",
+      "explanation": "10 + 7 = 17 = dix-sept.",
+      "choices": [
+        "dix-huit",
+        "dix-sept",
+        "sept",
+        "seize"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Les nombres",
+      "lesson": "Les nombres jusqu'à 20",
+      "text": "« vingt » = ......",
+      "explanation": "vingt = 20. douze = 12, deux = 2, dix = 10.",
+      "choices": [
+        "2",
+        "10",
+        "20",
+        "12"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Les nombres",
+      "lesson": "Les nombres jusqu'à 20",
+      "text": "Comment on écrit 18 ?",
+      "explanation": "18 = dix-huit. 19 = dix-neuf, 17 = dix-sept.",
+      "choices": [
+        "huit",
+        "dix-neuf",
+        "dix-sept",
+        "dix-huit"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Les nombres",
+      "lesson": "Les nombres jusqu'à 20",
+      "text": "J'ai 13 ans. → J'ai ...... ans.",
+      "explanation": "13 = treize. 3 = trois, 12 = douze, 14 = quatorze.",
+      "choices": [
+        "douze",
+        "treize",
+        "quatorze",
+        "trois"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Mets en ordre",
+      "lesson": "Se présenter : l'ordre des mots",
+      "text": "Mets les mots en ordre : suis / et toi ? / Je / égyptienne,",
+      "explanation": "Le sujet, puis le verbe : Je suis égyptienne, et toi ?",
+      "choices": [
+        "Je suis égyptienne, et toi ?",
+        "Je égyptienne suis, et toi ?",
+        "Et toi je suis égyptienne ?",
+        "Suis je égyptienne, et toi ?"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Mets en ordre",
+      "lesson": "Se présenter : l'ordre des mots",
+      "text": "Mets les mots en ordre : me présente : / Je / Ayman. / m'appelle / je",
+      "explanation": "On dit : Je me présente : je m'appelle Ayman.",
+      "choices": [
+        "Je m'appelle présente : je me Ayman.",
+        "Je me présente Ayman : je m'appelle.",
+        "Je me présente : je m'appelle Ayman.",
+        "Ayman je me présente : je m'appelle."
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Mets en ordre",
+      "lesson": "Se présenter : l'ordre des mots",
+      "text": "Mets les mots en ordre : as / Tu / quel / âge ?",
+      "explanation": "On demande l'âge : Tu as quel âge ? (ou : Quel âge as-tu ?)",
+      "choices": [
+        "Tu as quel âge ?",
+        "As quel tu âge ?",
+        "Quel tu as âge ?",
+        "Tu quel as âge ?"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Mets en ordre",
+      "lesson": "Se présenter : l'ordre des mots",
+      "text": "Mets les mots en ordre : habites ? / Où / tu",
+      "explanation": "Le mot interrogatif d'abord : Où tu habites ? (ou : Où habites-tu ?)",
+      "choices": [
+        "Où tu habites ?",
+        "Habites où tu ?",
+        "Tu où habites ?",
+        "Où habites ? tu"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Mets en ordre",
+      "lesson": "Se présenter : l'ordre des mots",
+      "text": "Mets les mots en ordre : est / italienne. / Maria",
+      "explanation": "Le sujet (Maria), le verbe (est), puis la nationalité : Maria est italienne.",
+      "choices": [
+        "Est Maria italienne.",
+        "Maria est italienne.",
+        "Italienne est Maria.",
+        "Maria italienne est."
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Mets en ordre",
+      "lesson": "Se présenter : l'ordre des mots",
+      "text": "Mets les mots en ordre : Louxor. / à / habite / Ali",
+      "explanation": "On dit : Ali habite à Louxor. (habiter à + ville)",
+      "choices": [
+        "Ali habite Louxor à.",
+        "Ali à habite Louxor.",
+        "Habite Ali à Louxor.",
+        "Ali habite à Louxor."
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Être, avoir, s'appeler et habiter au présent",
+      "text": "Vous ...... français. (être)",
+      "explanation": "être : je suis, tu es, il/elle est, nous sommes, vous êtes, ils/elles sont.",
+      "choices": [
+        "est",
+        "es",
+        "sommes",
+        "êtes"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Être, avoir, s'appeler et habiter au présent",
+      "text": "Vous ...... 20 ans. (avoir)",
+      "explanation": "avoir : j'ai, tu as, il/elle a, nous avons, vous avez, ils/elles ont. On dit l'âge avec avoir.",
+      "choices": [
+        "ont",
+        "as",
+        "avez",
+        "avons"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Être, avoir, s'appeler et habiter au présent",
+      "text": "Vous ...... Fabienne ? (s'appeler)",
+      "explanation": "s'appeler : je m'appelle, tu t'appelles, il/elle s'appelle, vous vous appelez.",
+      "choices": [
+        "s'appelle",
+        "m'appelle",
+        "vous appelez",
+        "t'appelles"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Être, avoir, s'appeler et habiter au présent",
+      "text": "Nous ...... au Caire. (habiter)",
+      "explanation": "habiter (verbe en -er) : j'habite, tu habites, il habite, nous habitons, vous habitez, ils habitent.",
+      "choices": [
+        "habite",
+        "habitent",
+        "habitez",
+        "habitons"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Être, avoir, s'appeler et habiter au présent",
+      "text": "Ils ...... égyptiens. (être)",
+      "explanation": "être avec ils/elles : ils sont. (ils ont = avoir)",
+      "choices": [
+        "est",
+        "sont",
+        "êtes",
+        "ont"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Être, avoir, s'appeler et habiter au présent",
+      "text": "Elle ...... douze ans. (avoir)",
+      "explanation": "L'âge se dit avec avoir : elle a douze ans (et pas « elle est douze ans »).",
+      "choices": [
+        "a",
+        "est",
+        "ai",
+        "as"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Être, avoir, s'appeler et habiter au présent",
+      "text": "Tu ...... à Alexandrie ? (habiter)",
+      "explanation": "habiter avec tu : tu habites (-es).",
+      "choices": [
+        "habitez",
+        "habitons",
+        "habites",
+        "habite"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Conjugaison",
+      "lesson": "Être, avoir, s'appeler et habiter au présent",
+      "text": "Je ...... collégienne. (être)",
+      "explanation": "être avec je : je suis.",
+      "choices": [
+        "est",
+        "suis",
+        "es",
+        "ai"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Grammaire",
+      "lesson": "La nationalité : masculin et féminin",
+      "text": "Ali est égyptien. Maha est ......",
+      "explanation": "Au féminin, on ajoute -ne : égyptien → égyptienne. (Égypte = le pays)",
+      "choices": [
+        "égyptiens",
+        "égyptienne",
+        "égyptien",
+        "Égypte"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Grammaire",
+      "lesson": "La nationalité : masculin et féminin",
+      "text": "Max est ......",
+      "explanation": "Max est un garçon : il est français. Une fille est française.",
+      "choices": [
+        "française",
+        "chinoise",
+        "français",
+        "italienne"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Grammaire",
+      "lesson": "La nationalité : masculin et féminin",
+      "text": "Sofia est ......",
+      "explanation": "Sofia est une fille : espagnol → espagnole (on ajoute -e).",
+      "choices": [
+        "espagnole",
+        "allemand",
+        "italien",
+        "espagnol"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Grammaire",
+      "lesson": "La nationalité : masculin et féminin",
+      "text": "Elle habite en Italie. Elle est ......",
+      "explanation": "Au féminin : italien → italienne. (Italie = le pays)",
+      "choices": [
+        "française",
+        "italien",
+        "Italie",
+        "italienne"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Grammaire",
+      "lesson": "Les pronoms sujets",
+      "text": "...... s'appelle Farid.",
+      "explanation": "Farid est un garçon : il s'appelle Farid. (je m'appelle, tu t'appelles, vous vous appelez)",
+      "choices": [
+        "Vous",
+        "Il",
+        "Tu",
+        "Je"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "Grammaire",
+      "lesson": "Les pronoms sujets",
+      "text": "...... êtes professeure ?",
+      "explanation": "« êtes » va avec « vous » : vous êtes.",
+      "choices": [
+        "Tu",
+        "Je",
+        "Vous",
+        "Elle"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Grammaire",
+      "lesson": "Les pronoms sujets",
+      "text": "...... ai treize ans.",
+      "explanation": "« ai » va avec « je » : j'ai (je devient j' devant une voyelle).",
+      "choices": [
+        "Tu",
+        "Nous",
+        "Il",
+        "J'"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Grammaire",
+      "lesson": "Les mots interrogatifs : Quel, Quelle, Où, Comment",
+      "text": "...... âge as-tu ? – J'ai 12 ans.",
+      "explanation": "« âge » est masculin : Quel âge as-tu ?",
+      "choices": [
+        "Comment",
+        "Où",
+        "Quel",
+        "Quelle"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "section": "Grammaire",
+      "lesson": "Les mots interrogatifs : Quel, Quelle, Où, Comment",
+      "text": "...... est ta nationalité ? – Je suis égyptien.",
+      "explanation": "« nationalité » est féminin : Quelle est ta nationalité ?",
+      "choices": [
+        "Quelle",
+        "Qui",
+        "Quel",
+        "Où"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Grammaire",
+      "lesson": "Les mots interrogatifs : Quel, Quelle, Où, Comment",
+      "text": "...... habites-tu ? – J'habite à Louxor.",
+      "explanation": "Pour demander le lieu, on dit Où : Où habites-tu ?",
+      "choices": [
+        "Quel",
+        "Qui",
+        "Comment",
+        "Où"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "Grammaire",
+      "lesson": "Les mots interrogatifs : Quel, Quelle, Où, Comment",
+      "text": "...... t'appelles-tu ? – Je m'appelle Nada.",
+      "explanation": "Pour demander le nom : Comment t'appelles-tu ?",
+      "choices": [
+        "Comment",
+        "Combien",
+        "Quel",
+        "Où"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "Grammaire",
+      "lesson": "Les pronoms sujets",
+      "text": "Je suis égyptien, et ...... ?",
+      "explanation": "On dit : et toi ? (et pas « et tu ? »)",
+      "choices": [
+        "il",
+        "toi",
+        "tu",
+        "te"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "La carte scolaire",
+      "lesson": "Remplir la carte scolaire",
+      "text": "Carte scolaire — Nom : ......",
+      "explanation": "Le nom, c'est le nom de famille : Ali. Le prénom, c'est Amr.",
+      "passage": "fiche",
+      "choices": [
+        "Ali",
+        "Amr",
+        "Le Caire",
+        "égyptien"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "La carte scolaire",
+      "lesson": "Remplir la carte scolaire",
+      "text": "Carte scolaire — Prénom : ......",
+      "explanation": "Le prénom de Amr Ali est Amr. Son nom (de famille) est Ali.",
+      "passage": "fiche",
+      "choices": [
+        "Amr",
+        "Ali",
+        "collégien",
+        "Al Maadi"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "section": "La carte scolaire",
+      "lesson": "Remplir la carte scolaire",
+      "text": "Carte scolaire — Âge : ......",
+      "explanation": "Le document dit : « Il a douze ans. » douze = 12.",
+      "passage": "fiche",
+      "choices": [
+        "20 ans",
+        "12 ans",
+        "13 ans",
+        "2 ans"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "section": "La carte scolaire",
+      "lesson": "Remplir la carte scolaire",
+      "text": "Carte scolaire — Nationalité : ......",
+      "explanation": "Le document dit : « Il est égyptien. » (Égypte = le pays, Le Caire = la ville)",
+      "passage": "fiche",
+      "choices": [
+        "Le Caire",
+        "douze",
+        "Égypte",
+        "égyptien"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "section": "La carte scolaire",
+      "lesson": "Remplir la carte scolaire",
+      "text": "Carte scolaire — Adresse : ......",
+      "explanation": "L'adresse, c'est la rue et la ville : 5, rue Al Maadi, Le Caire.",
+      "passage": "fiche",
+      "choices": [
+        "5, rue Al Maadi, Le Caire",
+        "collégien",
+        "12 ans",
+        "égyptien"
+      ],
+      "answer": 0
+    }
+  ]
+}
