@@ -1,0 +1,659 @@
+{
+  "title": "اختبار تدريبي على اختبار شهر نوفمبر - لغة ألمانية - الصف الثاني الإعدادي",
+  "subjectName": "لغة ألمانية",
+  "direction": "ltr",
+  "scope": "Lektion 6: Schulsachen, ein / eine / kein / keine, mein / dein, Plural – mit Schulfächern und Stundenplan wie in den Wochenevaluationen 5–9.",
+  "source": "Content from Mohamed (2026-11-24): unit 6 all, and the ministry weekly assessments of weeks 5–10 (week 10 is not published yet). Built from the ministry weekly assessments of weeks 5–9 (German, 2nd prep, 2026/2027) and the exam specification (Lektionen 5 & 6 of «Ping Pong 1/2»). The student book is not in the ministry library.",
+  "passages": [
+    {
+      "key": "text",
+      "kind": "reading",
+      "title": "Text: Malaks Schultag",
+      "text": "Das ist Malak. Sie ist 13 Jahre alt und geht in die Klasse 8a. Am Montag hat Malak sechs Stunden. In der ersten Stunde hat sie Deutsch. Die Deutschlehrerin heißt Frau Lang. Sie ist sehr nett. In Deutsch lernen die Schüler Grammatik und spielen Dialoge.\nIn der zweiten und dritten Stunde hat Malak Mathe. Die Schüler rechnen in Mathe. Malak findet Mathe langweilig. In der vierten Stunde hat sie Kunst. In Kunst malen und zeichnen die Schüler. Kunst ist Malaks Lieblingsfach, und in Kunst hat sie eine Eins.\nIn der Tasche hat Malak ein Heft, ein Buch, eine Schere und ein Lineal. Aber Malak sagt: „Mein Malkasten ist weg!“ Nada ist Malaks Freundin. Sie sagt: „Hier ist mein Malkasten.“"
+    },
+    {
+      "key": "dialog",
+      "kind": "reading",
+      "title": "Dialog: Lara und Lina",
+      "text": "Lara: Hallo Lina! In welche Klasse gehst du?\nLina: ......(1)......\nLara: Was habt ihr in der ersten Stunde?\nLina: ......(2)......\nLara: Wer ist die Mathelehrerin?\nLina: Frau Meier ist die Mathelehrerin.\nLara: ......(3)......\nLina: Mein Lieblingsfach ist Deutsch.\nLara: ......(4)......\nLina: Ich finde Deutsch toll!"
+    }
+  ],
+  "questions": [
+    {
+      "type": "mcq",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Wie viele Stunden hat Malak am Montag?",
+      "choices": [
+        "Dreizehn Stunden.",
+        "Drei Stunden.",
+        "Sechs Stunden.",
+        "Vier Stunden."
+      ],
+      "answer": 2,
+      "explanation": "Im Text: „Am Montag hat Malak sechs Stunden.“",
+      "lesson": "Texterfassung: der Schultag"
+    },
+    {
+      "type": "mcq",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Wie heißt die Deutschlehrerin?",
+      "choices": [
+        "Frau Lang.",
+        "Nada.",
+        "Malak.",
+        "Frau Meier."
+      ],
+      "answer": 0,
+      "explanation": "Im Text: „Die Deutschlehrerin heißt Frau Lang.“",
+      "lesson": "Texterfassung: der Schultag"
+    },
+    {
+      "type": "mcq",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Was machen die Schüler in Mathe?",
+      "choices": [
+        "Sie malen.",
+        "Sie spielen Dialoge.",
+        "Sie singen.",
+        "Sie rechnen."
+      ],
+      "answer": 3,
+      "explanation": "Im Text: „Die Schüler rechnen in Mathe.“ (rechnen = يحسب)",
+      "lesson": "Texterfassung: der Schultag"
+    },
+    {
+      "type": "mcq",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Wann hat Malak Kunst?",
+      "choices": [
+        "In der sechsten Stunde.",
+        "In der vierten Stunde.",
+        "In der ersten Stunde.",
+        "In der zweiten Stunde."
+      ],
+      "answer": 1,
+      "explanation": "Im Text: „In der vierten Stunde hat sie Kunst.“",
+      "lesson": "Texterfassung: der Schultag"
+    },
+    {
+      "type": "mcq",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Was ist Malaks Lieblingsfach?",
+      "choices": [
+        "Deutsch.",
+        "Kunst.",
+        "Sport.",
+        "Mathe."
+      ],
+      "answer": 1,
+      "explanation": "Im Text: „Kunst ist Malaks Lieblingsfach.“ (Lieblingsfach = المادة المفضلة)",
+      "lesson": "Texterfassung: der Schultag"
+    },
+    {
+      "type": "tf",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Malak geht in die Klasse 8a.",
+      "choices": [
+        "Richtig",
+        "Falsch"
+      ],
+      "answer": 0,
+      "explanation": "Richtig. Im Text: „Sie … geht in die Klasse 8a.“",
+      "lesson": "Texterfassung: der Schultag"
+    },
+    {
+      "type": "tf",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Malak findet Mathe interessant.",
+      "choices": [
+        "Richtig",
+        "Falsch"
+      ],
+      "answer": 1,
+      "explanation": "Falsch. Im Text: „Malak findet Mathe langweilig.“ (langweilig = ممل)",
+      "lesson": "Texterfassung: der Schultag"
+    },
+    {
+      "type": "tf",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Malaks Malkasten ist in der Tasche.",
+      "choices": [
+        "Richtig",
+        "Falsch"
+      ],
+      "answer": 1,
+      "explanation": "Falsch. Malak sagt: „Mein Malkasten ist weg!“ (weg = ضاع / مش موجود)",
+      "lesson": "Texterfassung: der Schultag"
+    },
+    {
+      "type": "mcq",
+      "section": "Wortschatz",
+      "text": "Welches Wort passt nicht? Heft – Kuli – Lineal – Musik",
+      "choices": [
+        "Lineal",
+        "Heft",
+        "Kuli",
+        "Musik"
+      ],
+      "answer": 3,
+      "explanation": "Heft, Kuli und Lineal sind Schulsachen. Musik ist ein Schulfach.",
+      "lesson": "Schulsachen"
+    },
+    {
+      "type": "mcq",
+      "section": "Wortschatz",
+      "text": "Welches Wort passt nicht? Deutsch – Chemie – Kunst – Schere",
+      "choices": [
+        "Schere",
+        "Deutsch",
+        "Kunst",
+        "Chemie"
+      ],
+      "answer": 0,
+      "explanation": "Deutsch, Chemie und Kunst sind Schulfächer. Die Schere (المقص) ist eine Schulsache.",
+      "lesson": "Schulfächer, Stundenplan und Noten"
+    },
+    {
+      "type": "mcq",
+      "section": "Wortschatz",
+      "text": "Welches Wort passt nicht? Pinsel – Malkasten – Bleistift – Montag",
+      "choices": [
+        "Bleistift",
+        "Pinsel",
+        "Montag",
+        "Malkasten"
+      ],
+      "answer": 2,
+      "explanation": "Pinsel, Malkasten und Bleistift sind Schulsachen. Montag ist ein Tag.",
+      "lesson": "Schulsachen"
+    },
+    {
+      "type": "mcq",
+      "section": "Wortschatz",
+      "text": "In Musik ...... wir.",
+      "choices": [
+        "schreiben",
+        "rechnen",
+        "turnen",
+        "singen"
+      ],
+      "answer": 3,
+      "explanation": "In Musik singen wir. (singen = يغني)",
+      "lesson": "Schulfächer, Stundenplan und Noten"
+    },
+    {
+      "type": "mcq",
+      "section": "Wortschatz",
+      "text": "In Sport ...... die Schüler.",
+      "choices": [
+        "malen",
+        "turnen",
+        "singen",
+        "lesen"
+      ],
+      "answer": 1,
+      "explanation": "In Sport turnen die Schüler. (turnen = يمارس الجمباز / الرياضة)",
+      "lesson": "Schulfächer, Stundenplan und Noten"
+    },
+    {
+      "type": "mcq",
+      "section": "Wortschatz",
+      "text": "In Chemie machen die Schüler ......",
+      "choices": [
+        "Grammatik.",
+        "Dialoge.",
+        "Experimente.",
+        "Lieder."
+      ],
+      "answer": 2,
+      "explanation": "In Chemie machen die Schüler Experimente. (Experimente = تجارب)",
+      "lesson": "Schulfächer, Stundenplan und Noten"
+    },
+    {
+      "type": "mcq",
+      "section": "Wortschatz",
+      "text": "Das ist eine ......",
+      "choices": [
+        "Schere.",
+        "Lineal.",
+        "Heft.",
+        "Kuli."
+      ],
+      "answer": 0,
+      "explanation": "„eine“ steht vor femininen Nomen: die Schere → eine Schere. Aber: das Heft, der Kuli, das Lineal → ein.",
+      "lesson": "Schulsachen"
+    },
+    {
+      "type": "mcq",
+      "section": "Wortschatz",
+      "text": "Malak hat in Kunst eine Eins. Das ist ......",
+      "choices": [
+        "blöd.",
+        "nicht gut.",
+        "sehr gut.",
+        "langweilig."
+      ],
+      "answer": 2,
+      "explanation": "In Deutschland ist die Note Eins die beste Note: eine Eins = sehr gut.",
+      "lesson": "Schulfächer, Stundenplan und Noten"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Das ist ...... Kuli.",
+      "choices": [
+        "mein",
+        "keine",
+        "eine",
+        "meine"
+      ],
+      "answer": 0,
+      "explanation": "der Kuli ist maskulin: mein Kuli (nicht meine).",
+      "lesson": "mein / dein"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Wo ist ...... Tasche?",
+      "choices": [
+        "dein",
+        "kein",
+        "ein",
+        "deine"
+      ],
+      "answer": 3,
+      "explanation": "die Tasche ist feminin: deine Tasche.",
+      "lesson": "mein / dein"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "...... Heft ist weg.",
+      "choices": [
+        "Meine",
+        "Mein",
+        "Eine",
+        "Deine"
+      ],
+      "answer": 1,
+      "explanation": "das Heft ist neutral: mein Heft.",
+      "lesson": "mein / dein"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "...... Lieblingsfächer sind Deutsch und Bio.",
+      "choices": [
+        "Mein",
+        "Meine",
+        "Ein",
+        "Dein"
+      ],
+      "answer": 1,
+      "explanation": "Lieblingsfächer ist Plural: meine Lieblingsfächer.",
+      "lesson": "mein / dein"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Ist das eine Schere? – Nein, das ist ...... Schere.",
+      "choices": [
+        "kein",
+        "nicht",
+        "nein",
+        "keine"
+      ],
+      "answer": 3,
+      "explanation": "Die Negation von „eine Schere“ ist „keine Schere“.",
+      "lesson": "ein / eine / kein / keine und nicht"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Ist das dein Lineal? – Nein, das ist ...... mein Lineal.",
+      "choices": [
+        "nicht",
+        "keine",
+        "kein",
+        "nein"
+      ],
+      "answer": 0,
+      "explanation": "Vor „mein“ / „dein“ verneinen wir mit „nicht“: Das ist nicht mein Lineal.",
+      "lesson": "ein / eine / kein / keine und nicht"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Wo ist dein Heft? – ...... ist weg.",
+      "choices": [
+        "Er",
+        "Sie",
+        "Es",
+        "Ihr"
+      ],
+      "answer": 2,
+      "explanation": "das Heft → es: Es ist weg.",
+      "lesson": "er / sie / es"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Wo ist die Landkarte? – ...... ist hier.",
+      "choices": [
+        "Er",
+        "Ihr",
+        "Es",
+        "Sie"
+      ],
+      "answer": 3,
+      "explanation": "die Landkarte → sie: Sie ist hier.",
+      "lesson": "er / sie / es"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "ein Buch – zwei ......",
+      "choices": [
+        "Buche",
+        "Bücher",
+        "Büchen",
+        "Buchs"
+      ],
+      "answer": 1,
+      "explanation": "Der Plural von „das Buch“ ist „die Bücher“.",
+      "lesson": "Plural"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "eine Tasche – drei ......",
+      "choices": [
+        "Tasche",
+        "Täschen",
+        "Taschen",
+        "Tasches"
+      ],
+      "answer": 2,
+      "explanation": "Der Plural von „die Tasche“ ist „die Taschen“.",
+      "lesson": "Plural"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Was ...... ihr heute? – Kunst und Musik.",
+      "choices": [
+        "habt",
+        "hat",
+        "haben",
+        "hast"
+      ],
+      "answer": 0,
+      "explanation": "haben: ich habe, du hast, er hat, wir haben, ihr habt, sie haben.",
+      "lesson": "Verben im Präsens"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Petra ...... Gitarre spielen.",
+      "choices": [
+        "möchtest",
+        "möchtet",
+        "möchte",
+        "möchten"
+      ],
+      "answer": 2,
+      "explanation": "möchten: ich möchte, du möchtest, er / sie möchte, wir möchten, ihr möchtet.",
+      "lesson": "Verben im Präsens"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Wir ...... heute eine Klassenarbeit.",
+      "choices": [
+        "schreiben",
+        "schreibt",
+        "schreibst",
+        "schreibe"
+      ],
+      "answer": 0,
+      "explanation": "wir → schreiben: Wir schreiben heute eine Klassenarbeit (امتحان).",
+      "lesson": "Verben im Präsens"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "...... Stunden Deutsch habt ihr? – Zwei Stunden.",
+      "choices": [
+        "Wer",
+        "Wann",
+        "Was",
+        "Wie viele"
+      ],
+      "answer": 3,
+      "explanation": "Nach der Zahl fragen wir mit „Wie viele“.",
+      "lesson": "W-Fragen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "...... findest du Mathe? – Ich finde Mathe interessant.",
+      "choices": [
+        "Wer",
+        "Wie",
+        "Wo",
+        "Was"
+      ],
+      "answer": 1,
+      "explanation": "Nach der Meinung fragen wir mit „Wie findest du …?“",
+      "lesson": "W-Fragen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "...... ist dein Deutschunterricht? – Am Dienstag.",
+      "choices": [
+        "Was",
+        "Wann",
+        "Wer",
+        "Wie"
+      ],
+      "answer": 1,
+      "explanation": "Nach der Zeit (am Dienstag) fragen wir mit „Wann“.",
+      "lesson": "W-Fragen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Ich habe Deutsch in der ...... Stunde.",
+      "choices": [
+        "erste",
+        "erster",
+        "eins",
+        "ersten"
+      ],
+      "answer": 3,
+      "explanation": "in der + Ordinalzahl mit -en: in der ersten / zweiten / dritten Stunde.",
+      "lesson": "Schulfächer, Stundenplan und Noten"
+    },
+    {
+      "type": "mcq",
+      "section": "Schreiben",
+      "text": "Bilde den richtigen Satz: ist – Mein – Lieblingsfach – Musik",
+      "choices": [
+        "Mein Lieblingsfach ist Musik.",
+        "Lieblingsfach mein ist Musik.",
+        "Mein ist Lieblingsfach Musik.",
+        "Musik mein Lieblingsfach ist."
+      ],
+      "answer": 0,
+      "explanation": "Das Verb steht an Position 2: Mein Lieblingsfach ist Musik.",
+      "lesson": "Sätze bilden"
+    },
+    {
+      "type": "mcq",
+      "section": "Schreiben",
+      "text": "Bilde den richtigen Satz: habt – ihr – Wie viele Stunden – Mathe?",
+      "choices": [
+        "Habt wie viele Stunden ihr Mathe?",
+        "Wie viele Stunden habt Mathe ihr?",
+        "Wie viele Stunden Mathe habt ihr?",
+        "Wie viele Stunden ihr habt Mathe?"
+      ],
+      "answer": 2,
+      "explanation": "W-Frage: das Fragewort (Wie viele Stunden Mathe), dann das Verb (habt), dann das Subjekt (ihr).",
+      "lesson": "Sätze bilden"
+    },
+    {
+      "type": "mcq",
+      "section": "Schreiben",
+      "text": "Bilde den richtigen Satz: Malkasten – ist – Mein – weg",
+      "choices": [
+        "Mein Malkasten weg ist.",
+        "Weg mein Malkasten ist.",
+        "Mein ist Malkasten weg.",
+        "Mein Malkasten ist weg."
+      ],
+      "answer": 3,
+      "explanation": "Subjekt (Mein Malkasten), Verb (ist), dann „weg“.",
+      "lesson": "Sätze bilden"
+    },
+    {
+      "type": "mcq",
+      "section": "Schreiben",
+      "text": "Bilde den richtigen Satz: Grammatik – lernt – Malak – in Deutsch",
+      "choices": [
+        "Malak in Deutsch lernt Grammatik.",
+        "Malak lernt in Deutsch Grammatik.",
+        "Grammatik Malak lernt in Deutsch.",
+        "In Deutsch Malak lernt Grammatik."
+      ],
+      "answer": 1,
+      "explanation": "Im Aussagesatz steht das Verb an Position 2: Malak lernt in Deutsch Grammatik.",
+      "lesson": "Sätze bilden"
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Was passt in Lücke (1) im Dialog?",
+      "choices": [
+        "Frau Meier.",
+        "Am Montag.",
+        "In die Klasse 8b.",
+        "In der ersten Stunde."
+      ],
+      "answer": 2,
+      "explanation": "Lara fragt: „In welche Klasse gehst du?“ – Antwort: In die Klasse 8b.",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Was passt in Lücke (2) im Dialog?",
+      "choices": [
+        "Wir haben Mathe in der ersten Stunde.",
+        "Wir gehen in die Klasse 8b.",
+        "Frau Meier ist nett.",
+        "Mathe ist toll."
+      ],
+      "answer": 0,
+      "explanation": "Lara fragt: „Was habt ihr in der ersten Stunde?“ – Antwort: Wir haben Mathe in der ersten Stunde.",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Was passt in Lücke (3) im Dialog?",
+      "choices": [
+        "Wo ist dein Heft?",
+        "Wie findest du Deutsch?",
+        "Was ist dein Lieblingsfach?",
+        "Wie viele Stunden hast du?"
+      ],
+      "answer": 2,
+      "explanation": "Lina antwortet: „Mein Lieblingsfach ist Deutsch.“ Also fragt Lara: Was ist dein Lieblingsfach?",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Was passt in Lücke (4) im Dialog?",
+      "choices": [
+        "Wie findest du Deutsch?",
+        "Wann hast du Deutsch?",
+        "Wer ist die Deutschlehrerin?",
+        "Was ist dein Lieblingsfach?"
+      ],
+      "answer": 0,
+      "explanation": "Lina antwortet: „Ich finde Deutsch toll!“ Also fragt Lara: Wie findest du Deutsch?",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Alltagssituationen",
+      "text": "Du fragst nach dem Stundenplan. Was sagst du?",
+      "choices": [
+        "Heute ist Freitag.",
+        "Ich habe heute Mathe.",
+        "Wie findest du Mathe?",
+        "Was hast du heute?"
+      ],
+      "answer": 3,
+      "explanation": "Nach dem Stundenplan fragen wir: Was hast du heute?",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Alltagssituationen",
+      "text": "Dein Buch ist weg. Was sagst du?",
+      "choices": [
+        "Hier ist mein Buch.",
+        "Wo ist mein Buch?",
+        "Wo ist mein Lineal?",
+        "Wo ist meine Tasche?"
+      ],
+      "answer": 1,
+      "explanation": "Das Buch ist weg, also fragst du: Wo ist mein Buch?",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Alltagssituationen",
+      "text": "Dein Freund fragt: „Was hast du in Physik?“ Du antwortest: ......",
+      "choices": [
+        "Interessant.",
+        "Eine Zwei.",
+        "Drei Stunden.",
+        "Am Montag."
+      ],
+      "answer": 1,
+      "explanation": "Hier fragt der Freund nach der Note: Eine Zwei (= gut).",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Alltagssituationen",
+      "text": "Du fragst nach der Zahl der Deutschstunden. Was sagst du?",
+      "choices": [
+        "Lernst du Deutsch?",
+        "Ist Deutsch dein Lieblingsfach?",
+        "Wie findest du Deutsch?",
+        "Wie viele Stunden Deutsch hast du?"
+      ],
+      "answer": 3,
+      "explanation": "Nach der Zahl fragen wir mit „Wie viele“: Wie viele Stunden Deutsch hast du?",
+      "lesson": "Dialog und Alltagssituationen"
+    }
+  ]
+}

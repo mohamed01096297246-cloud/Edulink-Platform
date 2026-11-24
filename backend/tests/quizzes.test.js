@@ -279,13 +279,15 @@ test.each(QUIZ_FILES)("the quiz file %s is a valid quiz: every answer one of its
   spec.questions
     // ("Complete" alone is the English text with numbered blanks; "Complete
     // the statements" in science is single sentences.)
-    .filter((x) => /الاستماع|القراءة|الشعري|Reading|Listening|Dialog|^Complete$|Compréhension/i.test(x.section))
+    .filter((x) => /الاستماع|القراءة|الشعري|Reading|Listening|Dialog|^Complete$|Compréhension|Texterfassung/i.test(x.section))
     .forEach((x) => expect(x.passage).toBeTruthy());
-  // صح / غلط in an Arabic quiz, Vrai / Faux in French, True / False in the
-  // other ones that read left to right.
+  // صح / غلط in an Arabic quiz, Vrai / Faux in French, Richtig / Falsch in
+  // German, True / False in the other ones that read left to right.
   const trueFalse = /فرنسية/.test(spec.subjectName)
     ? ["Vrai", "Faux"]
-    : spec.direction === "ltr"
+    : /ألمانية/.test(spec.subjectName)
+      ? ["Richtig", "Falsch"]
+      : spec.direction === "ltr"
       ? ["True", "False"]
       : ["صح", "غلط"];
   spec.questions.forEach((x) => {
