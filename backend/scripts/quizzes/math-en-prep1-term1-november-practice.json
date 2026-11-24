@@ -2,8 +2,8 @@
   "title": "اختبار تدريبي على اختبار شهر نوفمبر - Math - الصف الأول الإعدادي لغات",
   "subjectName": "Math",
   "direction": "ltr",
-  "scope": "Algebra: Mathematical Expressions and Formulas, Linear Equations. Geometry: from Types of Angles to Quadrilaterals.",
-  "source": "Content from the subject supervisor (2026-11-23). Questions follow the Student's Book 2026/2027 and the ministry «كتاب الأداءات والتقييمات» (weekly assessments and «تدريبات نهاية الشهر الثاني»), term 1.",
+  "scope": "Algebra (Unit 2): Mathematical Expressions and Formulas, Linear Equations. Geometry: Types of Angles and Relations between Angles (up to vertically opposite angles and accumulative angles at a point), Parallelism.",
+  "source": "Scope from the Math supervisor's «تحديد شهر نوفمبر» (2026-11-24). Questions follow the Student's Book 2026/2027 and the ministry «كتاب الأداءات والتقييمات» (Math), term 1.",
   "questions": [
     {
       "type": "mcq",
@@ -261,14 +261,70 @@
     {
       "type": "mcq",
       "section": "Geometry",
-      "text": "If a straight line intersects two parallel lines, every two interior angles on the same side of the transversal are ......",
+      "text": "If two vertically opposite angles are complementary, then each of them measures ......",
       "choices": [
-        "supplementary",
-        "vertically opposite",
-        "equal in measure",
-        "complementary"
+        "45°",
+        "135°",
+        "30°",
+        "90°"
       ],
       "answer": 0,
+      "explanation": "Vertically opposite angles are equal, and complementary angles add up to 90°: 90° ÷ 2 = 45°.",
+      "lesson": "Types of Angles and Relations between Angles"
+    },
+    {
+      "type": "mcq",
+      "section": "Geometry",
+      "text": "The straight lines AB and CD intersect at M. If m(∠AMC) = 70°, then m(∠AMD) = ......",
+      "choices": [
+        "290°",
+        "70°",
+        "110°",
+        "20°"
+      ],
+      "answer": 2,
+      "explanation": "∠AMC and ∠AMD are adjacent angles on the straight line CD, so they add up to 180°: 180° − 70° = 110°. The angle equal to 70° is ∠BMD, the vertically opposite angle of ∠AMC.",
+      "lesson": "Types of Angles and Relations between Angles"
+    },
+    {
+      "type": "mcq",
+      "section": "Geometry",
+      "text": "Four angles are accumulative at a point. Three of them measure 80°, 95° and 110°. The fourth angle measures ......",
+      "choices": [
+        "105°",
+        "85°",
+        "285°",
+        "75°"
+      ],
+      "answer": 3,
+      "explanation": "The sum of the measures of the accumulative angles at a point is 360°: 360° − (80° + 95° + 110°) = 360° − 285° = 75°.",
+      "lesson": "Types of Angles and Relations between Angles"
+    },
+    {
+      "type": "mcq",
+      "section": "Geometry",
+      "text": "Four angles are accumulative at a point and their measures are x°, 2x°, 3x° and 4x°. The value of x is ......",
+      "choices": [
+        "18",
+        "36",
+        "72",
+        "90"
+      ],
+      "answer": 1,
+      "explanation": "Accumulative angles at a point add up to 360°: x + 2x + 3x + 4x = 360, so 10x = 360 and x = 36.",
+      "lesson": "Types of Angles and Relations between Angles"
+    },
+    {
+      "type": "mcq",
+      "section": "Geometry",
+      "text": "If a straight line intersects two parallel lines, every two interior angles on the same side of the transversal are ......",
+      "choices": [
+        "vertically opposite",
+        "complementary",
+        "supplementary",
+        "equal in measure"
+      ],
+      "answer": 2,
       "explanation": "The two interior angles on the same side of the transversal add up to 180°, so they are supplementary.",
       "lesson": "Parallelism"
     },
@@ -278,12 +334,12 @@
       "text": "In the figure, M1 // M2 and N is a transversal. The value of x is ......",
       "image": "https://edulink-app-ac5cd.ondigitalocean.app/quiz-assets/math/p1-corresponding.png",
       "choices": [
-        "80",
-        "100",
         "60",
-        "70"
+        "70",
+        "100",
+        "80"
       ],
-      "answer": 2,
+      "answer": 0,
       "explanation": "The two angles are corresponding angles, so they are equal: x + 10 = 70, so x = 60.",
       "lesson": "Parallelism"
     },
@@ -293,12 +349,12 @@
       "text": "In the figure, AB // DC and m(∠A) = 50°. The value of x in degrees is ......",
       "image": "https://edulink-app-ac5cd.ondigitalocean.app/quiz-assets/math/p1-alternate.png",
       "choices": [
-        "50",
         "130",
         "65",
-        "25"
+        "25",
+        "50"
       ],
-      "answer": 3,
+      "answer": 2,
       "explanation": "∠BAC and ∠DCA are alternate angles, so they are equal: 2x = 50, so x = 25.",
       "lesson": "Parallelism"
     },
@@ -308,127 +364,70 @@
       "text": "In the figure, the two horizontal lines are parallel. The value of x is ......",
       "image": "https://edulink-app-ac5cd.ondigitalocean.app/quiz-assets/math/p1-interior.png",
       "choices": [
-        "80",
         "40",
         "70",
+        "80",
         "110"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "The two angles are interior angles on the same side of the transversal, so they are supplementary: 110 + x + 30 = 180, so x = 40.",
       "lesson": "Parallelism"
     },
     {
       "type": "mcq",
       "section": "Geometry",
-      "text": "If the sum of the measures of two angles in a triangle is 130°, the third angle measures ......",
+      "text": "If a straight line intersects two straight lines and two alternate angles are equal in measure, then the two straight lines are ......",
       "choices": [
-        "60°",
-        "30°",
-        "50°",
-        "20°"
-      ],
-      "answer": 2,
-      "explanation": "The angles of a triangle add up to 180°: 180° − 130° = 50°.",
-      "lesson": "Triangle"
-    },
-    {
-      "type": "mcq",
-      "section": "Geometry",
-      "text": "In the figure, m(∠ACE) = 130° and m(∠B) = 70°. Then m(∠A) = ......",
-      "image": "https://edulink-app-ac5cd.ondigitalocean.app/quiz-assets/math/p1-exterior.png",
-      "choices": [
-        "60°",
-        "70°",
-        "50°",
-        "130°"
-      ],
-      "answer": 0,
-      "explanation": "An exterior angle of a triangle equals the sum of the two interior angles not adjacent to it: m(∠A) + 70° = 130°, so m(∠A) = 60°.",
-      "lesson": "Triangle"
-    },
-    {
-      "type": "mcq",
-      "section": "Geometry",
-      "text": "A triangle has two angles of 36° and 24°. With respect to its angles it is ......",
-      "choices": [
-        "equilateral",
-        "right-angled",
-        "obtuse-angled",
-        "acute-angled"
-      ],
-      "answer": 2,
-      "explanation": "The third angle is 180° − 36° − 24° = 120°, an obtuse angle, so the triangle is obtuse-angled.",
-      "lesson": "Triangle"
-    },
-    {
-      "type": "mcq",
-      "section": "Geometry",
-      "text": "Which of the following can NOT be the side lengths of a triangle?",
-      "choices": [
-        "4 cm, 3 cm, 7 cm",
-        "5 cm, 5 cm, 5 cm",
-        "4 cm, 5 cm, 3 cm",
-        "6 cm, 8 cm, 10 cm"
-      ],
-      "answer": 0,
-      "explanation": "In any triangle the sum of any two sides is greater than the third side, and 4 + 3 = 7 is not greater than 7.",
-      "lesson": "Triangle"
-    },
-    {
-      "type": "mcq",
-      "section": "Geometry",
-      "text": "A parallelogram whose diagonals are perpendicular is called a ......",
-      "choices": [
-        "trapezium",
-        "isosceles triangle",
-        "rectangle",
-        "rhombus"
+        "intersecting",
+        "vertically opposite",
+        "perpendicular",
+        "parallel"
       ],
       "answer": 3,
-      "explanation": "A parallelogram with perpendicular diagonals is a rhombus: its four sides are equal.",
-      "lesson": "Quadrilaterals"
+      "explanation": "If a transversal makes two equal alternate angles with two straight lines, the two lines are parallel.",
+      "lesson": "Parallelism"
     },
     {
       "type": "mcq",
       "section": "Geometry",
-      "text": "The sum of the measures of the interior angles of a quadrilateral is ......",
+      "text": "A transversal intersects two parallel straight lines. If one of the two interior angles on the same side of the transversal measures 75°, the other measures ......",
       "choices": [
-        "540°",
-        "360°",
-        "90°",
-        "180°"
+        "15°",
+        "105°",
+        "285°",
+        "75°"
       ],
       "answer": 1,
-      "explanation": "A diagonal divides a quadrilateral into two triangles, each with angles adding up to 180°: 2 × 180° = 360°.",
-      "lesson": "Quadrilaterals"
+      "explanation": "Interior angles on the same side of the transversal are supplementary: 180° − 75° = 105°.",
+      "lesson": "Parallelism"
     },
     {
       "type": "mcq",
       "section": "Geometry",
-      "text": "If ABCD is a square, then m(∠ABD) = ......",
+      "text": "A transversal intersects two parallel straight lines. If two alternate angles measure (3x − 20)° and (x + 40)°, then x = ......",
       "choices": [
-        "30°",
-        "45°",
-        "90°",
-        "60°"
+        "50",
+        "30",
+        "40",
+        "10"
       ],
       "answer": 1,
-      "explanation": "The diagonal of a square bisects its angles, and m(∠ABC) = 90°, so m(∠ABD) = 45°.",
-      "lesson": "Quadrilaterals"
+      "explanation": "Alternate angles are equal: 3x − 20 = x + 40, so 2x = 60 and x = 30 (each angle is 70°).",
+      "lesson": "Parallelism"
     },
     {
       "type": "mcq",
       "section": "Geometry",
-      "text": "ABCD is a parallelogram with m(∠B) = (3x + 10)° and m(∠D) = (2x + 50)°. Then m(∠C) = ......",
+      "text": "A transversal intersects two parallel straight lines, forming eight angles. If one of them measures 50°, how many of the eight angles measure 130°?",
       "choices": [
-        "90°",
-        "40°",
-        "130°",
-        "50°"
+        "6",
+        "3",
+        "2",
+        "4"
       ],
       "answer": 3,
-      "explanation": "Opposite angles of a parallelogram are equal: 3x + 10 = 2x + 50, so x = 40 and m(∠B) = 130°. ∠C is supplementary to ∠B: 180° − 130° = 50°.",
-      "lesson": "Quadrilaterals"
+      "explanation": "Each angle equals its vertically opposite, corresponding and alternate angles, so four angles measure 50° and the other four measure 180° − 50° = 130°.",
+      "lesson": "Parallelism"
     }
   ]
 }

@@ -2,20 +2,76 @@
   "title": "اختبار تدريبي على اختبار شهر نوفمبر - Math - الصف الثاني الإعدادي لغات",
   "subjectName": "Math",
   "direction": "ltr",
-  "scope": "Algebra: from Factorizing Trinomials to Factorizing by Grouping. Geometry: from Congruence to Medians of the Triangle.",
-  "source": "Content from the subject supervisor (2026-11-23). Questions follow the Student's Book 2026/2027 and the ministry «كتاب الأداءات والتقييمات» (weekly assessments and «تدريبات نهاية الشهر الثاني»), term 1.",
+  "scope": "Algebra (Unit 2): from Factorizing by Taking out the GCF to Factorizing by Grouping. Geometry (Unit 3): Congruence, Pythagoras' Theorem and its Converse.",
+  "source": "Scope from the Math supervisor's «تحديد شهر نوفمبر» (2026-11-24). Questions follow the Student's Book 2026/2027 and the ministry «كتاب الأداءات والتقييمات» (Math), term 1.",
   "questions": [
+    {
+      "type": "mcq",
+      "section": "Algebra",
+      "text": "5x² + 15xy = 5x (...... + ......)",
+      "choices": [
+        "x + y",
+        "3y − x",
+        "x + 3y",
+        "x + 15y"
+      ],
+      "answer": 2,
+      "explanation": "Divide each term by the common factor 5x: 5x² ÷ 5x = x and 15xy ÷ 5x = 3y, so 5x² + 15xy = 5x(x + 3y).",
+      "lesson": "Factorizing by Taking out the GCF"
+    },
+    {
+      "type": "mcq",
+      "section": "Algebra",
+      "text": "The greatest common factor of 12x³ + 6x² is ......",
+      "choices": [
+        "6x²",
+        "12x³",
+        "6x",
+        "2x²"
+      ],
+      "answer": 0,
+      "explanation": "The GCF of 12 and 6 is 6, and the lower power of x is x², so the GCF is 6x²: 12x³ + 6x² = 6x²(2x + 1).",
+      "lesson": "Factorizing by Taking out the GCF"
+    },
+    {
+      "type": "mcq",
+      "section": "Algebra",
+      "text": "The solution set of the equation 5y² − 25y = 0 in R is ......",
+      "choices": [
+        "{0 , −5}",
+        "{0}",
+        "{5}",
+        "{0 , 5}"
+      ],
+      "answer": 3,
+      "explanation": "5y(y − 5) = 0, so 5y = 0 or y − 5 = 0, which gives y = 0 or y = 5.",
+      "lesson": "Factorizing by Taking out the GCF"
+    },
+    {
+      "type": "mcq",
+      "section": "Algebra",
+      "text": "If 2a + b = 6 and 3a + b = 8, then 3a(2a + b) + b(2a + b) = ......",
+      "choices": [
+        "14",
+        "48",
+        "64",
+        "36"
+      ],
+      "answer": 1,
+      "explanation": "Take out the common factor (2a + b): 3a(2a + b) + b(2a + b) = (2a + b)(3a + b) = 6 × 8 = 48.",
+      "lesson": "Factorizing by Taking out the GCF"
+    },
     {
       "type": "mcq",
       "section": "Algebra",
       "text": "x² + 7x + 12 factorizes as ......",
       "choices": [
-        "(x + 2)(x + 6)",
-        "(x + 1)(x + 12)",
+        "(x − 3)(x − 4)",
         "(x + 3)(x + 4)",
-        "(x − 3)(x − 4)"
+        "(x + 1)(x + 12)",
+        "(x + 2)(x + 6)"
       ],
-      "answer": 2,
+      "answer": 1,
       "explanation": "Look for two numbers whose product is 12 and whose sum is 7: 3 and 4, so x² + 7x + 12 = (x + 3)(x + 4).",
       "lesson": "Factorizing Trinomials"
     },
@@ -24,12 +80,12 @@
       "section": "Algebra",
       "text": "x² − 3x − 28 factorizes as ......",
       "choices": [
-        "(x − 7)(x + 4)",
-        "(x − 7)(x − 4)",
         "(x + 7)(x − 4)",
-        "(x − 14)(x + 2)"
+        "(x − 14)(x + 2)",
+        "(x − 7)(x − 4)",
+        "(x − 7)(x + 4)"
       ],
-      "answer": 0,
+      "answer": 3,
       "explanation": "Two numbers with product −28 and sum −3: −7 and 4. The larger one takes the sign of the middle term.",
       "lesson": "Factorizing Trinomials"
     },
@@ -38,12 +94,12 @@
       "section": "Algebra",
       "text": "If (x + a)(y + b) = xy + 5x + 7y + 35, then ab = ......",
       "choices": [
+        "35",
         "2",
         "17",
-        "12",
-        "35"
+        "12"
       ],
-      "answer": 3,
+      "answer": 0,
       "explanation": "Expanding: (x + a)(y + b) = xy + bx + ay + ab, so b = 5, a = 7 and ab = 35.",
       "lesson": "Factorizing Trinomials"
     },
@@ -52,12 +108,12 @@
       "section": "Algebra",
       "text": "If (x − 5) is one factor of 2x² − 7x − 15, the other factor is ......",
       "choices": [
-        "(2x − 3)",
-        "(2x + 3)",
         "(2x + 5)",
-        "(x + 3)"
+        "(x + 3)",
+        "(2x + 3)",
+        "(2x − 3)"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "(x − 5)(2x + 3) = 2x² + 3x − 10x − 15 = 2x² − 7x − 15.",
       "lesson": "Factorizing Trinomials"
     },
@@ -67,11 +123,11 @@
       "text": "The solution set of x² + 14x − 32 = 0 in R is ......",
       "choices": [
         "{4 , −8}",
-        "{2 , −16}",
+        "{−2 , 16}",
         "{2 , 16}",
-        "{−2 , 16}"
+        "{2 , −16}"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "x² + 14x − 32 = (x + 16)(x − 2) = 0, so x = −16 or x = 2.",
       "lesson": "Factorizing Trinomials"
     },
@@ -80,12 +136,12 @@
       "section": "Algebra",
       "text": "If 9x² + bx + 1 is a perfect square, the positive value of b is ......",
       "choices": [
-        "2",
-        "12",
         "3",
-        "6"
+        "6",
+        "12",
+        "2"
       ],
-      "answer": 3,
+      "answer": 1,
       "explanation": "The middle term of a perfect square = 2 × √(first term) × √(last term): 2 × 3x × 1 = 6x, so b = 6.",
       "lesson": "Factorizing Special Cases"
     },
@@ -94,12 +150,12 @@
       "section": "Algebra",
       "text": "If kx² + 20x + 25 is a perfect square, then k = ......",
       "choices": [
-        "4",
-        "1",
         "2",
+        "1",
+        "4",
         "9"
       ],
-      "answer": 0,
+      "answer": 2,
       "explanation": "20x = 2 × 2x × 5, so the first term is (2x)² = 4x² and k = 4.",
       "lesson": "Factorizing Special Cases"
     },
@@ -108,12 +164,12 @@
       "section": "Algebra",
       "text": "4x² − 25 factorizes as ......",
       "choices": [
-        "(2x − 25)(2x + 1)",
-        "(4x − 5)(x + 5)",
         "(2x − 5)(2x + 5)",
-        "(2x − 5)²"
+        "(2x − 25)(2x + 1)",
+        "(2x − 5)²",
+        "(4x − 5)(x + 5)"
       ],
-      "answer": 2,
+      "answer": 0,
       "explanation": "A difference of two squares: (2x)² − 5² = (2x − 5)(2x + 5).",
       "lesson": "Factorizing Special Cases"
     },
@@ -124,10 +180,10 @@
       "choices": [
         "(x + 5)³",
         "(x + 5)(x² + 5x + 25)",
-        "(x − 5)(x² + 5x + 25)",
-        "(x + 5)(x² − 5x + 25)"
+        "(x + 5)(x² − 5x + 25)",
+        "(x − 5)(x² + 5x + 25)"
       ],
-      "answer": 3,
+      "answer": 2,
       "explanation": "A sum of two cubes: x³ + 5³ = (x + 5)(x² − 5x + 25). The middle sign in the second bracket is opposite to the first.",
       "lesson": "Factorizing Special Cases"
     },
@@ -136,12 +192,12 @@
       "section": "Algebra",
       "text": "If a + b = 5 and a² − b² = 15, then a − b = ......",
       "choices": [
-        "20",
         "3",
-        "75",
-        "10"
+        "10",
+        "20",
+        "75"
       ],
-      "answer": 1,
+      "answer": 0,
       "explanation": "a² − b² = (a − b)(a + b), so 15 = (a − b) × 5 and a − b = 3.",
       "lesson": "Factorizing Special Cases"
     },
@@ -150,12 +206,12 @@
       "section": "Algebra",
       "text": "Using factorization, the value of (98)² − 4 is ......",
       "choices": [
+        "9604",
         "9216",
         "9596",
-        "9600",
-        "9604"
+        "9600"
       ],
-      "answer": 2,
+      "answer": 3,
       "explanation": "(98)² − 2² = (98 − 2)(98 + 2) = 96 × 100 = 9600.",
       "lesson": "Factorizing Special Cases"
     },
@@ -164,12 +220,12 @@
       "section": "Algebra",
       "text": "x³ + 6x² − 4x − 24 factorizes completely as ......",
       "choices": [
-        "(x + 6)(x − 2)(x + 2)",
         "(x + 6)(x − 4)(x + 1)",
+        "(x + 6)(x − 2)(x + 2)",
         "(x + 6)(x² + 4)",
         "(x − 6)(x − 2)(x + 2)"
       ],
-      "answer": 0,
+      "answer": 1,
       "explanation": "By grouping: x²(x + 6) − 4(x + 6) = (x + 6)(x² − 4) = (x + 6)(x − 2)(x + 2).",
       "lesson": "Factorizing by Grouping"
     },
@@ -179,11 +235,11 @@
       "text": "ax + ay + bx + by factorizes as ......",
       "choices": [
         "(a + y)(b + x)",
-        "(a + x)(b + y)",
         "(a + b)(x + y)",
-        "(a − b)(x + y)"
+        "(a − b)(x + y)",
+        "(a + x)(b + y)"
       ],
-      "answer": 2,
+      "answer": 1,
       "explanation": "a(x + y) + b(x + y) = (x + y)(a + b).",
       "lesson": "Factorizing by Grouping"
     },
@@ -192,12 +248,12 @@
       "section": "Algebra",
       "text": "To factorize x⁴ + 4 by completing the square, we add and subtract ......",
       "choices": [
-        "4x²",
-        "2x²",
         "4x",
-        "16x²"
+        "2x²",
+        "16x²",
+        "4x²"
       ],
-      "answer": 0,
+      "answer": 3,
       "explanation": "x⁴ + 4x² + 4 − 4x² = (x² + 2)² − (2x)², which is a difference of two squares.",
       "lesson": "Factorizing by Grouping"
     },
@@ -206,12 +262,12 @@
       "section": "Geometry",
       "text": "Which of the following is NOT enough for two triangles to be congruent?",
       "choices": [
-        "The three pairs of corresponding sides are congruent",
-        "In two right triangles, the hypotenuse and one leg are congruent",
+        "The three pairs of corresponding angles are congruent",
         "Two sides and the included angle are congruent",
-        "The three pairs of corresponding angles are congruent"
+        "The three pairs of corresponding sides are congruent",
+        "In two right triangles, the hypotenuse and one leg are congruent"
       ],
-      "answer": 3,
+      "answer": 0,
       "explanation": "Two triangles can have equal angles while one is bigger than the other, so angles alone are not enough.",
       "lesson": "Congruence"
     },
@@ -220,12 +276,12 @@
       "section": "Geometry",
       "text": "If Δ ABC ≅ Δ XYZ, AB = (2x + 1) cm and XY = 9 cm, then x = ......",
       "choices": [
-        "3",
-        "4",
         "5",
-        "9"
+        "9",
+        "4",
+        "3"
       ],
-      "answer": 1,
+      "answer": 2,
       "explanation": "Corresponding sides of congruent triangles are equal: 2x + 1 = 9, so x = 4.",
       "lesson": "Congruence"
     },
@@ -235,12 +291,12 @@
       "text": "In the figure, AC ∩ DB = {H}, HA = HD and m(∠A) = m(∠D). The triangles AHB and DHC are congruent by ......",
       "image": "https://edulink-app-ac5cd.ondigitalocean.app/quiz-assets/math/p2-bowtie.png",
       "choices": [
-        "the hypotenuse and a leg (RHS)",
-        "two angles and the included side (ASA)",
+        "three sides (SSS)",
         "two sides and the included angle (SAS)",
-        "three sides (SSS)"
+        "the hypotenuse and a leg (RHS)",
+        "two angles and the included side (ASA)"
       ],
-      "answer": 1,
+      "answer": 3,
       "explanation": "∠A ≅ ∠D (given), HA = HD (given) and ∠AHB ≅ ∠DHC (vertically opposite), so the triangles are congruent by ASA.",
       "lesson": "Congruence"
     },
@@ -251,12 +307,40 @@
       "image": "https://edulink-app-ac5cd.ondigitalocean.app/quiz-assets/math/p2-kite.png",
       "choices": [
         "19 cm",
-        "12 cm",
+        "24 cm",
         "35 cm",
-        "24 cm"
+        "12 cm"
       ],
-      "answer": 3,
+      "answer": 1,
       "explanation": "From the congruence AD = AC = 7 cm and BC = BD = 5 cm, so the perimeter is 7 + 7 + 5 + 5 = 24 cm.",
+      "lesson": "Congruence"
+    },
+    {
+      "type": "mcq",
+      "section": "Geometry",
+      "text": "If Δ ABC ≅ Δ DEF, m(∠A) = 50° and m(∠E) = 70°, then m(∠F) = ......",
+      "choices": [
+        "70°",
+        "50°",
+        "60°",
+        "120°"
+      ],
+      "answer": 2,
+      "explanation": "Corresponding angles of congruent triangles are equal: m(∠D) = m(∠A) = 50°. The angles of triangle DEF add up to 180°: m(∠F) = 180° − (50° + 70°) = 60°.",
+      "lesson": "Congruence"
+    },
+    {
+      "type": "mcq",
+      "section": "Geometry",
+      "text": "In the two right-angled triangles ABC and XYZ, m(∠B) = m(∠Y) = 90°, AC = XZ and AB = XY. The two triangles are congruent by ......",
+      "choices": [
+        "the hypotenuse and a leg (RHS)",
+        "two angles and the included side (ASA)",
+        "two sides and the included angle (SAS)",
+        "they are not necessarily congruent"
+      ],
+      "answer": 0,
+      "explanation": "AC and XZ are the hypotenuses and AB and XY are legs, so the right triangles are congruent by the hypotenuse and a leg (RHS). It is not SAS, because the right angle is not between AC and AB.",
       "lesson": "Congruence"
     },
     {
@@ -264,12 +348,12 @@
       "section": "Geometry",
       "text": "Which of the following could be the side lengths of a right-angled triangle?",
       "choices": [
-        "9 , 12 , 15",
-        "9 , 8 , 5",
         "7 , 7 , 5",
-        "8 , 13 , 15"
+        "8 , 13 , 15",
+        "9 , 12 , 15",
+        "9 , 8 , 5"
       ],
-      "answer": 0,
+      "answer": 2,
       "explanation": "15² = 225 and 9² + 12² = 81 + 144 = 225: the square of the longest side equals the sum of the squares of the other two.",
       "lesson": "Pythagoras' Theorem and its Converse"
     },
@@ -278,12 +362,12 @@
       "section": "Geometry",
       "text": "A triangle with sides 12 cm, 10 cm and 7 cm is ......",
       "choices": [
-        "right-angled",
-        "obtuse-angled",
         "acute-angled",
-        "impossible to draw"
+        "impossible to draw",
+        "right-angled",
+        "obtuse-angled"
       ],
-      "answer": 2,
+      "answer": 0,
       "explanation": "The longest side squared is 12² = 144, the other two give 10² + 7² = 149, and 144 < 149, so the triangle is acute-angled.",
       "lesson": "Pythagoras' Theorem and its Converse"
     },
@@ -319,116 +403,30 @@
     {
       "type": "mcq",
       "section": "Geometry",
-      "text": "In the figure, E is the midpoint of AB, D is the midpoint of AC, ED = (x + 2) cm and BC = 8 cm. Then x = ......",
-      "image": "https://edulink-app-ac5cd.ondigitalocean.app/quiz-assets/math/p2-midsegment.png",
+      "text": "A rectangular swimming pool is 40 m long and 30 m wide. Mariam swims along its diagonal. The distance she swims is ......",
       "choices": [
-        "4",
-        "6",
-        "2",
-        "14"
-      ],
-      "answer": 2,
-      "explanation": "The midsegment of a triangle is half the third side: x + 2 = 8 ÷ 2 = 4, so x = 2.",
-      "lesson": "Applications of Parallelism"
-    },
-    {
-      "type": "mcq",
-      "section": "Geometry",
-      "text": "If D, E and F are the midpoints of the sides of triangle ABC whose perimeter is 18 cm, the perimeter of triangle DEF is ......",
-      "choices": [
-        "9 cm",
-        "6 cm",
-        "36 cm",
-        "18 cm"
-      ],
-      "answer": 0,
-      "explanation": "Each side of DEF is a midsegment, half a side of ABC, so its perimeter is half: 18 ÷ 2 = 9 cm.",
-      "lesson": "Applications of Parallelism"
-    },
-    {
-      "type": "mcq",
-      "section": "Geometry",
-      "text": "In triangle ABC, D is the midpoint of AB, and DE // BC meets AC at E. If AC = 10 cm, then AE = ......",
-      "choices": [
-        "10 cm",
-        "2.5 cm",
-        "5 cm",
-        "20 cm"
-      ],
-      "answer": 2,
-      "explanation": "A line drawn from the midpoint of one side parallel to another side bisects the third side, so E is the midpoint of AC and AE = 5 cm.",
-      "lesson": "Applications of Parallelism"
-    },
-    {
-      "type": "mcq",
-      "section": "Geometry",
-      "text": "If l1 // l2 // l3, one transversal cuts them at A, B, C with AB = BC, and another cuts them at D, E, F with DE = 6 cm, then EF = ......",
-      "choices": [
-        "6 cm",
-        "9 cm",
-        "3 cm",
-        "12 cm"
-      ],
-      "answer": 0,
-      "explanation": "If parallel lines cut equal parts on one transversal, they cut equal parts on any other transversal.",
-      "lesson": "Applications of Parallelism"
-    },
-    {
-      "type": "mcq",
-      "section": "Geometry",
-      "text": "In the figure, G is the point of intersection of the medians of triangle ABC and AD = 15 cm. Then AG = ......",
-      "image": "https://edulink-app-ac5cd.ondigitalocean.app/quiz-assets/math/p2-medians.png",
-      "choices": [
-        "5 cm",
-        "12 cm",
-        "7.5 cm",
-        "10 cm"
-      ],
-      "answer": 3,
-      "explanation": "The medians meet at a point that divides each median in the ratio 2 : 1 from the vertex: AG = 2/3 × 15 = 10 cm.",
-      "lesson": "Medians of the Triangle"
-    },
-    {
-      "type": "mcq",
-      "section": "Geometry",
-      "text": "In triangle ABC, right-angled at B, BD is a median and AC = 16 cm. Then BD = ......",
-      "choices": [
-        "4 cm",
-        "8 cm",
-        "32 cm",
-        "16 cm"
+        "70 m",
+        "50 m",
+        "35 m",
+        "10 m"
       ],
       "answer": 1,
-      "explanation": "The median from the right angle of a right triangle is half the hypotenuse: 16 ÷ 2 = 8 cm.",
-      "lesson": "Medians of the Triangle"
+      "explanation": "The diagonal is the hypotenuse of a right triangle with legs 40 m and 30 m: 40² + 30² = 1600 + 900 = 2500, so the diagonal is 50 m.",
+      "lesson": "Pythagoras' Theorem and its Converse"
     },
     {
       "type": "mcq",
       "section": "Geometry",
-      "text": "In triangle ABC, AD is a median and AD = ½ BC. Then m(∠BAC) = ......",
+      "text": "A triangle with sides 40 cm, 9 cm and 41 cm is ......",
       "choices": [
-        "60°",
-        "90°",
-        "120°",
-        "45°"
-      ],
-      "answer": 1,
-      "explanation": "If a median of a triangle is half the side it is drawn to, the angle at its vertex is a right angle.",
-      "lesson": "Medians of the Triangle"
-    },
-    {
-      "type": "mcq",
-      "section": "Geometry",
-      "text": "In triangle ABC, right-angled at B, BD is a median, G is the point of intersection of the medians and BG = 6 cm. Then AC = ......",
-      "choices": [
-        "24 cm",
-        "9 cm",
-        "12 cm",
-        "18 cm"
+        "impossible to draw",
+        "acute-angled",
+        "obtuse-angled",
+        "right-angled"
       ],
       "answer": 3,
-      "explanation": "BG = 2/3 BD, so BD = 9 cm, and BD is half the hypotenuse, so AC = 18 cm.",
-      "lesson": "Medians of the Triangle"
+      "explanation": "41² = 1681 and 40² + 9² = 1600 + 81 = 1681. The square of the longest side equals the sum of the squares of the other two, so by the converse of Pythagoras' theorem the triangle is right-angled.",
+      "lesson": "Pythagoras' Theorem and its Converse"
     }
   ]
 }
