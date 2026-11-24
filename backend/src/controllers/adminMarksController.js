@@ -14,6 +14,7 @@ const { computeWeekScores, toWeekStart, maxScoresFor } = require("../utils/weekS
 const { markedWeeks, termOfDate } = require("../utils/schoolMonths");
 const { rosterWhere } = require("../utils/secondLanguage");
 const { skippedIn, skippedColumns, closedMessage } = require("../utils/markingSkips");
+const { joinWaiting } = require("../utils/classMoves");
 const {
   isAbsent,
   isWithdrawn,
@@ -330,6 +331,9 @@ exports.saveWeek = async (req, res) => {
     if (overrides.length) await CourseworkOverride.bulkWrite(overrides);
     if (evaluations.length) await WeeklyEvaluation.bulkWrite(evaluations);
     if (notebooks.length) await ClassworkNotebook.bulkWrite(notebooks);
+    // The week is recorded here now: marks pupils brought from their old
+    // class for it join it (utils/classMoves.js).
+    await joinWaiting(sheet.classroom._id, "week", { subject: sheet.subject._id, weekStart });
 
     return res.status(200).json({
       success: true,
@@ -445,6 +449,12 @@ exports.saveTest = async (req, res) => {
       );
     }
     await TermTest.bulkWrite(ops);
+    await joinWaiting(sheet.classroom._id, "term", {
+      subject: sheet.subject._id,
+      academicYear: sheet.classroom.academicYear,
+      term: which.term,
+      testNo: which.testNo,
+    });
 
     return res.status(200).json({
       success: true,

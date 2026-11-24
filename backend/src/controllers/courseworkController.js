@@ -34,6 +34,7 @@ const {
 } = require("../utils/absentMark");
 const { weekName, marksBefore, tellMarks, noticeValue } = require("../utils/studentNotices");
 const { skippedIn, closedFor, closedMessage, outOf, skipsInWindow, skipsAt } = require("../utils/markingSkips");
+const { inClass, joinWaiting, NOT_IN_CLASS } = require("../utils/classMoves");
 
 const round1 = (n) =>
   n === null || n === undefined || Number.isNaN(n) ? null : Math.round(n * 10) / 10;
@@ -474,10 +475,19 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
     });
     if (!subjectId) return undefined;
 
+    // Only pupils in the class now: one who moved out is dropped, never
+    // filed back under this class or cleared from the one they're in now
+    // (utils/classMoves.js).
+    const enrolled = await inClass(classroomId, list.map((entry) => entry.studentId));
+    const ours = list.filter((entry) => enrolled.has(String(entry.studentId)));
+    if (ours.length === 0) {
+      return res.status(400).json({ success: false, message: NOT_IN_CLASS });
+    }
+
     // A column taken off this week (utils/markingSkips.js) takes no mark. A
     // "back to automatic" for one is harmless and simply dropped.
     const skipped = await skippedIn(classroom._id, subjectId, weekStart);
-    for (const entry of list) {
+    for (const entry of ours) {
       const closed = EDITABLE_COLUMNS.find(
         (column) => skipped.has(column) && entry[column] !== null && entry[column] !== undefined,
       );
@@ -485,7 +495,7 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
         return res.status(400).json({ success: false, message: closedMessage(closed, weekStart) });
       }
     }
-    const entries = list.map((entry) =>
+    const entries = ours.map((entry) =>
       Object.fromEntries(Object.entries(entry).filter(([column]) => !skipped.has(column))),
     );
 
@@ -576,6 +586,9 @@ exports.saveWeekCourseworkOverrides = async (req, res) => {
 
     if (overrideOps.length > 0) await CourseworkOverride.bulkWrite(overrideOps);
     if (classworkOps.length > 0) await ClassworkNotebook.bulkWrite(classworkOps);
+    // The week is recorded here now: marks pupils brought from their old
+    // class for it join it.
+    await joinWaiting(classroomId, "week", { subject: subjectId, weekStart });
 
     const columns = {
       homeworkScore: { label: "الواجب", max: maxScores.homeworkScore },

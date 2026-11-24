@@ -7,6 +7,7 @@ const { schemeForClassroom, SCHEMES } = require("../utils/gradebook");
 const { rosterWhere } = require("../utils/secondLanguage");
 const { isAbsent, isWithdrawn, readMark, markUpdate } = require("../utils/absentMark");
 const { marksBefore, tellMarks, noticeValue } = require("../utils/studentNotices");
+const { joinWaiting } = require("../utils/classMoves");
 
 // The two tests of a term on the weekly40 scheme — the screen that replaces
 // "اختبار الشهر" for those classrooms. See models/TermTest.js.
@@ -183,6 +184,9 @@ exports.saveBulkTermTests = async (req, res) => {
     );
 
     if (ops.length) await TermTest.bulkWrite(ops);
+    // The test is recorded here now: marks pupils brought from their old
+    // class for it join it (utils/classMoves.js).
+    await joinWaiting(classroomId, "term", { subject: subjectId, academicYear: classroom.academicYear, term, testNo });
 
     await tellMarks({
       subjectId,

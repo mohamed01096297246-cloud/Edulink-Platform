@@ -8,6 +8,7 @@ const { rosterWhere } = require("../utils/secondLanguage");
 const { isAbsent, isWithdrawn, readMark, markUpdate } = require("../utils/absentMark");
 const { weekName, marksBefore, tellMarks, noticeValue } = require("../utils/studentNotices");
 const { skippedIn, closedMessage } = require("../utils/markingSkips");
+const { inClass, joinWaiting, NOT_IN_CLASS } = require("../utils/classMoves");
 
 exports.getClassroomClassworkNotebook = async (req, res) => {
   try {
@@ -110,8 +111,8 @@ exports.saveBulkClassworkNotebook = async (req, res) => {
         message: "الدرجات لازم تكون بين 0 و5، رقم صحيح أو بربع أو نص درجة (زي 4.5 أو 3.25)، أو «غ» للغايب، أو «م» للمنقطع.",
       });
     }
-    const marked = read.filter(({ mark }) => mark.value !== null);
-    if (marked.length === 0) {
+    const entered = read.filter(({ mark }) => mark.value !== null);
+    if (entered.length === 0) {
       return res
         .status(400)
         .json({ success: false, message: "أدخل درجة طالب واحد على الأقل." });
@@ -132,6 +133,14 @@ exports.saveBulkClassworkNotebook = async (req, res) => {
       marks: true,
     });
     if (!subjectId) return undefined;
+
+    // Only pupils in the class now: one who moved out is dropped, not filed
+    // back under this class (utils/classMoves.js).
+    const enrolled = await inClass(classroomId, entered.map(({ record }) => record.studentId));
+    const marked = entered.filter(({ record }) => enrolled.has(String(record.studentId)));
+    if (marked.length === 0) {
+      return res.status(400).json({ success: false, message: NOT_IN_CLASS });
+    }
 
     if ((await skippedIn(classroomId, subjectId, weekStart)).has("classworkScore")) {
       return res.status(400).json({ success: false, message: closedMessage("classworkScore", weekStart) });
@@ -170,6 +179,9 @@ exports.saveBulkClassworkNotebook = async (req, res) => {
     );
 
     await ClassworkNotebook.bulkWrite(bulkOps);
+    // The week is recorded here now: marks pupils brought from their old
+    // class for it join it.
+    await joinWaiting(classroomId, "week", { subject: subjectId, weekStart });
 
     await tellMarks({
       subjectId,

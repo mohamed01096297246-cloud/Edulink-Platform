@@ -10,6 +10,7 @@ const Student = require("../models/Student");
 const Classroom = require("../models/Classroom");
 const AdmissionCandidate = require("../models/AdmissionCandidate");
 const { toLatinDigits } = require("../utils/phone");
+const { moveMarks, movedNotice } = require("../utils/classMoves");
 const {
   scopeFilter,
   sameSchool,
@@ -394,6 +395,11 @@ exports.updateStudent = async (req, res) => {
     const classroomChanged =
       req.body.classroom &&
       req.body.classroom !== (student.classroom || "").toString();
+    // A move to another class of the same grade takes the pupil's marks
+    // along (utils/classMoves.js). A move to another grade leaves them where
+    // they are: its subjects and marking scheme are another grade's.
+    const leaving = !gradeChanged && classroomChanged && student.classroom ? student.classroom : null;
+    let targetName = null;
 
     // Classroom assignment is manual, not auto-picked — a grade change
     // requires the admin to explicitly say which classroom in that grade
@@ -434,6 +440,7 @@ exports.updateStudent = async (req, res) => {
       });
 
       req.body.classroom = targetClassroom._id;
+      targetName = targetClassroom.name;
     } else if (req.body.classroom === "") {
       // The edit form now lets an admin leave a student unplaced ("بدون فصل
       // حاليًا"), which submits classroom as an empty string. Left in
@@ -487,10 +494,14 @@ exports.updateStudent = async (req, res) => {
       .populate("classroom", "name")
       .populate("grade", "name academicYear");
 
+    const marksNotice = leaving
+      ? movedNotice(await moveMarks(student._id, leaving, req.body.classroom), targetName)
+      : null;
+
     res.status(200).json({
       success: true,
       message: "sorry, the student's data has been updated successfully",
-      notice: parentEdit.notice,
+      notice: [parentEdit.notice, marksNotice].filter(Boolean).join(" ") || undefined,
       data: updatedStudent,
     });
   } catch (err) {

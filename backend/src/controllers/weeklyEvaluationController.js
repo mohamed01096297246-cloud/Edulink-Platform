@@ -9,6 +9,7 @@ const { rosterWhere } = require("../utils/secondLanguage");
 const { isAbsent, isWithdrawn, readMark, markUpdate } = require("../utils/absentMark");
 const { weekName, marksBefore, tellMarks, noticeValue } = require("../utils/studentNotices");
 const { skippedIn, closedMessage } = require("../utils/markingSkips");
+const { inClass, joinWaiting, NOT_IN_CLASS } = require("../utils/classMoves");
 
 exports.getClassroomWeeklyEvaluation = async (req, res) => {
   try {
@@ -143,11 +144,21 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
       return res.status(400).json({ success: false, message: closedMessage("weeklyEvalScore", weekStart) });
     }
 
+    // Only pupils in the class now: one who moved out is dropped, not filed
+    // back under this class (utils/classMoves.js).
+    const enrolled = await inClass(classroomId, gradesList.map((record) => record.studentId));
+    const rows = gradesList
+      .map((record, i) => ({ record, mark: marks[i] }))
+      .filter(({ record }) => enrolled.has(String(record.studentId)));
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, message: NOT_IN_CLASS });
+    }
+
     // «غ» and «م» set their flag; a number takes them off — but a 0 from an
     // app that can't send a letter (no `letters`) is a غ or م pupil's 0
     // saved back unchanged, and keeps it (utils/absentMark.js).
     const letters = Boolean(req.body.letters);
-    const bulkOps = gradesList.map((record, i) => ({
+    const bulkOps = rows.map(({ record, mark }) => ({
       updateOne: {
         filter: {
           student: record.studentId,
@@ -156,7 +167,7 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
         },
         update: markUpdate(
           "score",
-          marks[i],
+          mark,
           { classroom: classroomId, teacher: req.user.id, school: req.user.school },
           letters,
         ),
@@ -169,7 +180,7 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
       await WeeklyEvaluation.find({
         subject: subjectId,
         weekStart,
-        student: { $in: gradesList.map((record) => record.studentId) },
+        student: { $in: rows.map(({ record }) => record.studentId) },
       })
         .select("student score")
         .lean(),
@@ -177,13 +188,16 @@ exports.saveBulkWeeklyEvaluation = async (req, res) => {
     );
 
     await WeeklyEvaluation.bulkWrite(bulkOps);
+    // The week is recorded here now: marks pupils brought from their old
+    // class for it join it.
+    await joinWaiting(classroomId, "week", { subject: subjectId, weekStart });
 
     await tellMarks({
       subjectId,
       when: weekName(weekStart),
       columns: { score: { label: "التقييم الأسبوعي", max } },
       before,
-      after: gradesList.map((record, i) => ({ studentId: record.studentId, marks: { score: noticeValue(marks[i]) } })),
+      after: rows.map(({ record, mark }) => ({ studentId: record.studentId, marks: { score: noticeValue(mark) } })),
       createdBy: req.user.id,
       school: req.user.school,
     });
