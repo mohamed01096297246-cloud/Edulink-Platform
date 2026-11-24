@@ -1,0 +1,589 @@
+{
+  "title": "اختبار تدريبي على اختبار شهر نوفمبر - لغة ألمانية - الصف الأول الإعدادي",
+  "subjectName": "لغة ألمانية",
+  "direction": "ltr",
+  "scope": "Lektion 2, zweiter Teil: die Zahlen bis 20, „Wie alt bist du?“, andere vorstellen mit er / sie („Das ist …“).",
+  "source": "Content from Mohamed (2026-11-24): unit 2, lesson 2. Lektion 2 of «Ping Pong 1/1» (exam specification: Lektionen 1 & 2), as in the ministry weekly assessments of weeks 8 and 9 (German, 1st prep, 2026/2027). The student book is not in the ministry library.",
+  "passages": [
+    {
+      "key": "text",
+      "kind": "reading",
+      "title": "Text: Das ist Karim",
+      "text": "Das ist Karim. Er ist vierzehn Jahre alt und kommt aus Ägypten. Er wohnt jetzt in Wien in Österreich. Er ist neu in der Klasse 8b. Karim spricht Arabisch und ein bisschen Deutsch. Er spielt gern Fußball.\nDas ist Lena. Sie ist Karims Mitschülerin. Sie ist dreizehn Jahre alt und kommt aus Wien. Lena spricht Deutsch und Englisch. Sie spielt gern Tennis und Gitarre."
+    },
+    {
+      "key": "dialog",
+      "kind": "reading",
+      "title": "Dialog: Tina und Ralf",
+      "text": "Tina: ......(1)......\nRalf: Das ist Philip.\nTina: Wie alt ist er?\nRalf: ......(2)......\nTina: ......(3)......\nRalf: Ja, er spricht Deutsch.\nTina: Woher kommt er?\nRalf: ......(4)......"
+    }
+  ],
+  "questions": [
+    {
+      "type": "mcq",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Wie alt ist Karim?",
+      "choices": [
+        "Zwölf.",
+        "Acht.",
+        "Vierzehn.",
+        "Dreizehn."
+      ],
+      "answer": 2,
+      "explanation": "Im Text: „Er ist vierzehn Jahre alt.“",
+      "lesson": "Texterfassung: Das ist Karim"
+    },
+    {
+      "type": "mcq",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Woher kommt Karim?",
+      "choices": [
+        "Aus Ägypten.",
+        "In Wien.",
+        "Aus Wien.",
+        "Aus Österreich."
+      ],
+      "answer": 0,
+      "explanation": "Im Text: „… und kommt aus Ägypten.“ Woher? → aus …",
+      "lesson": "Texterfassung: Das ist Karim"
+    },
+    {
+      "type": "mcq",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Wo wohnt Karim jetzt?",
+      "choices": [
+        "In Kairo.",
+        "Aus Ägypten.",
+        "In Berlin.",
+        "In Wien."
+      ],
+      "answer": 3,
+      "explanation": "Im Text: „Er wohnt jetzt in Wien in Österreich.“ Wo? → in …",
+      "lesson": "Texterfassung: Das ist Karim"
+    },
+    {
+      "type": "mcq",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Was spricht Lena?",
+      "choices": [
+        "Arabisch und Deutsch.",
+        "Deutsch und Englisch.",
+        "Tennis und Gitarre.",
+        "Spanisch."
+      ],
+      "answer": 1,
+      "explanation": "Im Text: „Lena spricht Deutsch und Englisch.“",
+      "lesson": "Texterfassung: Das ist Karim"
+    },
+    {
+      "type": "mcq",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Was spielt Lena gern?",
+      "choices": [
+        "Fußball.",
+        "Tennis und Gitarre.",
+        "Karten.",
+        "Basketball."
+      ],
+      "answer": 1,
+      "explanation": "Im Text: „Sie spielt gern Tennis und Gitarre.“",
+      "lesson": "Texterfassung: Das ist Karim"
+    },
+    {
+      "type": "tf",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Karim ist neu in der Klasse 8b.",
+      "choices": [
+        "Richtig",
+        "Falsch"
+      ],
+      "answer": 0,
+      "explanation": "Richtig. Im Text: „Er ist neu in der Klasse 8b.“",
+      "lesson": "Texterfassung: Das ist Karim"
+    },
+    {
+      "type": "tf",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Lena ist vierzehn Jahre alt.",
+      "choices": [
+        "Richtig",
+        "Falsch"
+      ],
+      "answer": 1,
+      "explanation": "Falsch. Lena ist dreizehn Jahre alt. Karim ist vierzehn.",
+      "lesson": "Texterfassung: Das ist Karim"
+    },
+    {
+      "type": "tf",
+      "section": "Texterfassung",
+      "passage": "text",
+      "text": "Karim spricht sehr gut Deutsch.",
+      "choices": [
+        "Richtig",
+        "Falsch"
+      ],
+      "answer": 1,
+      "explanation": "Falsch. Karim spricht „ein bisschen Deutsch“ (شوية ألماني).",
+      "lesson": "Texterfassung: Das ist Karim"
+    },
+    {
+      "type": "mcq",
+      "section": "Zahlen",
+      "text": "12 + 5 = ......",
+      "choices": [
+        "fünfzehn",
+        "sechzehn",
+        "achtzehn",
+        "siebzehn"
+      ],
+      "answer": 3,
+      "explanation": "12 + 5 = 17 = siebzehn.",
+      "lesson": "Die Zahlen bis 20 und das Alter"
+    },
+    {
+      "type": "mcq",
+      "section": "Zahlen",
+      "text": "20 − 6 = ......",
+      "choices": [
+        "vierzehn",
+        "vierzig",
+        "dreizehn",
+        "sechzehn"
+      ],
+      "answer": 0,
+      "explanation": "20 − 6 = 14 = vierzehn. (vierzig = 40)",
+      "lesson": "Die Zahlen bis 20 und das Alter"
+    },
+    {
+      "type": "mcq",
+      "section": "Zahlen",
+      "text": "Welche Zahl ist „neunzehn“?",
+      "choices": [
+        "18",
+        "9",
+        "19",
+        "90"
+      ],
+      "answer": 2,
+      "explanation": "neun = 9, neunzehn = 19.",
+      "lesson": "Die Zahlen bis 20 und das Alter"
+    },
+    {
+      "type": "mcq",
+      "section": "Zahlen",
+      "text": "zehn, elf, zwölf, ......",
+      "choices": [
+        "vierzehn",
+        "zwanzig",
+        "dreißig",
+        "dreizehn"
+      ],
+      "answer": 3,
+      "explanation": "Nach zwölf (12) kommt dreizehn (13).",
+      "lesson": "Die Zahlen bis 20 und das Alter"
+    },
+    {
+      "type": "mcq",
+      "section": "Zahlen",
+      "text": "Wie schreibt man 16?",
+      "choices": [
+        "sechszehn",
+        "sechzehn",
+        "sechzig",
+        "sechsehn"
+      ],
+      "answer": 1,
+      "explanation": "16 = sechzehn: ohne „s“ nach „sech“ (sechs → sechzehn).",
+      "lesson": "Die Zahlen bis 20 und das Alter"
+    },
+    {
+      "type": "mcq",
+      "section": "Zahlen",
+      "text": "Wie schreibt man 17?",
+      "choices": [
+        "sibzehn",
+        "siebzig",
+        "siebzehn",
+        "siebenzehn"
+      ],
+      "answer": 2,
+      "explanation": "17 = siebzehn: ohne „en“ (sieben → siebzehn).",
+      "lesson": "Die Zahlen bis 20 und das Alter"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Das ist Martina. ...... ist 14 Jahre alt.",
+      "choices": [
+        "Sie",
+        "Ich",
+        "Er",
+        "Du"
+      ],
+      "answer": 0,
+      "explanation": "Martina ist ein Mädchen → sie.",
+      "lesson": "er / sie: andere vorstellen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Ralf ist Schüler. ...... ist neu hier.",
+      "choices": [
+        "Sie",
+        "Du",
+        "Er",
+        "Ich"
+      ],
+      "answer": 2,
+      "explanation": "Ralf ist ein Junge → er.",
+      "lesson": "er / sie: andere vorstellen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Wie alt ...... du? – Zwölf.",
+      "choices": [
+        "bist",
+        "ist",
+        "sind",
+        "bin"
+      ],
+      "answer": 0,
+      "explanation": "sein: ich bin, du bist, er / sie ist.",
+      "lesson": "Verben: sein, sprechen, kommen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Wie alt ...... Philip? – Er ist dreizehn.",
+      "choices": [
+        "bin",
+        "bist",
+        "sind",
+        "ist"
+      ],
+      "answer": 3,
+      "explanation": "Philip → er: er ist.",
+      "lesson": "Verben: sein, sprechen, kommen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Sandy ...... gut Deutsch.",
+      "choices": [
+        "sprechen",
+        "spricht",
+        "spreche",
+        "sprichst"
+      ],
+      "answer": 1,
+      "explanation": "sprechen: ich spreche, du sprichst, er / sie spricht.",
+      "lesson": "Verben: sein, sprechen, kommen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Ich ...... vierzehn Jahre alt.",
+      "choices": [
+        "sind",
+        "bin",
+        "ist",
+        "bist"
+      ],
+      "answer": 1,
+      "explanation": "sein: ich bin.",
+      "lesson": "Verben: sein, sprechen, kommen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Das ist Omar. Er ...... aus Kairo.",
+      "choices": [
+        "kommst",
+        "kommen",
+        "komme",
+        "kommt"
+      ],
+      "answer": 3,
+      "explanation": "kommen: ich komme, du kommst, er kommt.",
+      "lesson": "Verben: sein, sprechen, kommen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "...... alt bist du? – Elf.",
+      "choices": [
+        "Wie",
+        "Wo",
+        "Woher",
+        "Wer"
+      ],
+      "answer": 0,
+      "explanation": "Nach dem Alter fragen wir: Wie alt bist du?",
+      "lesson": "W-Fragen und Ja- / Nein-Fragen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "...... ist das? – Das ist Lisa.",
+      "choices": [
+        "Woher",
+        "Wo",
+        "Wer",
+        "Wie"
+      ],
+      "answer": 2,
+      "explanation": "Nach der Person fragen wir: Wer ist das?",
+      "lesson": "W-Fragen und Ja- / Nein-Fragen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "...... kommt er? – Aus Bremen.",
+      "choices": [
+        "Wie",
+        "Wer",
+        "Wo",
+        "Woher"
+      ],
+      "answer": 3,
+      "explanation": "Woher? → aus …: Er kommt aus Bremen.",
+      "lesson": "W-Fragen und Ja- / Nein-Fragen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "...... wohnt sie? – In Hamburg.",
+      "choices": [
+        "Wie alt",
+        "Wo",
+        "Woher",
+        "Wer"
+      ],
+      "answer": 1,
+      "explanation": "Wo? → in …: Sie wohnt in Hamburg.",
+      "lesson": "W-Fragen und Ja- / Nein-Fragen"
+    },
+    {
+      "type": "mcq",
+      "section": "Grammatik",
+      "text": "Bist du vierzehn? – Nein, ich bin ...... vierzehn. Ich bin dreizehn.",
+      "choices": [
+        "auch",
+        "nein",
+        "nicht",
+        "kein"
+      ],
+      "answer": 2,
+      "explanation": "Mit „nicht“ sagen wir das Gegenteil: Ich bin nicht vierzehn.",
+      "lesson": "W-Fragen und Ja- / Nein-Fragen"
+    },
+    {
+      "type": "mcq",
+      "section": "Was passt nicht?",
+      "text": "Welches Wort passt nicht? elf – zwölf – Tennis – fünfzehn",
+      "choices": [
+        "Tennis",
+        "fünfzehn",
+        "elf",
+        "zwölf"
+      ],
+      "answer": 0,
+      "explanation": "elf, zwölf und fünfzehn sind Zahlen. Tennis ist ein Sport.",
+      "lesson": "Die Zahlen bis 20 und das Alter"
+    },
+    {
+      "type": "mcq",
+      "section": "Was passt nicht?",
+      "text": "Welches Wort passt nicht? er – sie – ich – neu",
+      "choices": [
+        "er",
+        "sie",
+        "neu",
+        "ich"
+      ],
+      "answer": 2,
+      "explanation": "er, sie und ich sind Personalpronomen. „neu“ (جديد) ist ein Adjektiv.",
+      "lesson": "er / sie: andere vorstellen"
+    },
+    {
+      "type": "mcq",
+      "section": "Was passt nicht?",
+      "text": "Welches Wort passt nicht? Fußball – Tennis – Handball – Deutsch",
+      "choices": [
+        "Deutsch",
+        "Fußball",
+        "Handball",
+        "Tennis"
+      ],
+      "answer": 0,
+      "explanation": "Fußball, Tennis und Handball sind Sportarten. Deutsch ist eine Sprache.",
+      "lesson": "Spiele, Sprachen und Länder"
+    },
+    {
+      "type": "mcq",
+      "section": "Was passt nicht?",
+      "text": "Welches Wort passt nicht? Deutsch – Englisch – Arabisch – Österreich",
+      "choices": [
+        "Arabisch",
+        "Englisch",
+        "Deutsch",
+        "Österreich"
+      ],
+      "answer": 3,
+      "explanation": "Deutsch, Englisch und Arabisch sind Sprachen. Österreich ist ein Land.",
+      "lesson": "Spiele, Sprachen und Länder"
+    },
+    {
+      "type": "mcq",
+      "section": "Was passt nicht?",
+      "text": "Welches Wort passt nicht? Wer – Wie alt – Woher – Hallo",
+      "choices": [
+        "Wie alt",
+        "Hallo",
+        "Wer",
+        "Woher"
+      ],
+      "answer": 1,
+      "explanation": "Wer, Wie alt und Woher sind Fragewörter. Hallo ist ein Gruß.",
+      "lesson": "W-Fragen und Ja- / Nein-Fragen"
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Was passt in Lücke (1) im Dialog?",
+      "choices": [
+        "Wie heißt du?",
+        "Wer ist das?",
+        "Wie alt ist er?",
+        "Woher kommt er?"
+      ],
+      "answer": 1,
+      "explanation": "Ralf antwortet: „Das ist Philip.“ Also fragt Tina: Wer ist das?",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Was passt in Lücke (2) im Dialog?",
+      "choices": [
+        "Er spielt Tennis.",
+        "Er kommt aus Bonn.",
+        "Ich bin dreizehn.",
+        "Er ist dreizehn Jahre alt."
+      ],
+      "answer": 3,
+      "explanation": "Tina fragt: „Wie alt ist er?“ – Antwort mit er: Er ist dreizehn Jahre alt.",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Was passt in Lücke (3) im Dialog?",
+      "choices": [
+        "Spricht er Deutsch?",
+        "Sprichst du Deutsch?",
+        "Wo wohnt er?",
+        "Wie alt ist er?"
+      ],
+      "answer": 0,
+      "explanation": "Ralf antwortet: „Ja, er spricht Deutsch.“ Also fragt Tina: Spricht er Deutsch?",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Dialog",
+      "passage": "dialog",
+      "text": "Was passt in Lücke (4) im Dialog?",
+      "choices": [
+        "Er wohnt in Österreich.",
+        "Er ist vierzehn.",
+        "Er kommt aus Österreich.",
+        "Ich komme aus Österreich."
+      ],
+      "answer": 2,
+      "explanation": "Tina fragt: „Woher kommt er?“ – Antwort: Er kommt aus Österreich.",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Alltagssituationen",
+      "text": "Du fragst nach dem Alter. Was sagst du?",
+      "choices": [
+        "Wo wohnst du?",
+        "Wie heißt du?",
+        "Woher kommst du?",
+        "Wie alt bist du?"
+      ],
+      "answer": 3,
+      "explanation": "Nach dem Alter fragen wir: Wie alt bist du?",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Alltagssituationen",
+      "text": "Jemand fragt: „Wie alt bist du denn?“ Du antwortest: ......",
+      "choices": [
+        "Ich heiße Samira.",
+        "Zwölf.",
+        "Aus Ägypten.",
+        "In Kairo."
+      ],
+      "answer": 1,
+      "explanation": "Auf „Wie alt?“ antworten wir mit einer Zahl: Zwölf.",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Alltagssituationen",
+      "text": "Deine Mitschülerin fragt: „Bist du vierzehn?“ Du bist vierzehn. Du sagst: ......",
+      "choices": [
+        "Ja, ich bin dreizehn.",
+        "Nein, ich bin vierzehn.",
+        "Ja, ich bin vierzehn.",
+        "Nein, danke."
+      ],
+      "answer": 2,
+      "explanation": "Du bist vierzehn, also: Ja, ich bin vierzehn.",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Alltagssituationen",
+      "text": "Sabine fragt: „Bist du neu hier?“ Du bist neu. Du sagst: ......",
+      "choices": [
+        "Ja, ich bin neu hier.",
+        "Nein, ich bin elf.",
+        "Ja, ich bin neun.",
+        "Tut mir leid."
+      ],
+      "answer": 0,
+      "explanation": "Du bist neu, also: Ja, ich bin neu hier.",
+      "lesson": "Dialog und Alltagssituationen"
+    },
+    {
+      "type": "mcq",
+      "section": "Alltagssituationen",
+      "text": "Du zeigst ein Foto von Mona. Was sagst du?",
+      "choices": [
+        "Das ist Mona. Er ist zwölf.",
+        "Ich bin Mona.",
+        "Das ist Mona. Sie ist zwölf.",
+        "Wer ist Mona?"
+      ],
+      "answer": 2,
+      "explanation": "Wir stellen Mona vor: Das ist Mona. Mona ist ein Mädchen → sie.",
+      "lesson": "er / sie: andere vorstellen"
+    }
+  ]
+}
